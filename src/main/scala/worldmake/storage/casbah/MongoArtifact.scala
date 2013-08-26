@@ -1,4 +1,4 @@
-package worldmake.casbah
+package worldmake.storage.casbah
 
 import worldmake._
 import scala.collection.mutable

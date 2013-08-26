@@ -1,4 +1,4 @@
-package worldmake.casbah
+package worldmake.storage.casbah
 
 import com.mongodb.casbah.Imports._
 import worldmake._
