@@ -8,7 +8,7 @@ import scalax.file.Path
 import com.typesafe.scalalogging.slf4j.Logging
 import com.mongodb.casbah.MongoConnection
 import fuseexample.{EmergeWorld, ChinesePatentsTokenized}
-import worldmake.casbah.{RegisterURLHelpers, CasbahStorage}
+import worldmake.storage.casbah.{RegisterURLHelpers, CasbahStorage}
 import edu.umass.cs.iesl.scalacommons.util.Hash
 import java.io.InputStream
 import worldmake.storage.{FileStore, StorageSetter}
