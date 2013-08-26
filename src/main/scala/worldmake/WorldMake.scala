@@ -7,11 +7,11 @@ import scalax.file.Path
 
 import com.typesafe.scalalogging.slf4j.Logging
 import com.mongodb.casbah.MongoConnection
-import fuseexample.{EmergeWorld, ChinesePatentsTokenized}
 import worldmake.storage.casbah.{RegisterURLHelpers, CasbahStorage}
 import edu.umass.cs.iesl.scalacommons.util.Hash
 import java.io.InputStream
 import worldmake.storage.{FileStore, StorageSetter}
+import worldmake.lib.MercurialWorld
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -19,13 +19,13 @@ import worldmake.storage.{FileStore, StorageSetter}
 object WorldMake extends Logging {
 
 
-  def main(args: Array[String]){
+  def main(world: MercurialWorld, args: Array[String]){
     
     val dbname = args(0)
     StorageSetter(new CasbahStorage(MongoConnection("localhost"), dbname))
 
     // temp hack
-    val targets:Map[String,Derivation[_]] = Map("chpat"->EmergeWorld.allChinesePatentsTokenized)
+   // val targets:Map[String,Derivation[_]] = Map("chpat"->EmergeWorld.allChinesePatentsTokenized)
     
     val command = args(1)
     command match {
@@ -33,7 +33,7 @@ object WorldMake extends Logging {
         val target = args(2)
         //val derivationId = symbolTable.getProperty(target) 
         //val derivationArtifact = Storage.artifactStore.get(derivationId)
-        val derivation:Derivation[_] = targets(target)
+        val derivation:Derivation[_] = world.targets(target)
         val result = derivation.resolveOne
         logger.info("Done: " + result.provenanceId)
         logger.info(result.artifact.value.toString)
@@ -42,7 +42,7 @@ object WorldMake extends Logging {
         val target = args(2)
         //val derivationId = symbolTable.getProperty(target) 
         //val derivationArtifact = Storage.artifactStore.get(derivationId)
-        val derivation:Derivation[_] = targets(target)
+        val derivation:Derivation[_] = world.targets(target)
         logger.info(derivation.printTree(""))
       }
       //case "import"

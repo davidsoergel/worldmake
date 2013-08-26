@@ -3,7 +3,7 @@ package worldmake.lib
 import scalax.file.Path
 import edu.umass.cs.iesl.scalacommons.util.Hash
 import worldmake.lib.MercurialWorkspaces
-import worldmake.ExternalPathDerivation
+import worldmake.{Derivation, ExternalPathDerivation}
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -25,4 +25,5 @@ abstract class MercurialWorld {
     case (k: String, v: String) => k + v
   }).mkString))
   
+  val targets:Map[String,Derivation[_]]
 }
