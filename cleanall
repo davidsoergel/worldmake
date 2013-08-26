@@ -1,0 +1,3 @@
+#!/bin/sh
+find . -name target -exec rm -rf {} \;
+rm -rf prj-openreview-front/scalate*

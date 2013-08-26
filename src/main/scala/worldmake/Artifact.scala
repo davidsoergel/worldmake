@@ -1,0 +1,173 @@
+package worldmake
+
+
+import java.io.InputStream
+import edu.umass.cs.iesl.scalacommons.util.Hash
+import scalax.file.Path
+import edu.umass.cs.iesl.scalacommons.Tap._
+import WorldMakeConfig.WMHash
+import worldmake.storage.{Storage, Identifier}
+import com.typesafe.scalalogging.slf4j.Logging
+
+/**
+ * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
+ */
+
+trait Hashable {
+  /**
+   * A canonical serialization of the entire artifact, or at least of sufficient identifying information to establish content equivalence.  Need not be sufficient to reconstruct the object.
+   * @return
+   */
+  protected def bytesForContentHash: InputStream
+
+  def contentHashBytes = WMHash(bytesForContentHash)
+}
+
+trait Artifact[T] {
+  //def artifactId: Identifier[Artifact[T]]
+
+  def value: T
+
+  def contentHashBytes: Array[Byte]
+
+  def contentHash = Hash.toHex(contentHashBytes)
+
+  // An Artifact may be wrapped in a ConstantProvenance, so it's helpful for it to provide an ID up front
+  // that is: this is the ID that should be used when the artifact is stored as a constant.  If it is stored as a derivation, then this zhourd be ignored.
+  def constantId : Identifier[Artifact[T]] = Identifier[Artifact[T]](contentHash)
+}
+
+trait ContentHashableArtifact[T <: Hashable] extends Artifact[T] {
+  def contentHashBytes: Array[Byte] = value.contentHashBytes
+}
+
+//trait InputArtifact[T] extends Artifact[T]
+/*
+trait InputArtifact[T] extends Artifact[T] { //with ConstantProvenance[T] {
+  def value: T
+
+  def resolve = this
+
+  def status = Constant
+
+  //def derivationId = Identifier[Derivation[T]](artifactId.s)
+
+  // A ConstantArtifact will be automatically wrapped in a Provenance, so it's helpful for it to provide an ID up front
+  def provenanceId : Identifier[Provenance[T]]
+}*/
+
+abstract class MemoryArtifact[T](val value: T) extends Artifact[T]//extends ConstantArtifact[T]
+
+
+object StringArtifact {
+  def apply(s: String) = new MemoryStringArtifact(s) tap {(x:MemoryStringArtifact)=>Storage.provenanceStore.put(ConstantProvenance(x))}
+}
+
+trait StringArtifact extends Artifact[String] {
+  def description = value.take(80).replace("\n","\\n")
+}
+
+class MemoryStringArtifact(s: String) extends MemoryArtifact[String](s) with StringArtifact {
+  def contentHashBytes = Hash("SHA-256", s)
+
+  def output: Option[Artifact[String]] = Some(this)
+}
+
+
+object IntegerArtifact {
+  def apply(s: Integer) = new MemoryIntegerArtifact(s) //tap Storage.provenanceStore.put
+}
+
+trait IntegerArtifact extends Artifact[Integer] {
+  def description = value.toString
+
+  override def constantId = Identifier[Artifact[Integer]]("Integer(" + value.toString + ")") //perf
+}
+
+class MemoryIntegerArtifact(s: Integer) extends MemoryArtifact[Integer](s) with IntegerArtifact {
+  def contentHashBytes = Hash("SHA-256", s.toString)
+  def output: Option[Artifact[Integer]] = Some(this)
+}
+
+
+object DoubleArtifact {
+  def apply(s: Double) = new MemoryDoubleArtifact(s) //tap Storage.provenanceStore.put
+}
+
+trait DoubleArtifact extends Artifact[Double] {
+  def description = value.toString
+
+  override def constantId = Identifier[Artifact[Double]]("Double(" + value.toString + ")")
+}
+
+class MemoryDoubleArtifact(s: Double) extends MemoryArtifact[Double](s) with DoubleArtifact {
+  def contentHashBytes = Hash("SHA-256", s.toString)
+  def output: Option[Artifact[Double]] = Some(this)
+
+}
+
+
+object ExternalPathArtifact {
+  def apply(s: Path) = new MemoryExternalPathArtifact(s) //tap Storage.provenanceStore.put
+
+}
+
+trait ExternalPathArtifact extends Artifact[Path] {
+  def description = value.toAbsolute.path
+
+  def abspath = value.toAbsolute.path
+
+  // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
+  override def constantId = Identifier[Artifact[Path]]("Path(" + abspath + ")")
+
+
+  // Navigating inside an artifact is a derivation; it shouldn't be possible to do it in the raw sense
+  // def /(s: String): ExternalPathArtifact = value / s
+
+}
+
+class MemoryExternalPathArtifact(path: Path) extends MemoryArtifact[Path](path) with ExternalPathArtifact with Logging {
+  // ** require(path.exists)
+  
+  if(!path.exists) {
+    logger.warn("External path artifact does not exist: " + path)
+  }
+  
+  require(!path.toAbsolute.path.endsWith(".hg"))
+  //   If it's a directory, this should in some sense include all the files in it (maybe just tgz?)-- but be careful about ignoring irrelevant metadata.
+  /*override protected def bytesForContentHash = if (path.isFile) new FileInputStream(path.fileOption.get)
+  else {
+    path.children()
+  }*/
+  lazy val contentHashBytes: Array[Byte] = if (path.isFile) Hash("SHA-256", path.fileOption.get)
+  else {
+    Hash("SHA-256", children.map(_.contentHash).mkString)
+  }
+  //override 
+  private lazy val children: Seq[ExternalPathArtifact] = {
+    //val isf = path.isFile
+    if (path.nonExistent || path.isFile) Nil else path.children().toSeq.filter(p=>{!WorldMakeConfig.ignoreFilenames.contains(p.name)}).sorted.map(new MemoryExternalPathArtifact(_))
+  }
+  /*
+  override def /(s: String): ExternalPathArtifact = new MemoryExternalPathArtifact(path / s)
+ */
+
+  def output: Option[ExternalPathArtifact] = Some(this)
+
+}
+
+
+/*
+trait VersionedImmutableInput[T]  extends InputArtifact[T]{
+  def getVersion(v:String) : Derivation[T]
+  def getLatestVersion : String
+}
+
+trait TimestampedMutableInput[T] extends InputArtifact[T] {
+
+}
+
+class UrlInputArtifact[T](url:URL) extends TimestampedMutableInput[T] {
+
+}
+*/
