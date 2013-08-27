@@ -11,16 +11,16 @@ abstract class MercurialWorld {
 
   protected val reposRequestedVersions: Map[String, (String, String)]
 
-  private val reposActualVersions: Map[String, String] = reposRequestedVersions.map({
+  private lazy val reposActualVersions: Map[String, String] = reposRequestedVersions.map({
     case (k, (b, "latest")) => (k, MercurialWorkspaces.getLatestVersions(k)(b))
     case (k, (b, v)) => (k, v)
   })
 
-  val workingDirs: Map[String, ExternalPathDerivation] = reposActualVersions.map({
+  lazy val workingDirs: Map[String, ExternalPathDerivation] = reposActualVersions.map({
     case (k: String, v: String) => (k, MercurialWorkspaces.get(k, v))
   })
 
-  val inputHash = Hash.toHex(WMHash(reposActualVersions.map({
+  lazy val inputHash = Hash.toHex(WMHash(reposActualVersions.map({
     case (k: String, v: String) => k + v
   }).mkString))
 

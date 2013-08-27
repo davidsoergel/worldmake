@@ -12,10 +12,13 @@ object WorldMakeBuild extends Build {
 
   //override def settings = super.settings ++ org.sbtidea.SbtIdeaPlugin.ideaSettings
 
-  val deps = Seq(ieslScalaCommons("latest.integration") ,scalaIoFile("0.4.2"),
-    typesafeConfig(), "org.mongodb" %% "casbah" % "2.5.0",
+  val deps = Seq(ieslScalaCommons("latest.integration") ,
+    scalaIoFile("0.4.2"),
+    typesafeConfig(), 
+    "org.mongodb" %% "casbah" % "2.5.0",
     scalazCore("7.0.0"),
-    "org.scalaz" %% "scalaz-concurrent" % "7.0.0",scalatime()
+    "org.scalaz" %% "scalaz-concurrent" % "7.0.0",
+    scalatime()
   )
 /*    dsutils(),
     commonsIo(),
