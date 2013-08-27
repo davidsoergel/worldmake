@@ -21,7 +21,7 @@ abstract class MercurialWorld {
     case (k: String, v: String) => (k, MercurialWorkspaces.get(k, v))
   })
 
-  val inputHash = Hash.toHex(Hash("SHA-256", reposActualVersions.map({
+  val inputHash = Hash.toHex(WMHash(reposActualVersions.map({
     case (k: String, v: String) => k + v
   }).mkString))
   

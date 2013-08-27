@@ -2,14 +2,13 @@
 package worldmake
 
 import com.typesafe.config.{ConfigFactory, Config}
-import java.util.Properties
 import scalax.file.Path
 
 import com.typesafe.scalalogging.slf4j.Logging
 import com.mongodb.casbah.MongoConnection
-import worldmake.storage.casbah.{RegisterURLHelpers, CasbahStorage}
+import worldmake.storage.casbah.CasbahStorage
 import edu.umass.cs.iesl.scalacommons.util.Hash
-import java.io.InputStream
+import java.io.{File, InputStream}
 import worldmake.storage.{FileStore, StorageSetter}
 import worldmake.lib.MercurialWorld
 
@@ -19,21 +18,21 @@ import worldmake.lib.MercurialWorld
 object WorldMake extends Logging {
 
 
-  def main(world: MercurialWorld, args: Array[String]){
-    
+  def main(world: MercurialWorld, args: Array[String]) {
+
     val dbname = args(0)
     StorageSetter(new CasbahStorage(MongoConnection("localhost"), dbname))
 
     // temp hack
-   // val targets:Map[String,Derivation[_]] = Map("chpat"->EmergeWorld.allChinesePatentsTokenized)
-    
+    // val targets:Map[String,Derivation[_]] = Map("chpat"->EmergeWorld.allChinesePatentsTokenized)
+
     val command = args(1)
     command match {
       case "make" => {
         val target = args(2)
         //val derivationId = symbolTable.getProperty(target) 
         //val derivationArtifact = Storage.artifactStore.get(derivationId)
-        val derivation:Derivation[_] = world.targets(target)
+        val derivation: Derivation[_] = world.targets(target)
         val result = derivation.resolveOne
         logger.info("Done: " + result.provenanceId)
         logger.info(result.artifact.value.toString)
@@ -42,49 +41,62 @@ object WorldMake extends Logging {
         val target = args(2)
         //val derivationId = symbolTable.getProperty(target) 
         //val derivationArtifact = Storage.artifactStore.get(derivationId)
-        val derivation:Derivation[_] = world.targets(target)
+        val derivation: Derivation[_] = world.targets(target)
         logger.info(derivation.printTree(""))
       }
       //case "import"
       //case "set"
-        
-        
-        // some required derivations have errors.  Are you sure?
-        // 1) examine errors
-        // 2) compute everything else
-        // 3) try again including the errored derivations
+
+
+      // some required derivations have errors.  Are you sure?
+      // 1) examine errors
+      // 2) compute everything else
+      // 3) try again including the errored derivations
     }
-    
+
   }
 }
 
 object WorldMakeConfig {
 
 
-  val conf:Config = ConfigFactory.load()
-  
-  val mercurialLocalRoot : Path = Path.fromString(conf.getString("hglocal"))
-  val mercurialRemoteRoot : String = conf.getString("hgremote")
-  mercurialLocalRoot.createDirectory(createParents = true,failIfExists = false)
+  val conf: Config = ConfigFactory.load()
+
+  val mercurialLocalRoot: Path = Path.fromString(conf.getString("hglocal"))
+  val mercurialRemoteRoot: String = conf.getString("hgremote")
+  mercurialLocalRoot.createDirectory(createParents = true, failIfExists = false)
 
   val globalPath: String = conf.getString("globalpath")
+
   import scala.collection.JavaConversions._
-  val ignoreFilenames : Seq[String] = conf.getStringList("ignoreFilenames")
-  
-  def globalEnvironment: Map[ String, String] = Map("PATH" -> WorldMakeConfig.globalPath)
+
+  val ignoreFilenames: Seq[String] = conf.getStringList("ignoreFilenames")
+
+  def globalEnvironment: Map[String, String] = Map("PATH" -> WorldMakeConfig.globalPath)
+
   def debugWorkingDirectories: Boolean = conf.getBoolean("debugWorkingDirectories")
-  
 
-  val fileStore = new FileStore( Path.fromString(conf.getString("filestore")))
 
-  val logStore = new FileStore( Path.fromString(conf.getString("logstore")))
+  val fileStore = new FileStore(Path.fromString(conf.getString("filestore")))
+
+  val logStore = new FileStore(Path.fromString(conf.getString("logstore")))
   //val artifactStore = new ArtifactStore(conf.getString("artifactstore"))
   //val symbolTable = new Properties("worldmake.symbols")
-  
+
   val prefixIncrement = "  |"
-  
+
   val HashType = "SHA-256"
+
+  def WMHash(s: String) = Hash(HashType, s)
+
+  def WMHash(s: InputStream) = Hash(HashType, s)
   
-  def WMHash(s:String) = Hash(HashType, s)
-  def WMHash(s:InputStream) = Hash(HashType, s)
+  def WMHash(s: File) = Hash(HashType, s)
+
+  def WMHashHex(s: String) = Hash.toHex(WMHash(s))
+
+  def WMHashHex(s: InputStream) = Hash.toHex(WMHash(s))
+  
+  def WMHashHex(s: File) = Hash.toHex(WMHash(s))
+
 }

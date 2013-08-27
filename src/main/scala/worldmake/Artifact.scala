@@ -68,7 +68,7 @@ trait StringArtifact extends Artifact[String] {
 }
 
 class MemoryStringArtifact(s: String) extends MemoryArtifact[String](s) with StringArtifact {
-  def contentHashBytes = Hash("SHA-256", s)
+  def contentHashBytes = WMHash(s)
 
   def output: Option[Artifact[String]] = Some(this)
 }
@@ -85,7 +85,7 @@ trait IntegerArtifact extends Artifact[Integer] {
 }
 
 class MemoryIntegerArtifact(s: Integer) extends MemoryArtifact[Integer](s) with IntegerArtifact {
-  def contentHashBytes = Hash("SHA-256", s.toString)
+  def contentHashBytes = WMHash(s.toString)
   def output: Option[Artifact[Integer]] = Some(this)
 }
 
@@ -101,7 +101,7 @@ trait DoubleArtifact extends Artifact[Double] {
 }
 
 class MemoryDoubleArtifact(s: Double) extends MemoryArtifact[Double](s) with DoubleArtifact {
-  def contentHashBytes = Hash("SHA-256", s.toString)
+  def contentHashBytes = WMHash(s.toString)
   def output: Option[Artifact[Double]] = Some(this)
 
 }
@@ -139,9 +139,9 @@ class MemoryExternalPathArtifact(path: Path) extends MemoryArtifact[Path](path) 
   else {
     path.children()
   }*/
-  lazy val contentHashBytes: Array[Byte] = if (path.isFile) Hash("SHA-256", path.fileOption.get)
+  lazy val contentHashBytes: Array[Byte] = if (path.isFile) WMHash(path.fileOption.get)
   else {
-    Hash("SHA-256", children.map(_.contentHash).mkString)
+    WMHash(children.map(_.contentHash).mkString)
   }
   //override 
   private lazy val children: Seq[ExternalPathArtifact] = {
@@ -156,6 +156,15 @@ class MemoryExternalPathArtifact(path: Path) extends MemoryArtifact[Path](path) 
 
 }
 
+
+
+class TraversableArtifact[T](val artifacts: Traversable[Artifact[T]]) extends Artifact[Traversable[T]] {
+  //def provenanceId = Identifier[Artifact[Traversable[T]]](UUID.randomUUID().toString)
+
+  def contentHashBytes = artifacts.toSeq.map(_.contentHashBytes).flatten.toArray
+
+  lazy val value = artifacts.map(_.value)
+}
 
 /*
 trait VersionedImmutableInput[T]  extends InputArtifact[T]{

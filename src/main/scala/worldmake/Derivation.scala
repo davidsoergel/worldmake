@@ -65,6 +65,11 @@ case object Error extends DerivationStatus("Error")
 
 object ConstantDerivation {
   def apply[T](p:ConstantProvenance[T]) = new ConstantDerivation(p)
+
+  implicit def fromString(s:String) : ConstantDerivation[String] = ConstantDerivation(ConstantProvenance(StringArtifact(s)))
+  implicit def fromDouble(s:Double) : ConstantDerivation[Double] = ConstantDerivation(ConstantProvenance(DoubleArtifact(s)))
+  implicit def fromInteger(s:Integer) : ConstantDerivation[Integer] = ConstantDerivation(ConstantProvenance(IntegerArtifact(s)))
+  implicit def fromPath(s:Path) : ConstantDerivation[Path] = ConstantDerivation(ConstantProvenance(ExternalPathArtifact(s)))
 }
 class ConstantDerivation[T](p:ConstantProvenance[T]) extends Derivation[T]  {
   def derivationId = Identifier[Derivation[T]](p.provenanceId.s)
@@ -226,7 +231,7 @@ object SystemDerivation {
 class SystemDerivation(val script: Derivation[String], namedDependencies: Map[String, Derivation[_]]) extends ExternalPathDerivation with DerivableDerivation[Path] with Logging {
 
   // todo: include self version number??
-  lazy val derivationId = Identifier[Derivation[Path]](Hash.toHex(Hash("SHA-256", script.derivationId.s + namedDependencies.map({
+  lazy val derivationId = Identifier[Derivation[Path]](Hash.toHex(WMHash(script.derivationId.s + namedDependencies.map({
     case (k, v) => k.toString + v.derivationId.s
   }))))
 
@@ -313,70 +318,6 @@ trait ExternalPathDerivation extends Derivation[Path] {
 }
 
 
-class IdentifiableFunction0[R](val id: String, f: Function0[R]) {
-  def apply() = f()
-}
-
-
-class Derivation0[R <: Hashable](f: IdentifiableFunction0[R]) extends DerivableDerivation[R] {
-  def dependencies = Set.empty
-
-  def derive: Provenance[R] with Successful[R] = {
-    val startTime = DateTime.now()
-    val result = new ContentHashableArtifact[R] {
-      def artifactId = Identifier[Artifact[R]](UUID.randomUUID().toString)
-
-      def value = f()
-    }
-    val endTime = DateTime.now()
-    SuccessfulProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId,ProvenanceStatus.Success, startTime = startTime, endTime = endTime, output = Some(result))
-  }
-
-  def derivationId = Identifier[Derivation[R]](Hash.toHex(Hash("SHA-256", f.id)))
-
-  def description = f.id + "() "
-}
-
-
-class IdentifiableFunction1[T1, R](val id: String, f: Function1[T1, R]) {
-  def apply(t1: T1) = f(t1)
-}
-
-
-class Derivation1[T1, R <: Hashable](f: IdentifiableFunction1[T1, R], a: Derivation[T1]) extends DerivableDerivation[R] {
-  def derive: Provenance[R] with Successful[R] = {
-
-    val startTime = DateTime.now()
-
-    val p = a.resolveOne
-    val result = new ContentHashableArtifact[R] {
-
-      def artifactId = Identifier[Artifact[R]](UUID.randomUUID().toString)
-
-      def value = f(p.artifact.value)
-    }
-    val endTime = DateTime.now()
-    SuccessfulProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId, ProvenanceStatus.Success, derivedFromUnnamed = Set(p), startTime = startTime, endTime = endTime, output = Some(result))
-  }
-
-  def derivationId = Identifier[Derivation[R]](Hash.toHex(Hash("SHA-256", f.id + a.derivationId)))
-
-  def description = f.id
-
-  def dependencies = Set(a)
-}
-
-
-
-
-
-class TraversableArtifact[T](val artifacts: Traversable[Artifact[T]]) extends Artifact[Traversable[T]] {
-  //def provenanceId = Identifier[Artifact[Traversable[T]]](UUID.randomUUID().toString)
-
-  def contentHashBytes = artifacts.toSeq.map(_.contentHashBytes).flatten.toArray
-
-  lazy val value = artifacts.map(_.value)
-}
 
 
 /*
@@ -399,7 +340,7 @@ class TraversableDerivation[T](xs: Traversable[Derivation[T]]) extends Derivable
   }
 
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
-  def derivationId = Identifier[Derivation[Traversable[T]]](Hash.toHex(Hash("SHA-256", xs.toSeq.map(_.derivationId).mkString)))
+  def derivationId = Identifier[Derivation[Traversable[T]]](Hash.toHex(WMHash(xs.toSeq.map(_.derivationId).mkString)))
 
   def description = ("Traversable(" + xs.map(_.description) + ")").take(40)
 
