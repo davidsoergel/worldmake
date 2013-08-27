@@ -7,6 +7,7 @@ import scalax.io.Resource
 import java.util.UUID
 import org.joda.time.DateTime
 import worldmake.storage.{Storage, Identifier}
+import scala.collection.immutable.Iterable
 
 //import java.lang.ProcessBuilder.Redirect
 
@@ -231,9 +232,12 @@ object SystemDerivation {
 class SystemDerivation(val script: Derivation[String], namedDependencies: Map[String, Derivation[_]]) extends ExternalPathDerivation with DerivableDerivation[Path] with Logging {
 
   // todo: include self version number??
-  lazy val derivationId = Identifier[Derivation[Path]](Hash.toHex(WMHash(script.derivationId.s + namedDependencies.map({
-    case (k, v) => k.toString + v.derivationId.s
-  }))))
+  lazy val derivationId = {
+    val dependencyInfos: Seq[String] = namedDependencies.map({
+      case (k, v) => k.toString + v.derivationId.s
+    }).toSeq.sorted
+    Identifier[Derivation[Path]](Hash.toHex(WMHash(script.derivationId.s + dependencyInfos.mkString(""))))
+  }
 
   val description = "result of: " + script.description
 
