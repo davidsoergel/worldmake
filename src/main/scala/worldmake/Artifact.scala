@@ -29,14 +29,13 @@ trait ContentHashableArtifact[T <: Hashable] extends Artifact[T] {
 }
 */
 
-trait Artifact[T] {
+trait Artifact[T] extends Hashable {
   //def artifactId: Identifier[Artifact[T]]
 
   def value: T
 
-  def contentHashBytes: Array[Byte]
+  //def contentHashBytes: Array[Byte]
 
-  def contentHash = Hash.toHex(contentHashBytes)
 
   // An Artifact may be wrapped in a ConstantProvenance, so it's helpful for it to provide an ID up front
   // that is: this is the ID that should be used when the artifact is stored as a constant.  If it is stored as a derivation, then this zhourd be ignored.
@@ -60,6 +59,20 @@ trait InputArtifact[T] extends Artifact[T] { //with ConstantProvenance[T] {
 }*/
 
 abstract class MemoryArtifact[T](val value: T) extends Artifact[T]//extends ConstantArtifact[T]
+
+// this is mostly useful for making constants Hashable
+object ConstantArtifact {
+
+  implicit def fromString(s: String): Artifact[String] =StringArtifact(s)
+
+  implicit def fromDouble(s: Double): Artifact[Double] = DoubleArtifact(s)
+
+  implicit def fromInteger(s: Integer): Artifact[Integer] = IntegerArtifact(s)
+
+  implicit def fromInt(s: Int): Artifact[Integer] = IntegerArtifact(s)
+
+  implicit def fromPath(s: Path): Artifact[Path] = ExternalPathArtifact(s)
+}
 
 
 object StringArtifact {

@@ -7,6 +7,8 @@ import worldmake.storage.Identifier
 import scala.Some
 import org.joda.time.DateTime
 import java.io.InputStream
+import worldmake.storage.Identifier
+import scala.Some
 
 object NamedFunction {
   def apply[R <: Hashable](n:String)(f:Function0[R]) = new IdentifiableFunction0[R](n,f)
@@ -16,6 +18,12 @@ object NamedFunction {
 
 
 trait Hashable {
+  def contentHashBytes: Array[Byte]
+  def contentHash = Hash.toHex(contentHashBytes)
+}
+
+/*
+trait StreamHashable {
   /**
    * A canonical serialization of the entire artifact, or at least of sufficient identifying information to establish content equivalence.  Need not be sufficient to reconstruct the object.
    * @return
@@ -24,6 +32,9 @@ trait Hashable {
 
   def contentHashBytes = WMHash(bytesForContentHash)
 }
+*/
+
+
 
 trait ContentHashableArtifact[T <: Hashable] extends Artifact[T] {
   def contentHashBytes: Array[Byte] = value.contentHashBytes
