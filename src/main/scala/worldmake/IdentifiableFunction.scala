@@ -6,12 +6,35 @@ import worldmake.WorldMakeConfig._
 import worldmake.storage.Identifier
 import scala.Some
 import org.joda.time.DateTime
+import java.io.InputStream
+
+object NamedFunction {
+  def apply[R <: Hashable](n:String)(f:Function0[R]) = new IdentifiableFunction0[R](n,f)
+  def apply[T1,R <: Hashable](n:String)(f:Function1[T1,R]) = new IdentifiableFunction1[T1,R](n,f)
+  def apply[T1,T2,R <: Hashable](n:String)(f:Function2[T1,T2,R]) = new IdentifiableFunction2[T1,T2,R](n,f)
+}
+
+
+trait Hashable {
+  /**
+   * A canonical serialization of the entire artifact, or at least of sufficient identifying information to establish content equivalence.  Need not be sufficient to reconstruct the object.
+   * @return
+   */
+  protected def bytesForContentHash: InputStream
+
+  def contentHashBytes = WMHash(bytesForContentHash)
+}
+
+trait ContentHashableArtifact[T <: Hashable] extends Artifact[T] {
+  def contentHashBytes: Array[Byte] = value.contentHashBytes
+}
+
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 
-class IdentifiableFunction0[R](val id: String, f: Function0[R]) {
+class IdentifiableFunction0[R <: Hashable](val id: String, f: Function0[R]) {
   def evaluate() = f()
   def apply() = new Derivation0(this)
 }
@@ -37,7 +60,7 @@ class Derivation0[R <: Hashable](f: IdentifiableFunction0[R]) extends DerivableD
 }
 
 
-class IdentifiableFunction1[T1, R](val id: String, f: Function1[T1, R]) {
+class IdentifiableFunction1[T1, R <: Hashable](val id: String, f: Function1[T1, R]) {
   def evaluate(t1: T1) = f(t1)
   def apply(t1: Derivation[T1]) = new Derivation1(this,t1)
 }
@@ -67,7 +90,7 @@ class Derivation1[T1, R <: Hashable](f: IdentifiableFunction1[T1, R], a: Derivat
 }
 
 
-class IdentifiableFunction2[T1, T2, R](val id: String, f: Function2[T1, T2, R]) {
+class IdentifiableFunction2[T1, T2, R <: Hashable](val id: String, f: Function2[T1, T2, R]) {
   def evaluate(t1: T1,t2: T2) = f(t1,t2)
   def apply(t1: Derivation[T1],t2: Derivation[T2]) = new Derivation2(this,t1,t2)
 }
@@ -96,5 +119,4 @@ class Derivation2[T1,T2, R <: Hashable](f: IdentifiableFunction2[T1,T2, R], a: D
 
   def dependencies = Set(a)
 }
-
 

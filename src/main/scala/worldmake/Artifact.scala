@@ -13,6 +13,7 @@ import com.typesafe.scalalogging.slf4j.Logging
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 
+/*
 trait Hashable {
   /**
    * A canonical serialization of the entire artifact, or at least of sufficient identifying information to establish content equivalence.  Need not be sufficient to reconstruct the object.
@@ -22,6 +23,11 @@ trait Hashable {
 
   def contentHashBytes = WMHash(bytesForContentHash)
 }
+
+trait ContentHashableArtifact[T <: Hashable] extends Artifact[T] {
+  def contentHashBytes: Array[Byte] = value.contentHashBytes
+}
+*/
 
 trait Artifact[T] {
   //def artifactId: Identifier[Artifact[T]]
@@ -37,9 +43,6 @@ trait Artifact[T] {
   def constantId : Identifier[Artifact[T]] = Identifier[Artifact[T]](contentHash)
 }
 
-trait ContentHashableArtifact[T <: Hashable] extends Artifact[T] {
-  def contentHashBytes: Array[Byte] = value.contentHashBytes
-}
 
 //trait InputArtifact[T] extends Artifact[T]
 /*
