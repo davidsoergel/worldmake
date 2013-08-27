@@ -1,7 +1,5 @@
 package worldmake.storage
 
-import worldmake.storage.ProvenanceStore
-
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
