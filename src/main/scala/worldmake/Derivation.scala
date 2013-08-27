@@ -1,13 +1,8 @@
 
 package worldmake
 
-import com.typesafe.scalalogging.slf4j.Logging
-import scala.sys.process.{ProcessLogger, Process}
-import scalax.io.Resource
 import java.util.UUID
-import org.joda.time.DateTime
 import worldmake.storage.{Storage, Identifier}
-import scala.collection.immutable.Iterable
 
 //import java.lang.ProcessBuilder.Redirect
 
@@ -18,7 +13,6 @@ import edu.umass.cs.iesl.scalacommons.util.Hash
 //import scala.collection.JavaConversions._
 
 import scalax.file.Path
-import java.io.File
 
 // even constant artifacts must be stored in the DB, to provide provenance even when the code changes, etc.
 
@@ -35,12 +29,12 @@ trait Derivation[T] {
   def resolveOne: Provenance[T] with Successful[T]
 
   // the "best" status found among the Provenances
- // def status: DerivationStatuses.DerivationStatus
+  // def status: DerivationStatuses.DerivationStatus
 
   def statusString: String //= status.name
 
   def printTree(prefix: String): String = {
-    prefix + " " +  statusString + " " + derivationId + " = " + description
+    prefix + " " + statusString + " " + derivationId + " = " + description
   }
 
   def isGloballyDeterministic: Boolean = true
@@ -63,23 +57,27 @@ case object Error extends DerivationStatus("Error")
 }*/
 
 
-
 object ConstantDerivation {
-  def apply[T](p:ConstantProvenance[T]) = new ConstantDerivation(p)
+  def apply[T](p: ConstantProvenance[T]) = new ConstantDerivation(p)
 
-  implicit def fromString(s:String) : ConstantDerivation[String] = ConstantDerivation(ConstantProvenance(StringArtifact(s)))
-  implicit def fromDouble(s:Double) : ConstantDerivation[Double] = ConstantDerivation(ConstantProvenance(DoubleArtifact(s)))
-  implicit def fromInteger(s:Integer) : ConstantDerivation[Integer] = ConstantDerivation(ConstantProvenance(IntegerArtifact(s)))
-  implicit def fromPath(s:Path) : ConstantDerivation[Path] = ConstantDerivation(ConstantProvenance(ExternalPathArtifact(s)))
+  implicit def fromString(s: String): ConstantDerivation[String] = ConstantDerivation(ConstantProvenance(StringArtifact(s)))
+
+  implicit def fromDouble(s: Double): ConstantDerivation[Double] = ConstantDerivation(ConstantProvenance(DoubleArtifact(s)))
+
+  implicit def fromInteger(s: Integer): ConstantDerivation[Integer] = ConstantDerivation(ConstantProvenance(IntegerArtifact(s)))
+
+  implicit def fromPath(s: Path): ConstantDerivation[Path] = ConstantDerivation(ConstantProvenance(ExternalPathArtifact(s)))
 }
-class ConstantDerivation[T](p:ConstantProvenance[T]) extends Derivation[T]  {
+
+class ConstantDerivation[T](p: ConstantProvenance[T]) extends Derivation[T] {
   def derivationId = Identifier[Derivation[T]](p.provenanceId.s)
 
   def description = {
-    "Input: " + p.output.get.value.toString.take(80).replace("\n","\\n")
+    "Input: " + p.output.get.value.toString.take(80).replace("\n", "\\n")
   }
+
   def resolveOne = p
-  
+
   def statusString: String = ProvenanceStatus.Constant.toString
 }
 
@@ -92,12 +90,14 @@ trait DerivableDerivation[T] extends Derivation[T] {
 
   // even if a derivation claims to be deterministic, it may still be derived multiple times (e.g. to confirm identical results)
 
-  def deriveMulti(howMany: Integer): GenSet[Provenance[T]] = (0 to howMany).toSet.par.map((x:Int)=>derive)
+  def deriveMulti(howMany: Integer): GenSet[Provenance[T]] = (0 to howMany).toSet.par.map((x: Int) => derive)
 
-  lazy val resolveOne: Provenance[T] with Successful[T] = synchronized { successes.toSeq.headOption.getOrElse({
-    val p = derive
-    if(p.status == ProvenanceStatus.Success) p else throw new FailedDerivationException
-  }) }
+  lazy val resolveOne: Provenance[T] with Successful[T] = synchronized {
+    successes.toSeq.headOption.getOrElse({
+      val p = derive
+      if (p.status == ProvenanceStatus.Success) p else throw new FailedDerivationException
+    })
+  }
 
   /*
   override final def resolveOneNew: Provenance[T] = {
@@ -106,11 +106,14 @@ trait DerivableDerivation[T] extends Derivation[T] {
     if (cached.nonEmpty) cached.map(_.asInstanceOf[Provenance[T]]) else Set(derive)
   }
 */
-  private lazy val provenances : Set[Provenance[T]] = Storage.provenanceStore.getDerivedFrom(derivationId)
+  private lazy val provenances: Set[Provenance[T]] = Storage.provenanceStore.getDerivedFrom(derivationId)
 
-  lazy val successes: Set[Provenance[T] with Successful[T]] = provenances.collect({case x : Provenance[T] with Successful[T] => x}) // .filter(_.status == Success)
+  lazy val successes: Set[Provenance[T] with Successful[T]] = provenances.collect({
+    case x: Provenance[T] with Successful[T] => x
+  })
+  // .filter(_.status == Success)
   lazy val failures = provenances.filter(_.status == ProvenanceStatus.Failure)
-  
+
   //def numSuccess = provenances.count(_.output.nonEmpty)
 
   //def numFailure = provenances.count(_.output.isEmpty)
@@ -124,16 +127,16 @@ trait DerivableDerivation[T] extends Derivation[T] {
   else if (failures.count > 0) Error
   else Pending
 */
-  
+
   override lazy val statusString: String = {
     if (successes.size > 0) {
       ProvenanceStatus.Success + " (" + successes.size + " variants)"
     } else if (failures.size > 0) {
       ProvenanceStatus.Failure + " (" + failures.size + " failures)"
     }
-    else ""  // todo print other statuses
+    else "" // todo print other statuses
   }
-  
+
   override def printTree(prefix: String): String = {
     prefix + statusString + " " + derivationId + " = " + description + "\n" + dependencies.map(_.printTree(prefix + prefixIncrement)).mkString("\n")
   }
@@ -146,11 +149,11 @@ trait LocallyDeterministic[T] extends DerivableDerivation[T] {
 
 trait LocallyNondeterministic[T] extends DerivableDerivation[T] {
   def resolvePrecomputed: GenSet[Provenance[T]]
+
   //def resolveNew: Option[Provenance[T]]
-  
+
   override def isGloballyDeterministic = false
 }
-
 
 
 /*
@@ -216,101 +219,6 @@ class SystemDerivationJava(val script: Derivation[String], namedDependencies: Ma
 */
 
 
-object SystemDerivation {
-  // "toEnvironmentString" is not a method of the Derivation trait because the Any->String conversion may differ by 
-  // context (at least, eg., # of sig figs, or filename vs file contents, etc.)
-  // For that matter, what if it differs for different arguments of the same type? 
-  def toEnvironmentString[T](x: Artifact[T]): String = x match {
-    case f: ExternalPathArtifact => f.abspath
-    case f: TraversableArtifact[T] => f.artifacts.map((x:Artifact[_])=>toEnvironmentString(x)).mkString(" ")
-    //case f:GenTraversableArtifact => f.artifacts.map(toEnvironmentString).mkString(" ")
-    case f => f.value.toString
-  }
-
-}
-
-class SystemDerivation(val script: Derivation[String], namedDependencies: Map[String, Derivation[_]]) extends ExternalPathDerivation with DerivableDerivation[Path] with Logging {
-
-  // todo: include self version number??
-  lazy val derivationId = {
-    val dependencyInfos: Seq[String] = namedDependencies.map({
-      case (k, v) => k.toString + v.derivationId.s
-    }).toSeq.sorted
-    Identifier[Derivation[Path]](Hash.toHex(WMHash(script.derivationId.s + dependencyInfos.mkString(""))))
-  }
-
-  val description = "result of: " + script.description
-
-  val dependencies = namedDependencies.values.toSet
-
-
-  // todo store provenance lifecycle
-  
-  def derive = synchronized {
-    import SystemDerivation._
-    
-    val startTime = DateTime.now()
-    val outputPath: Path = fileStore.newPath
-    val workingDir = Path.createTempDirectory()
-    //val log: File = (outputPath / "worldmake.log").fileOption.getOrElse(throw new Error("can't create log: " + outputPath / "worldmake.log"))
-    //val logWriter = Resource.fromFile(log)
-
-    val logWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
-
-    val reifiedDependencies = namedDependencies.mapValues(_.resolveOne)
-    val dependenciesEnvironment: Map[String, String] = reifiedDependencies.mapValues(x=>toEnvironmentString(x.artifact))
-    val environment: Map[String, String] = WorldMakeConfig.globalEnvironment ++ dependenciesEnvironment ++ Map("out" -> outputPath.toAbsolute.path) //, "PATH" -> WorldMakeConfig.globalPath)
-
-    val runner = Resource.fromFile(new File((workingDir / "worldmake.runner").toAbsolute.path))
-    runner.write(script.resolveOne.output.get.value)
-
-    val envlog = Resource.fromFile(new File((workingDir / "worldmake.environment").toAbsolute.path))
-    envlog.write(environment.map({
-      case (k, v) => k + " = " + v
-    }).mkString("\n"))
-
-    val pb = Process(Seq("/bin/sh", "./worldmake.runner"), workingDir.jfile, environment.toArray: _*)
-
-    // any successful output should be written to a file in the output directory, so anything on stdout or stderr is 
-    // logging output and should be combined for easier debugging
-    val pbLogger = ProcessLogger(
-      (o: String) => logWriter.write(o),
-      (e: String) => logWriter.write(e))
-
-    val exitCode = pb ! pbLogger
-
-    // todo: detect retained dependencies like Nix
-
-    val result = ExternalPathArtifact(outputPath)
-
-    if (exitCode != 0) {
-      logger.warn("Deleting output directory: " + outputPath)
-      outputPath.deleteRecursively()
-      logger.warn("Retaining working directory: " + workingDir)
-      throw new FailedDerivationException
-      
-      // todo store failure log
-    }
-
-    if (WorldMakeConfig.debugWorkingDirectories) {
-      logger.warn("Retaining working directory: " + workingDir)
-    } else {
-      workingDir.deleteRecursively()
-    }
-    val endTime = DateTime.now()
-
-    SuccessfulProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString),
-      derivationId = SystemDerivation.this.derivationId,
-      status=ProvenanceStatus.Success,
-      derivedFromNamed = reifiedDependencies,
-      startTime = startTime,
-      endTime = endTime,
-      statusCode = Some(exitCode),
-      log = Some(logWriter),
-      output = Some(result))
-  }
-}
-
 class FailedDerivationException extends Exception
 
 
@@ -320,8 +228,6 @@ trait ExternalPathDerivation extends Derivation[Path] {
   // def /(s: String): ExternalPathDerivation = new Derivation1[Path, Path](new IdentifiableFunction1[Path, Path]("/", (p: Path) => p / s), this) with ExternalPathDerivation
 
 }
-
-
 
 
 /*
@@ -338,7 +244,7 @@ class TraversableDerivation[T](xs: Traversable[Derivation[T]]) extends Derivable
   def derive = {
     val upstream = xs.map(_.resolveOne)
     SuccessfulProvenance[Traversable[T]](Identifier[Provenance[Traversable[T]]](UUID.randomUUID().toString),
-      derivationId,ProvenanceStatus.Success,
+      derivationId, ProvenanceStatus.Success,
       derivedFromUnnamed = upstream.toSet,
       output = Some(new TraversableArtifact(upstream.map(_.artifact))))
   }
@@ -350,8 +256,6 @@ class TraversableDerivation[T](xs: Traversable[Derivation[T]]) extends Derivable
 
   def dependencies = xs.toSet
 }
-
-
 
 
 /*
