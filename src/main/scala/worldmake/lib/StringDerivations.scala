@@ -7,6 +7,8 @@ import worldmake.WorldMakeConfig._
 import worldmake.storage.Identifier
 import scala.Some
 import scalax.file.Path
+import edu.umass.cs.iesl.scalacommons.StringUtils
+import StringUtils._
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -30,7 +32,7 @@ class StringInterpolationDerivation(sc: StringContext, args: Seq[Derivation[_]])
     SuccessfulProvenance(Identifier[Provenance[String]](UUID.randomUUID().toString), derivationId, ProvenanceStatus.Success, derivedFromUnnamed = resolvedProvenances.toSet, startTime = startTime, endTime = endTime, output = Some(result))
   }
 
-  private val template: String = sc.parts.mkString(" ??? ")
+  private val template: String = sc.parts.mkString("???").maskNewlines
 
   def derivationId = Identifier[Derivation[String]](WMHashHex(template + args.map(_.derivationId).mkString))
 

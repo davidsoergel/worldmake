@@ -46,7 +46,7 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: Map[St
 
   val description = "result of: " + script.description
 
-  val dependencies = namedDependencies.values.toSet
+  val dependencies = namedDependencies.values.toSet + script
 
 
   // todo store provenance lifecycle
