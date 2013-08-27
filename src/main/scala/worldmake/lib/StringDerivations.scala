@@ -13,15 +13,15 @@ import scalax.file.Path
  */
 class StringInterpolationDerivation(sc: StringContext, args: Seq[Derivation[_]]) extends DerivableDerivation[String] {
 
-  private val resolvedProvenances = args.map(_.resolveOne)
-
   def derive: Provenance[String] with Successful[String] = {
+
+    val resolvedProvenances = args.map(_.resolveOne)
 
     val startTime = DateTime.now()
 
     val result = {
       val resolvedArgs = resolvedProvenances.map(_.artifact.value)
-      
+
       // this stripMargin taxes effect after interpolation; see https://github.com/scala/scala/pull/1655 for alternative
       StringArtifact(sc.s(resolvedArgs).stripMargin)
     }
@@ -49,7 +49,7 @@ object StringInterpolationDerivation {
     def ds(args: Derivation[_]*): Derivation[String] = new StringInterpolationDerivation(sc, args)
 
     // this builds the script as a String derivation first, and then runs it-- as opposed to the raw SystemDerivation where dependencies are passed as environment variables.
-    def sys(args: Derivation[_]*): Derivation[Path] = new SystemDerivation(new StringInterpolationDerivation(sc, args),Map.empty)
+    def sys(args: Derivation[_]*): Derivation[Path] = new SystemDerivation(new StringInterpolationDerivation(sc, args), Map.empty)
   }
 
 }
