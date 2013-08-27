@@ -1,8 +1,9 @@
 package worldmake.lib
 
 import edu.umass.cs.iesl.scalacommons.util.Hash
-import worldmake.{WorldMakeConfig, Derivation, ExternalPathDerivation}
+import worldmake.{WorldMakeConfig, Derivation}
 import WorldMakeConfig.WMHash
+import scalax.file.Path
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -16,7 +17,7 @@ abstract class MercurialWorld {
     case (k, (b, v)) => (k, v)
   })
 
-  lazy val workingDirs: Map[String, ExternalPathDerivation] = reposActualVersions.map({
+  lazy val workingDirs: Map[String, Derivation[Path]] = reposActualVersions.map({
     case (k: String, v: String) => (k, MercurialWorkspaces.get(k, v))
   })
 

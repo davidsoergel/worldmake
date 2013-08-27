@@ -65,6 +65,8 @@ object ConstantDerivation {
   implicit def fromDouble(s: Double): ConstantDerivation[Double] = ConstantDerivation(ConstantProvenance(DoubleArtifact(s)))
 
   implicit def fromInteger(s: Integer): ConstantDerivation[Integer] = ConstantDerivation(ConstantProvenance(IntegerArtifact(s)))
+  
+  implicit def fromInt(s: Int): ConstantDerivation[Integer] = ConstantDerivation(ConstantProvenance(IntegerArtifact(s)))
 
   implicit def fromPath(s: Path): ConstantDerivation[Path] = ConstantDerivation(ConstantProvenance(ExternalPathArtifact(s)))
 }
@@ -221,14 +223,14 @@ class SystemDerivationJava(val script: Derivation[String], namedDependencies: Ma
 
 class FailedDerivationException extends Exception
 
-
+/*
 trait ExternalPathDerivation extends Derivation[Path] {
 
   //def children : Seq[ExternalPathArtifact]
-  // def /(s: String): ExternalPathDerivation = new Derivation1[Path, Path](new IdentifiableFunction1[Path, Path]("/", (p: Path) => p / s), this) with ExternalPathDerivation
+  def /(s: String): Derivation[Path] = new Derivation1[Path, Path](new IdentifiableFunction1[Path, Path]("/", (p: Path) => p / s), this) //with ExternalPathDerivation
 
 }
-
+*/
 
 /*
 class TraversableProvenance[T](val provenances: Traversable[Provenance[T]]) extends Provenance[Traversable[T]] {
@@ -250,7 +252,7 @@ class TraversableDerivation[T](xs: Traversable[Derivation[T]]) extends Derivable
   }
 
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
-  def derivationId = Identifier[Derivation[Traversable[T]]](Hash.toHex(WMHash(xs.toSeq.map(_.derivationId).mkString)))
+  def derivationId = Identifier[Derivation[Traversable[T]]](WMHashHex(xs.toSeq.map(_.derivationId).mkString))
 
   def description = ("Traversable(" + xs.map(_.description) + ")").take(40)
 

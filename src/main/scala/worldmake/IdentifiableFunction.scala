@@ -12,7 +12,8 @@ import org.joda.time.DateTime
  */
 
 class IdentifiableFunction0[R](val id: String, f: Function0[R]) {
-  def apply() = f()
+  def evaluate() = f()
+  def apply() = new Derivation0(this)
 }
 
 
@@ -24,7 +25,7 @@ class Derivation0[R <: Hashable](f: IdentifiableFunction0[R]) extends DerivableD
     val result = new ContentHashableArtifact[R] {
       def artifactId = Identifier[Artifact[R]](UUID.randomUUID().toString)
 
-      def value = f()
+      def value = f.evaluate()
     }
     val endTime = DateTime.now()
     SuccessfulProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId,ProvenanceStatus.Success, startTime = startTime, endTime = endTime, output = Some(result))
@@ -37,7 +38,8 @@ class Derivation0[R <: Hashable](f: IdentifiableFunction0[R]) extends DerivableD
 
 
 class IdentifiableFunction1[T1, R](val id: String, f: Function1[T1, R]) {
-  def apply(t1: T1) = f(t1)
+  def evaluate(t1: T1) = f(t1)
+  def apply(t1: Derivation[T1]) = new Derivation1(this,t1)
 }
 
 
@@ -51,13 +53,44 @@ class Derivation1[T1, R <: Hashable](f: IdentifiableFunction1[T1, R], a: Derivat
 
       def artifactId = Identifier[Artifact[R]](UUID.randomUUID().toString)
 
-      def value = f(p.artifact.value)
+      def value = f.evaluate(p.artifact.value)
     }
     val endTime = DateTime.now()
     SuccessfulProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId, ProvenanceStatus.Success, derivedFromUnnamed = Set(p), startTime = startTime, endTime = endTime, output = Some(result))
   }
 
-  def derivationId = Identifier[Derivation[R]](Hash.toHex(WMHash(f.id + a.derivationId)))
+  def derivationId = Identifier[Derivation[R]](WMHashHex(f.id + a.derivationId))
+
+  def description = f.id
+
+  def dependencies = Set(a)
+}
+
+
+class IdentifiableFunction2[T1, T2, R](val id: String, f: Function2[T1, T2, R]) {
+  def evaluate(t1: T1,t2: T2) = f(t1,t2)
+  def apply(t1: Derivation[T1],t2: Derivation[T2]) = new Derivation2(this,t1,t2)
+}
+
+
+class Derivation2[T1,T2, R <: Hashable](f: IdentifiableFunction2[T1,T2, R], a: Derivation[T1],b:Derivation[T2]) extends DerivableDerivation[R] {
+  def derive: Provenance[R] with Successful[R] = {
+
+    val startTime = DateTime.now()
+
+    val p = a.resolveOne
+    val q = b.resolveOne
+    val result = new ContentHashableArtifact[R] {
+
+      def artifactId = Identifier[Artifact[R]](UUID.randomUUID().toString)
+
+      def value = f.evaluate(p.artifact.value,q.artifact.value)
+    }
+    val endTime = DateTime.now()
+    SuccessfulProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId, ProvenanceStatus.Success, derivedFromUnnamed = Set(p), startTime = startTime, endTime = endTime, output = Some(result))
+  }
+
+  def derivationId = Identifier[Derivation[R]](WMHashHex(f.id + a.derivationId + b.derivationId))
 
   def description = f.id
 

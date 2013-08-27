@@ -34,7 +34,7 @@ object SystemDerivation {
 
 }
 
-class SystemDerivation(val script: Derivation[String], namedDependencies: Map[String, Derivation[_]]) extends ExternalPathDerivation with DerivableDerivation[Path] with Logging {
+class SystemDerivation(val script: Derivation[String], namedDependencies: Map[String, Derivation[_]]) extends DerivableDerivation[Path] with Logging {
 
   // todo: include self version number??
   lazy val derivationId = {

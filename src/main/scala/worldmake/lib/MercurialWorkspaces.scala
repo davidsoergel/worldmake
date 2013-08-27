@@ -24,7 +24,7 @@ object MercurialWorkspaces extends Logging {
     p
   }
 
-  def get(id: String, requestVersion: String = "latest"): ExternalPathDerivation = {
+  def get(id: String, requestVersion: String = "latest"): Derivation[Path] = {
     val version = requestVersion match {
       case "latest" => getLatestVersions(id)("default")
       case v => v
