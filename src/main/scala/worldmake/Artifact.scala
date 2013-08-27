@@ -61,6 +61,7 @@ trait InputArtifact[T] extends Artifact[T] { //with ConstantProvenance[T] {
 abstract class MemoryArtifact[T](val value: T) extends Artifact[T]//extends ConstantArtifact[T]
 
 // this is mostly useful for making constants Hashable
+/*
 object ConstantArtifact {
 
   implicit def fromString(s: String): Artifact[String] =StringArtifact(s)
@@ -73,7 +74,7 @@ object ConstantArtifact {
 
   implicit def fromPath(s: Path): Artifact[Path] = ExternalPathArtifact(s)
 }
-
+*/
 
 object StringArtifact {
   def apply(s: String) = new MemoryStringArtifact(s) tap {(x:MemoryStringArtifact)=>Storage.provenanceStore.put(ConstantProvenance(x))}
@@ -83,8 +84,8 @@ trait StringArtifact extends Artifact[String] {
   def description = value.take(80).replace("\n","\\n")
 }
 
-class MemoryStringArtifact(s: String) extends MemoryArtifact[String](s) with StringArtifact {
-  def contentHashBytes = WMHash(s)
+class MemoryStringArtifact(s: String) extends MemoryArtifact[String](s) with StringArtifact with ContentHashableArtifact[String] {
+  //def contentHashBytes = WMHash(s)
 
   def output: Option[Artifact[String]] = Some(this)
 }
@@ -100,8 +101,8 @@ trait IntegerArtifact extends Artifact[Integer] {
   override def constantId = Identifier[Artifact[Integer]]("Integer(" + value.toString + ")") //perf
 }
 
-class MemoryIntegerArtifact(s: Integer) extends MemoryArtifact[Integer](s) with IntegerArtifact {
-  def contentHashBytes = WMHash(s.toString)
+class MemoryIntegerArtifact(s: Integer) extends MemoryArtifact[Integer](s) with IntegerArtifact with ContentHashableArtifact[Integer] {
+  //def contentHashBytes = WMHash(s.toString)
   def output: Option[Artifact[Integer]] = Some(this)
 }
 
@@ -116,8 +117,8 @@ trait DoubleArtifact extends Artifact[Double] {
   override def constantId = Identifier[Artifact[Double]]("Double(" + value.toString + ")")
 }
 
-class MemoryDoubleArtifact(s: Double) extends MemoryArtifact[Double](s) with DoubleArtifact {
-  def contentHashBytes = WMHash(s.toString)
+class MemoryDoubleArtifact(s: Double) extends MemoryArtifact[Double](s) with DoubleArtifact with ContentHashableArtifact[Double] {
+  //def contentHashBytes = WMHash(s.toString)
   def output: Option[Artifact[Double]] = Some(this)
 
 }
@@ -142,7 +143,7 @@ trait ExternalPathArtifact extends Artifact[Path] {
 
 }
 
-class MemoryExternalPathArtifact(path: Path) extends MemoryArtifact[Path](path) with ExternalPathArtifact with Logging {
+class MemoryExternalPathArtifact(path: Path) extends MemoryArtifact[Path](path) with ExternalPathArtifact with Logging  with ContentHashableArtifact[Path] {
   // ** require(path.exists)
   
   if(!path.exists) {
@@ -155,7 +156,7 @@ class MemoryExternalPathArtifact(path: Path) extends MemoryArtifact[Path](path) 
   else {
     path.children()
   }*/
-  lazy val contentHashBytes: Array[Byte] = if (path.isFile) WMHash(path.fileOption.get)
+  override lazy val contentHashBytes: Array[Byte] = if (path.isFile) WMHash(path.fileOption.get)
   else {
     WMHash(children.map(_.contentHash).mkString)
   }

@@ -9,11 +9,13 @@ import org.joda.time.DateTime
 import java.io.InputStream
 import worldmake.storage.Identifier
 import scala.Some
+import worldmake.storage.Identifier
+import scala.Some
 
 object NamedFunction {
-  def apply[R <: Hashable](n:String)(f:Function0[R]) = new IdentifiableFunction0[R](n,f)
-  def apply[T1,R <: Hashable](n:String)(f:Function1[T1,R]) = new IdentifiableFunction1[T1,R](n,f)
-  def apply[T1,T2,R <: Hashable](n:String)(f:Function2[T1,T2,R]) = new IdentifiableFunction2[T1,T2,R](n,f)
+  def apply[R](n:String)(f:Function0[R]) = new IdentifiableFunction0[R](n,f)
+  def apply[T1,R](n:String)(f:Function1[T1,R]) = new IdentifiableFunction1[T1,R](n,f)
+  def apply[T1,T2,R](n:String)(f:Function2[T1,T2,R]) = new IdentifiableFunction2[T1,T2,R](n,f)
 }
 
 
@@ -36,8 +38,13 @@ trait StreamHashable {
 
 
 
-trait ContentHashableArtifact[T <: Hashable] extends Artifact[T] {
-  def contentHashBytes: Array[Byte] = value.contentHashBytes
+trait ContentHashableArtifact[T] extends Artifact[T] {
+  def contentHashBytes: Array[Byte] = value match {
+  case h:Hashable =>h.contentHashBytes
+  case i:Integer=>WMHash(i.toString)
+  case d:Double=>WMHash(d.toString)
+  case s:String=>WMHash(s)
+  }
 }
 
 
@@ -45,13 +52,13 @@ trait ContentHashableArtifact[T <: Hashable] extends Artifact[T] {
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 
-class IdentifiableFunction0[R <: Hashable](val id: String, f: Function0[R]) {
+class IdentifiableFunction0[R](val id: String, f: Function0[R]) {
   def evaluate() = f()
   def apply() = new Derivation0(this)
 }
 
 
-class Derivation0[R <: Hashable](f: IdentifiableFunction0[R]) extends DerivableDerivation[R] {
+class Derivation0[R](f: IdentifiableFunction0[R]) extends DerivableDerivation[R] {
   def dependencies = Set.empty
 
   def derive: Provenance[R] with Successful[R] = {
@@ -71,13 +78,13 @@ class Derivation0[R <: Hashable](f: IdentifiableFunction0[R]) extends DerivableD
 }
 
 
-class IdentifiableFunction1[T1, R <: Hashable](val id: String, f: Function1[T1, R]) {
+class IdentifiableFunction1[T1, R](val id: String, f: Function1[T1, R]) {
   def evaluate(t1: T1) = f(t1)
   def apply(t1: Derivation[T1]) = new Derivation1(this,t1)
 }
 
 
-class Derivation1[T1, R <: Hashable](f: IdentifiableFunction1[T1, R], a: Derivation[T1]) extends DerivableDerivation[R] {
+class Derivation1[T1, R](f: IdentifiableFunction1[T1, R], a: Derivation[T1]) extends DerivableDerivation[R] {
   def derive: Provenance[R] with Successful[R] = {
 
     val startTime = DateTime.now()
@@ -101,13 +108,13 @@ class Derivation1[T1, R <: Hashable](f: IdentifiableFunction1[T1, R], a: Derivat
 }
 
 
-class IdentifiableFunction2[T1, T2, R <: Hashable](val id: String, f: Function2[T1, T2, R]) {
+class IdentifiableFunction2[T1, T2, R](val id: String, f: Function2[T1, T2, R]) {
   def evaluate(t1: T1,t2: T2) = f(t1,t2)
   def apply(t1: Derivation[T1],t2: Derivation[T2]) = new Derivation2(this,t1,t2)
 }
 
 
-class Derivation2[T1,T2, R <: Hashable](f: IdentifiableFunction2[T1,T2, R], a: Derivation[T1],b:Derivation[T2]) extends DerivableDerivation[R] {
+class Derivation2[T1,T2, R](f: IdentifiableFunction2[T1,T2, R], a: Derivation[T1],b:Derivation[T2]) extends DerivableDerivation[R] {
   def derive: Provenance[R] with Successful[R] = {
 
     val startTime = DateTime.now()
