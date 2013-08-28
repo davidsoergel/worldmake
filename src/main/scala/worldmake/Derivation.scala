@@ -34,7 +34,7 @@ trait Derivation[+T] {
   def statusString: String //= status.name
 
   def printTree(prefix: String): String = {
-    derivationId.short + prefix + " [" + statusString + "] " + " = " + description
+    derivationId.short + prefix + " [" + statusString + "] " + description
   }
 
   def isGloballyDeterministic: Boolean = true
@@ -140,7 +140,7 @@ trait DerivableDerivation[T] extends Derivation[T] {
   }
 
   override def printTree(prefix: String): String = {
-    prefix + statusString + " " + derivationId + " = " + description + "\n" + dependencies.map(_.printTree(prefix + prefixIncrement)).mkString("\n")
+    super.printTree(prefix) + "\n" + dependencies.map(_.printTree(prefix + prefixIncrement)).mkString("\n")
   }
 }
 

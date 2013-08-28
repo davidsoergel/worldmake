@@ -28,7 +28,7 @@ case class Identifier[+T](s:String) {
   // see also FileStore.dirStructure
   val shortM = """(...)(......)(.*)""".r
   
-  val shortM(short1,short2) = s
+  val shortM(short1,short2,remainder) = s
   val short = s"$short1/$short2"
 
   override def toString = s
