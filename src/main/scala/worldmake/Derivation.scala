@@ -33,8 +33,9 @@ trait Derivation[+T] {
 
   def statusString: String //= status.name
 
+  def shortId = derivationId.short
   def printTree(prefix: String): String = {
-    derivationId.short + prefix + " [" + statusString + "] " + description
+    shortId + prefix + " [" + statusString + "] " + description
   }
 
   def isGloballyDeterministic: Boolean = true
@@ -81,6 +82,7 @@ class ConstantDerivation[T](p: ConstantProvenance[T]) extends Derivation[T] {
   def resolveOne = p
 
   def statusString: String = ProvenanceStatus.Constant.toString
+  override def shortId = "        "
 }
 
 
