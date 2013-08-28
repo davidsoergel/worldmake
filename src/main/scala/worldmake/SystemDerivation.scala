@@ -88,10 +88,23 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: Map[St
 
     val result = ExternalPathArtifact(outputPath)
 
+    val endTime = DateTime.now()
+    
     if (exitCode != 0) {
       logger.warn("Deleting output directory: " + outputPath)
       outputPath.deleteRecursively()
       logger.warn("Retaining working directory: " + workingDir)
+
+      Provenance(Identifier[Provenance[Path]](UUID.randomUUID().toString),
+        derivationId = SystemDerivation.this.derivationId,
+        status = ProvenanceStatus.Failure,
+        derivedFromNamed = reifiedDependencies,
+        startTime = startTime,
+        endTime = endTime,
+        statusCode = Some(exitCode),
+        log = Some(logWriter),
+        output = None)
+      
       throw new FailedDerivationException
 
       // todo store failure log
@@ -102,7 +115,6 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: Map[St
     } else {
       workingDir.deleteRecursively()
     }
-    val endTime = DateTime.now()
 
     SuccessfulProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString),
       derivationId = SystemDerivation.this.derivationId,
