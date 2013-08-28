@@ -19,7 +19,7 @@ import scalax.file.Path
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
-trait Derivation[T] {
+trait Derivation[+T] {
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
   // careful using a hash as an ID, per Valerie Aurora
   def derivationId: Identifier[Derivation[T]]
@@ -260,6 +260,24 @@ class TraversableDerivation[T](xs: Traversable[Derivation[T]]) extends Derivable
   def dependencies = xs.toSet
 }
 
+/*
+class DerivationSet(xs: Traversable[Derivation[_]]) extends DerivableDerivation[Traversable[_]] {
+  def derive = {
+    val upstream = xs.map(_.resolveOne)
+    SuccessfulProvenance[Traversable[_]](Identifier[Provenance[Traversable[_]]](UUID.randomUUID().toString),
+      derivationId, ProvenanceStatus.Success,
+      derivedFromUnnamed = upstream.toSet,
+      output = Some(new TraversableArtifact(upstream.map(_.artifact))))
+  }
+
+  // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
+  def derivationId = Identifier[Derivation[Traversable[_]]](WMHashHex("set" + xs.toSeq.map(_.derivationId).mkString))
+
+  def description = ("Traversable(" + xs.map(_.description) + ")").take(40)
+
+  def dependencies = xs.toSet
+}
+*/
 
 /*
 class GenTraversableArtifact[T](val artifacts: GenTraversable[Artifact[T]])  extends Artifact[GenTraversable[T]] {
