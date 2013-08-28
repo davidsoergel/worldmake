@@ -105,6 +105,8 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: Map[St
         log = Some(logWriter),
         output = None)
       
+      logger.error(logWriter.get.fold(x=>x,y=>y.toString))
+      
       throw new FailedDerivationException
 
       // todo store failure log

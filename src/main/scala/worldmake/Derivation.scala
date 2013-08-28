@@ -112,9 +112,11 @@ trait DerivableDerivation[T] extends Derivation[T] {
 */
   private lazy val provenances: Set[Provenance[T]] = Storage.provenanceStore.getDerivedFrom(derivationId)
 
-  lazy val successes: Set[Provenance[T] with Successful[T]] = provenances.collect({
+  lazy val successes: Set[Provenance[T] with Successful[T]] = // provenances.filter(_.status == ProvenanceStatus.Success)   
+    provenances.collect({
     case x: Provenance[T] with Successful[T] => x
   })
+  
   // .filter(_.status == Success)
   lazy val failures = provenances.filter(_.status == ProvenanceStatus.Failure)
 

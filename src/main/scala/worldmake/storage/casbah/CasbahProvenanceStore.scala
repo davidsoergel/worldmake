@@ -50,7 +50,12 @@ object CasbahProvenanceStore {
   def provenanceFromDbOpt[T](dbo: MongoDBObject): Option[Provenance[T]] = {
     dbo("type") match {
       case MongoConstantProvenance.typehint => new MongoConstantProvenance[T](dbo).some
-      case MongoDerivedProvenance.typehint => new MongoDerivedProvenance[T](dbo).some
+      case MongoDerivedProvenance.typehint => {
+        if(dbo("status") == "Success") {
+          (new MongoDerivedProvenance[T](dbo) with Successful[T]).some
+        }
+        else new MongoDerivedProvenance[T](dbo).some
+      }
       case _ => None
     }
   }
