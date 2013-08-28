@@ -82,7 +82,7 @@ class ConstantDerivation[T](p: ConstantProvenance[T]) extends Derivation[T] {
   def resolveOne = p
 
   def statusString: String = ProvenanceStatus.Constant.toString
-  override def shortId = "        "
+  override def shortId = "         "
 }
 
 
