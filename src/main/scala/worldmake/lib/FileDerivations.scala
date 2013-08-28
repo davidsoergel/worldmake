@@ -10,6 +10,8 @@ import com.typesafe.scalalogging.slf4j.Logging
  */
 object FileDerivations extends Logging {
 
+  val fsTraverse =  new IdentifiableFunction2[Path,String,Path]("fsTraverse",{(a:Path,b:String)=>a/b })
+  
   val countLines = new IdentifiableFunction1[Path, Integer]("countLines", (path: Path) => {
     logger.debug("Counting lines in " + path.fileOption.get.toString)
     val lines: Seq[String] = Source.fromFile(path.fileOption.get)(scala.io.Codec.UTF8).getLines().toSeq
