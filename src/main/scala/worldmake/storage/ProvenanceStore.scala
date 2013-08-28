@@ -23,7 +23,7 @@ trait ProvenanceStore {
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 
-case class Identifier[T](s:String) {
+case class Identifier[+T](s:String) {
   override def toString = s
 }
 //case class ArtifactIdentifier(s:String)

@@ -29,7 +29,7 @@ trait ContentHashableArtifact[T <: Hashable] extends Artifact[T] {
 }
 */
 
-trait Artifact[T] extends Hashable {
+trait Artifact[+T] extends Hashable {
   //def artifactId: Identifier[Artifact[T]]
 
   def value: T

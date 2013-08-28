@@ -8,7 +8,7 @@ import worldmake.storage.{Storage, Identifier}
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
-trait Provenance[T] {
+trait Provenance[+T] {
   def provenanceId: Identifier[Provenance[T]]
 
   def output: Option[Artifact[T]]
@@ -16,7 +16,7 @@ trait Provenance[T] {
   def status: ProvenanceStatus.ProvenanceStatus
 }
 
-trait Successful[T] extends Provenance[T] {
+trait Successful[+T] extends Provenance[T] {
   def artifact: Artifact[T] = output.get
 }
 
