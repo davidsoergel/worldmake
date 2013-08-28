@@ -73,6 +73,8 @@ trait DerivedProvenance[T] extends Provenance[T] {
   // todo: store info about cost / duration / etc.
 }
 
+
+
 object Provenance {
   // calling this repeatedly with the same ID just overwrites the DB record
   def apply[T](provenanceId: Identifier[Provenance[T]],
@@ -146,7 +148,7 @@ case object Failure extends ProvenanceStatus("Failure")
 object ProvenanceStatus extends Enumeration {
   type ProvenanceStatus = Value
   
-  val  Constant, Blocked, Ready, Pending,Running, Cancelled, Success, Failure = Value
+  val  Constant, Explicit, Blocked, Ready, Pending,Running, Cancelled, Success, Failure = Value
 }
 
 

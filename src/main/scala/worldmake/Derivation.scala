@@ -145,6 +145,7 @@ trait DerivableDerivation[T] extends Derivation[T] {
 }
 
 
+
 trait LocallyDeterministic[T] extends DerivableDerivation[T] {
   override def isGloballyDeterministic: Boolean = !dependencies.exists(!_.isGloballyDeterministic)
 }
@@ -252,7 +253,7 @@ class TraversableDerivation[T](xs: Traversable[Derivation[T]]) extends Derivable
   }
 
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
-  def derivationId = Identifier[Derivation[Traversable[T]]](WMHashHex(xs.toSeq.map(_.derivationId).mkString))
+  def derivationId = Identifier[Derivation[Traversable[T]]](WMHashHex("traversable" + xs.toSeq.map(_.derivationId).mkString))
 
   def description = ("Traversable(" + xs.map(_.description) + ")").take(40)
 
