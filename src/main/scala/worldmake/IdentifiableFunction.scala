@@ -135,6 +135,6 @@ class Derivation2[T1,T2, R](f: IdentifiableFunction2[T1,T2, R], a: Derivation[T1
 
   def description = f.id
 
-  def dependencies = Set(a)
+  def dependencies = Set(a,b)
 }
 
