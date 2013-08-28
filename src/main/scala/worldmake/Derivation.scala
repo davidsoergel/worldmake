@@ -34,7 +34,7 @@ trait Derivation[+T] {
   def statusString: String //= status.name
 
   def printTree(prefix: String): String = {
-    prefix + " " + statusString + " " + derivationId + " = " + description
+    derivationId.short + prefix + " [" + statusString + "] " + " = " + description
   }
 
   def isGloballyDeterministic: Boolean = true
@@ -136,7 +136,7 @@ trait DerivableDerivation[T] extends Derivation[T] {
     } else if (failures.size > 0) {
       ProvenanceStatus.Failure + " (" + failures.size + " failures)"
     }
-    else "" // todo print other statuses
+    else "no status" // todo print other statuses
   }
 
   override def printTree(prefix: String): String = {
