@@ -4,16 +4,27 @@ import org.joda.time.DateTime
 import edu.umass.cs.iesl.scalacommons.Tap._
 import scalax.file.Path
 import worldmake.storage.{Storage, Identifier}
+import scala.collection.{GenSet, GenMap}
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 trait Provenance[+T] {
   def provenanceId: Identifier[Provenance[T]]
+  def derivationId: Identifier[Derivation[T]]
 
   def output: Option[Artifact[T]]
 
   def status: ProvenanceStatus.ProvenanceStatus
+
+  override def equals(other: Any): Boolean = other match {
+    case that: Provenance[T] => (that canEqual this) && provenanceId == that.provenanceId
+    case _ => false
+  }
+
+  def canEqual(other: Any): Boolean = other.isInstanceOf[Provenance[T]]
+
+  override def hashCode: Int = (41 + provenanceId.hashCode)
 }
 
 trait Successful[+T] extends Provenance[T] {
@@ -33,12 +44,14 @@ object ConstantProvenance {
 }
 
 // aka Input
-trait ConstantProvenance[T] extends Provenance[T] with Successful[T] {
+trait ConstantProvenance[T] extends Successful[T] {
   def createdTime: DateTime
 
   def output: Some[Artifact[T]]
 
   def status: ProvenanceStatus.ProvenanceStatus = ProvenanceStatus.Constant
+
+  def derivationId = Identifier[Derivation[T]](provenanceId.s)
 }
 
 private class MemoryConstantProvenance[T](artifact: Artifact[T]) extends ConstantProvenance[T] {
@@ -54,11 +67,10 @@ trait DerivedProvenance[T] extends Provenance[T] {
 
   //def derivation: Derivation[T]
 
-  def derivationId: Identifier[Derivation[T]]
 
-  def derivedFromUnnamed: Set[Provenance[_]]
+  def derivedFromUnnamed: GenSet[Provenance[_]]
 
-  def derivedFromNamed: Map[String, Provenance[_]]
+  def derivedFromNamed: GenMap[String, Provenance[_]]
 
   def startTime: DateTime
 
@@ -80,8 +92,8 @@ object Provenance {
   def apply[T](provenanceId: Identifier[Provenance[T]],
                derivationId: Identifier[Derivation[T]],
                status: ProvenanceStatus.ProvenanceStatus,
-               derivedFromUnnamed: Set[Provenance[_]] = Set.empty,
-               derivedFromNamed: Map[String, Provenance[_]] = Map.empty,
+               derivedFromUnnamed: GenSet[Provenance[_]] = Set.empty,
+               derivedFromNamed: GenMap[String, Provenance[_]] = Map.empty,
                startTime: DateTime = DateTime.now(), endTime: DateTime = DateTime.now(),
                statusCode: Option[Integer] = None,
                log: Option[ReadableStringOrFile] = None,
@@ -96,13 +108,13 @@ object SuccessfulProvenance {
   def apply[T](provenanceId: Identifier[Provenance[T]],
                derivationId: Identifier[Derivation[T]],
                status: ProvenanceStatus.ProvenanceStatus,
-               derivedFromUnnamed: Set[Provenance[_]] = Set.empty,
-               derivedFromNamed: Map[String, Provenance[_]] = Map.empty,
+               derivedFromUnnamed: GenSet[Provenance[_]] = Set.empty,
+               derivedFromNamed: GenMap[String, Provenance[_]] = Map.empty,
                startTime: DateTime = DateTime.now(), endTime: DateTime = DateTime.now(),
                statusCode: Option[Integer] = None,
                log: Option[ReadableStringOrFile] = None,
                output: Option[Artifact[T]] = None,
-               cost: Map[CostType.CostType, Double] = Map.empty): Provenance[T] with Successful[T] = { 
+               cost: Map[CostType.CostType, Double] = Map.empty): Successful[T] = { 
     assert(status == ProvenanceStatus.Success)
     new MemoryProvenance[T](provenanceId, derivationId, status, derivedFromUnnamed, derivedFromNamed, startTime, endTime, statusCode, log, output, cost) with Successful[T] tap Storage.provenanceStore.put
   }
@@ -211,8 +223,8 @@ class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1
 case class MemoryProvenance[T](provenanceId: Identifier[Provenance[T]],
                                derivationId: Identifier[Derivation[T]],
                                status: ProvenanceStatus.ProvenanceStatus,
-                               derivedFromUnnamed: Set[Provenance[_]] = Set.empty,
-                               derivedFromNamed: Map[String, Provenance[_]] = Map.empty,
+                               derivedFromUnnamed: GenSet[Provenance[_]] = Set.empty,
+                               derivedFromNamed: GenMap[String, Provenance[_]] = Map.empty,
                                startTime: DateTime = DateTime.now(), endTime: DateTime = DateTime.now(),
                                exitCode: Option[Integer] = None,
                                log: Option[ReadableStringOrFile] = None,

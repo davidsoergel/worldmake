@@ -3,16 +3,20 @@ package worldmake
 
 import java.util.UUID
 import worldmake.storage.{Storage, Identifier}
+import scala.collection.{GenTraversable, GenSet}
+import scala.collection.immutable.Queue
+import scala.concurrent._
 
 //import java.lang.ProcessBuilder.Redirect
 
-import scala.collection.GenSet
 import WorldMakeConfig._
-import edu.umass.cs.iesl.scalacommons.util.Hash
 
 //import scala.collection.JavaConversions._
 
 import scalax.file.Path
+
+import edu.umass.cs.iesl.scalacommons.StringUtils._
+import ExecutionContext.Implicits.global
 
 // even constant artifacts must be stored in the DB, to provide provenance even when the code changes, etc.
 
@@ -26,7 +30,9 @@ trait Derivation[+T] {
 
   def description: String // used only for human-readable debug logs and such
 
-  def resolveOne: Provenance[T] with Successful[T]
+  def resolveOne: Successful[T]
+
+  def resolveOneFuture: Future[Successful[T]]
 
   // the "best" status found among the Provenances
   // def status: DerivationStatuses.DerivationStatus
@@ -34,11 +40,32 @@ trait Derivation[+T] {
   def statusString: String //= status.name
 
   def shortId = derivationId.short
+
+  def shortDesc = shortId
+
   def printTree(prefix: String): String = {
     shortId + prefix + " [" + statusString + "] " + description
   }
 
+  def getQueue: Queue[Derivation[_]] = Queue(this)
+
+  def statusLine = {
+    val stat = f" [ $statusString%22s ] "
+    shortId + stat + description
+  }
+
   def isGloballyDeterministic: Boolean = true
+
+
+  override def equals(other: Any): Boolean = other match {
+    case that: Derivation[T] => (that canEqual this) && derivationId == that.derivationId
+    case _ => false
+  }
+
+  def canEqual(other: Any): Boolean = other.isInstanceOf[Derivation[T]]
+
+  override def hashCode: Int = (41 + derivationId.hashCode)
+
 
 }
 
@@ -66,7 +93,7 @@ object ConstantDerivation {
   implicit def fromDouble(s: Double): ConstantDerivation[Double] = ConstantDerivation(ConstantProvenance(DoubleArtifact(s)))
 
   implicit def fromInteger(s: Integer): ConstantDerivation[Integer] = ConstantDerivation(ConstantProvenance(IntegerArtifact(s)))
-  
+
   implicit def fromInt(s: Int): ConstantDerivation[Integer] = ConstantDerivation(ConstantProvenance(IntegerArtifact(s)))
 
   implicit def fromPath(s: Path): ConstantDerivation[Path] = ConstantDerivation(ConstantProvenance(ExternalPathArtifact(s)))
@@ -75,28 +102,57 @@ object ConstantDerivation {
 class ConstantDerivation[T](p: ConstantProvenance[T]) extends Derivation[T] {
   def derivationId = Identifier[Derivation[T]](p.provenanceId.s)
 
+  private val value: String = p.output.get.value.toString.replace("\n", "\\n")
+
   def description = {
-    "Input: " + p.output.get.value.toString.take(80).replace("\n", "\\n")
+    //"Input: " + 
+    value.limitAtWhitespace(80, "...")
   }
 
   def resolveOne = p
 
+  def resolveOneFuture = future {
+    p
+  } // (promise[Successful[T]]() success p).future 
+
   def statusString: String = ProvenanceStatus.Constant.toString
+
   override def shortId = "         "
+
+  override def shortDesc = if (value.matches("[\\s]")) value.limitAtWhitespace(30, "...") else value
 }
 
 
 trait DerivableDerivation[T] extends Derivation[T] {
 
-  def dependencies: Set[Derivation[_]]
+  def dependencies: GenSet[Derivation[_]]
 
-  protected def derive: Provenance[T] with Successful[T]
+  protected def derive: Successful[T]
+
+  protected def deriveFuture: Future[Successful[T]]
 
   // even if a derivation claims to be deterministic, it may still be derived multiple times (e.g. to confirm identical results)
 
   def deriveMulti(howMany: Integer): GenSet[Provenance[T]] = (0 to howMany).toSet.par.map((x: Int) => derive)
 
-  lazy val resolveOne: Provenance[T] with Successful[T] = synchronized {
+
+  //lazy val resolveOneFuture: Future[Successful[T]] = future { resolveOne }
+
+// todo super tricky: if the computation is already running in another thread / in another JVM / on another machine, wait for it instead of starting a new one.
+  
+  lazy val resolveOneFuture: Future[Successful[T]] = synchronized {
+    successes.toSeq.headOption.map(x => future {
+      x
+    }).getOrElse({
+      val f = deriveFuture
+      f.map(p => {
+        if (p.status == ProvenanceStatus.Success) p else throw new FailedDerivationException
+      })
+    })
+  }
+
+
+  lazy val resolveOne: Successful[T] = synchronized {
     successes.toSeq.headOption.getOrElse({
       val p = derive
       if (p.status == ProvenanceStatus.Success) p else throw new FailedDerivationException
@@ -110,15 +166,15 @@ trait DerivableDerivation[T] extends Derivation[T] {
     if (cached.nonEmpty) cached.map(_.asInstanceOf[Provenance[T]]) else Set(derive)
   }
 */
-  private lazy val provenances: Set[Provenance[T]] = Storage.provenanceStore.getDerivedFrom(derivationId)
+  private def provenances: GenSet[Provenance[T]] = Storage.provenanceStore.getDerivedFrom(derivationId)
 
-  lazy val successes: Set[Provenance[T] with Successful[T]] = // provenances.filter(_.status == ProvenanceStatus.Success)   
+  def successes: GenSet[Successful[T]] = // provenances.filter(_.status == ProvenanceStatus.Success)
     provenances.collect({
-    case x: Provenance[T] with Successful[T] => x
-  })
-  
+      case x: Successful[T] => x
+    })
+
   // .filter(_.status == Success)
-  lazy val failures = provenances.filter(_.status == ProvenanceStatus.Failure)
+  def failures = provenances.filter(_.status == ProvenanceStatus.Failure)
 
   //def numSuccess = provenances.count(_.output.nonEmpty)
 
@@ -134,7 +190,7 @@ trait DerivableDerivation[T] extends Derivation[T] {
   else Pending
 */
 
-  override lazy val statusString: String = {
+  override def statusString: String = {
     if (successes.size > 0) {
       ProvenanceStatus.Success + " (" + successes.size + " variants)"
     } else if (failures.size > 0) {
@@ -146,8 +202,12 @@ trait DerivableDerivation[T] extends Derivation[T] {
   override def printTree(prefix: String): String = {
     super.printTree(prefix) + "\n" + dependencies.map(_.printTree(prefix + prefixIncrement)).mkString("\n")
   }
-}
 
+  override def getQueue: Queue[Derivation[_]] = {
+    val deps = dependencies.seq.toSeq.flatMap(_.getQueue)
+    Queue[Derivation[_]](deps: _*).distinct.enqueue(this)
+  }
+}
 
 
 trait LocallyDeterministic[T] extends DerivableDerivation[T] {
@@ -247,19 +307,30 @@ class TraversableProvenance[T](val provenances: Traversable[Provenance[T]]) exte
 }
 */
 
-class TraversableDerivation[T](xs: Traversable[Derivation[T]]) extends DerivableDerivation[Traversable[T]] {
+class TraversableDerivation[T](xs: GenTraversable[Derivation[T]]) extends DerivableDerivation[GenTraversable[T]] {
   def derive = {
-    val upstream = xs.map(_.resolveOne)
-    SuccessfulProvenance[Traversable[T]](Identifier[Provenance[Traversable[T]]](UUID.randomUUID().toString),
+    val upstream = xs.par.map(_.resolveOne)
+    SuccessfulProvenance[GenTraversable[T]](Identifier[Provenance[GenTraversable[T]]](UUID.randomUUID().toString),
       derivationId, ProvenanceStatus.Success,
-      derivedFromUnnamed = upstream.toSet,
-      output = Some(new TraversableArtifact(upstream.map(_.artifact))))
+      derivedFromUnnamed = upstream.toSet.seq,
+      output = Some(new GenTraversableArtifact(upstream.map(_.artifact))))
+  }
+
+  def deriveFuture = {
+    val upstreamFF = xs.map(_.resolveOneFuture)
+    val upstreamF = Future.sequence(upstreamFF.seq)
+    upstreamF.map(upstream => {
+      SuccessfulProvenance[GenTraversable[T]](Identifier[Provenance[GenTraversable[T]]](UUID.randomUUID().toString),
+        derivationId, ProvenanceStatus.Success,
+        derivedFromUnnamed = upstream.toSet.seq,
+        output = Some(new GenTraversableArtifact(upstream.map(_.artifact))))
+    })
   }
 
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
   def derivationId = Identifier[Derivation[Traversable[T]]](WMHashHex("traversable" + xs.toSeq.map(_.derivationId).mkString))
 
-  def description = ("Traversable(" + xs.map(_.description) + ")").take(40)
+  def description = ("Traversable(" + xs.map(_.description) + ")").limitAtWhitespace(80, "...")
 
   def dependencies = xs.toSet
 }

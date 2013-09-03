@@ -7,7 +7,10 @@ import scalax.io.Resource
 import java.util.UUID
 import org.joda.time.DateTime
 import worldmake.storage.Identifier
+import scala.collection.GenMap
+import scala.concurrent.{ExecutionContext, Future}
 
+import ExecutionContext.Implicits.global
 //import java.lang.ProcessBuilder.Redirect
 
 import WorldMakeConfig._
@@ -27,47 +30,64 @@ object SystemDerivation {
   // For that matter, what if it differs for different arguments of the same type? 
   def toEnvironmentString[T](x: Artifact[T]): String = x match {
     case f: ExternalPathArtifact => f.abspath
-    case f: TraversableArtifact[T] => f.artifacts.map((x: Artifact[_]) => toEnvironmentString(x)).mkString(" ")
+    case f: GenTraversableArtifact[T] => f.artifacts.map((x: Artifact[_]) => toEnvironmentString(x)).mkString(" ")
     //case f:GenTraversableArtifact => f.artifacts.map(toEnvironmentString).mkString(" ")
     case f => f.value.toString
   }
 
 }
 
-class SystemDerivation(val script: Derivation[String], namedDependencies: Map[String, Derivation[_]]) extends DerivableDerivation[Path] with Logging {
+class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap[String, Derivation[_]]) extends DerivableDerivation[Path] with Logging {
 
-  // todo: include self version number??
   lazy val derivationId = {
     val dependencyInfos: Seq[String] = namedDependencies.map({
       case (k, v) => k.toString + v.derivationId.s
-    }).toSeq.sorted
+    }).toSeq.seq.sorted
     Identifier[Derivation[Path]](WMHashHex(script.derivationId.s + dependencyInfos.mkString("")))
   }
 
-  val description = "result of: " + script.description
+  val description = "EXECUTE(" + script.shortId + "): " + script.description
 
   val dependencies = namedDependencies.values.toSet + script
 
-
+  def deriveFuture = {
+    val reifiedScriptF = script.resolveOneFuture
+    val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k=>FutureUtils.futurePair((k,namedDependencies(k))))
+    for( reifiedScript <-  reifiedScriptF;
+      reifiedDependencies <- reifiedDependenciesF
+    ) yield deriveWithArgs( reifiedScript,reifiedDependencies.toMap)
+  
+  }
   // todo store provenance lifecycle
 
   def derive = synchronized {
-    import SystemDerivation._
 
+    // todo resolve script and arguments in parallel
+    val reifiedScript = script.resolveOne
+    val reifiedDependencies = namedDependencies.par.mapValues(_.resolveOne)
+    deriveWithArgs( reifiedScript,reifiedDependencies)
+  }
+  
+  private def deriveWithArgs(reifiedScript:Successful[String],reifiedDependencies:GenMap[String,Successful[_]]) = synchronized {
+    
     val startTime = DateTime.now()
+    
+    // this path does not yet exist.
+    // the derivation may write a single file to it, or create a directory there.
     val outputPath: Path = fileStore.newPath
+    
     val workingDir = Path.createTempDirectory()
     //val log: File = (outputPath / "worldmake.log").fileOption.getOrElse(throw new Error("can't create log: " + outputPath / "worldmake.log"))
     //val logWriter = Resource.fromFile(log)
 
     val logWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
 
-    val reifiedDependencies = namedDependencies.mapValues(_.resolveOne)
-    val dependenciesEnvironment: Map[String, String] = reifiedDependencies.mapValues(x => toEnvironmentString(x.artifact))
-    val environment: Map[String, String] = WorldMakeConfig.globalEnvironment ++ dependenciesEnvironment ++ Map("out" -> outputPath.toAbsolute.path) //, "PATH" -> WorldMakeConfig.globalPath)
+    
+    val dependenciesEnvironment: GenMap[String, String] = reifiedDependencies.mapValues(x => SystemDerivation.toEnvironmentString(x.artifact))
+    val environment: GenMap[String, String] = WorldMakeConfig.globalEnvironment ++ dependenciesEnvironment ++ Map("out" -> outputPath.toAbsolute.path) //, "PATH" -> WorldMakeConfig.globalPath)
 
     val runner = Resource.fromFile(new File((workingDir / "worldmake.runner").toAbsolute.path))
-    runner.write(script.resolveOne.output.get.value)
+    runner.write(reifiedScript.artifact.value)
 
     val envlog = Resource.fromFile(new File((workingDir / "worldmake.environment").toAbsolute.path))
     envlog.write(environment.map({
@@ -89,9 +109,9 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: Map[St
     val result = ExternalPathArtifact(outputPath)
 
     val endTime = DateTime.now()
-    
+
     if (exitCode != 0) {
-      logger.warn("Deleting output directory: " + outputPath)
+      logger.warn("Deleting output: " + outputPath)
       outputPath.deleteRecursively()
       logger.warn("Retaining working directory: " + workingDir)
 
@@ -99,17 +119,16 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: Map[St
         derivationId = SystemDerivation.this.derivationId,
         status = ProvenanceStatus.Failure,
         derivedFromNamed = reifiedDependencies,
+        derivedFromUnnamed = Set(reifiedScript),
         startTime = startTime,
         endTime = endTime,
         statusCode = Some(exitCode),
         log = Some(logWriter),
         output = None)
-      
-      logger.error(logWriter.get.fold(x=>x,y=>y.toString))
-      
-      throw new FailedDerivationException
 
-      // todo store failure log
+      logger.error(logWriter.get.fold(x => x, y => y.toString))
+
+      throw new FailedDerivationException
     }
 
     if (WorldMakeConfig.debugWorkingDirectories) {
@@ -122,10 +141,17 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: Map[St
       derivationId = SystemDerivation.this.derivationId,
       status = ProvenanceStatus.Success,
       derivedFromNamed = reifiedDependencies,
+      derivedFromUnnamed = Set(reifiedScript),
       startTime = startTime,
       endTime = endTime,
       statusCode = Some(exitCode),
       log = Some(logWriter),
       output = Some(result))
   }
+}
+
+
+object FutureUtils {
+
+   def futurePair[T](kv:(String,Derivation[T])):Future[(String,Successful[T])] = kv._2.resolveOneFuture.map(v=>kv._1->v)
 }

@@ -32,6 +32,15 @@ case class Identifier[+T](s:String) {
   val short = s"$short1/$short2"
 
   override def toString = s
+
+  override def equals(other: Any): Boolean = other match {
+    case that: Identifier[T] => (that canEqual this) && s == that.s
+    case _ => false
+  }
+
+  def canEqual(other: Any): Boolean = other.isInstanceOf[Identifier[T]]
+
+  override def hashCode: Int = (41 + s.hashCode)
 }
 //case class ArtifactIdentifier(s:String)
 

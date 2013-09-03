@@ -16,10 +16,17 @@ class FileStore(val rootPath: Path) extends FilenameGenerator {
   def newPath: Path = {
     val id = UUID.randomUUID.toString
     val dirStructure(a, b, c) = id
-    val p: Path = rootPath / a / b / c
+    val p: Path = rootPath / a / b
+    p.createDirectory(createParents = true, failIfExists = true)
+    p / c
+  }
+  
+  /*
+  def newDirectory: Path = {
+    val p: Path = newPath
     p.createDirectory(createParents = true, failIfExists = true)
     p
-  }
+  }*/
   
   /*
   def get(id:UUID) {

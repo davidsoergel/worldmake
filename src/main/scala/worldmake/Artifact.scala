@@ -8,6 +8,9 @@ import edu.umass.cs.iesl.scalacommons.Tap._
 import WorldMakeConfig.WMHash
 import worldmake.storage.{Storage, Identifier}
 import com.typesafe.scalalogging.slf4j.Logging
+import scala.collection.GenTraversable
+import edu.umass.cs.iesl.scalacommons.StringUtils
+import StringUtils._
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -81,7 +84,7 @@ object StringArtifact {
 }
 
 trait StringArtifact extends Artifact[String] {
-  def description = value.take(80).replace("\n","\\n")
+  def description = value.replace("\n","\\n").limitAtWhitespace(80, "...")
 }
 
 class MemoryStringArtifact(s: String) extends MemoryArtifact[String](s) with StringArtifact with ContentHashableArtifact[String] {
@@ -175,7 +178,7 @@ class MemoryExternalPathArtifact(path: Path) extends MemoryArtifact[Path](path) 
 
 
 
-class TraversableArtifact[T](val artifacts: Traversable[Artifact[T]]) extends Artifact[Traversable[T]] {
+class GenTraversableArtifact[T](val artifacts: GenTraversable[Artifact[T]]) extends Artifact[GenTraversable[T]] {
   //def provenanceId = Identifier[Artifact[Traversable[T]]](UUID.randomUUID().toString)
 
   def contentHashBytes = artifacts.toSeq.map(_.contentHashBytes).flatten.toArray

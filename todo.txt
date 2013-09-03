@@ -1,0 +1,45 @@
+Done
+====
+
+* allow single-file outputs.
+* typed Paths.
+* Make an assembly derivation (just ln -s based on a map)
+* Commandline UI: depthfirst queue
+
+Underway
+========
+
+* parallelism throughout
+
+
+Immediate
+=========
+
+* better descriptions
+* Commandline UI: cleanup, showlog, lastfailure, depthfirst queue
+
+Medium
+======
+
+* mark derivation roots. Database cleanup.
+
+* Track job status (e.g., Running); job scheduling
+
+* qsub integration
+* Add a completion estimator to system derivations
+* Make the file store adapts to usage based on hash characters
+* Limit access to the resolve function
+* detect cycles (or make impossible?)
+* Name: provener
+
+
+Hard
+====
+
+
+* option to continue computing in spite of failure (hard: https://github.com/scala/scala/pull/2563)
+* what if a library function called inside a derivation is changed?  Need to hash the whole call tree??
+* distinguish "meaningful" changes (to the code) from supposedly meaningless context (e.g., platform, JDK version)
+
+* distinguish compile-time from runtime ("retained") dependencies
+* Web UI

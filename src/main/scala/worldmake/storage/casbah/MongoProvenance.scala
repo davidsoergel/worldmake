@@ -12,7 +12,7 @@ import worldmake.storage.Identifier
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 trait MongoProvenance[T] extends Provenance[T] with MongoWrapper {
-  override def provenanceId = Identifier[Provenance[T]](dbo.as[String]("provenanceId"))
+  override def provenanceId = Identifier[Provenance[T]](dbo.as[String]("_id"))
 
   override def output = dbo.getAs[DBObject]("output").map(MongoArtifact.artifactFromDb(_).asInstanceOf[Artifact[T]])
 
@@ -73,8 +73,8 @@ object MongoDerivedProvenance {
   def addFields(e: DerivedProvenance[_], builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoProvenance.addFields(e, builder)
     builder += "derivationId" -> e.derivationId
-    builder += "derivedFromUnnamed" -> e.derivedFromUnnamed.map(_.provenanceId)
-    builder += "derivedFromNamed" -> e.derivedFromNamed.mapValues(_.provenanceId)
+    builder += "derivedFromUnnamed" -> e.derivedFromUnnamed.seq.map(_.provenanceId)
+    builder += "derivedFromNamed" -> e.derivedFromNamed.seq.mapValues(_.provenanceId)
     builder += "startTime" -> e.startTime
     builder += "endTime" -> e.endTime
 
