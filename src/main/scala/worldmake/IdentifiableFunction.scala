@@ -63,7 +63,7 @@ class IdentifiableFunction0[R](val id: String, f: Function0[R]) {
 
 
 class Derivation0[R](f: IdentifiableFunction0[R]) extends DerivableDerivation[R] {
-  def dependencies = Set.empty
+  def dependencies = Arguments0
 
   def deriveFuture = future { derive }
   def derive: Provenance[R] with Successful[R] = {

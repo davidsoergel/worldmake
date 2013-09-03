@@ -60,7 +60,7 @@ object WorldMake extends Logging {
         //val derivationId = symbolTable.getProperty(target) 
         //val derivationArtifact = Storage.artifactStore.get(derivationId)
         val derivation: Derivation[_] = world(target)
-        logger.info("\n"+derivation.getQueue.filterNot(_.isInstanceOf[ConstantDerivation[_]]).map(_.statusLine).mkString("\n"))
+        logger.info("\n"+derivation.queue.filterNot(_.isInstanceOf[ConstantDerivation[_]]).map(_.statusLine).mkString("\n"))
       }
       //case "import"
       //case "set"
