@@ -42,6 +42,12 @@ object MongoArtifact {
     case e: IntegerArtifact => MongoIntegerArtifact.toDb(e)
     case e: DoubleArtifact => MongoDoubleArtifact.toDb(e)
     case e: ExternalPathArtifact => MongoExternalPathArtifact.toDb(e)
+    /*case e: Artifact => e.value match {
+      case f: String => MongoStringArtifact.toDb(e)
+      case f: Integer => MongoIntegerArtifact.toDb(e)
+      case f: Double => MongoDoubleArtifact.toDb(e)
+      case f: Path => MongoExternalPathArtifact.toDb(e)
+    }*/
   }
   
   def addFields(e: Artifact[_], builder: mutable.Builder[(String, Any), Imports.DBObject]) {

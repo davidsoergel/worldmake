@@ -78,6 +78,17 @@ object ConstantArtifact {
   implicit def fromPath(s: Path): Artifact[Path] = ExternalPathArtifact(s)
 }
 */
+object Artifact {
+  def apply[T](v:T) : Artifact[T] = (v match {
+    case s:String => StringArtifact(s)
+    case i:Integer => IntegerArtifact(i)
+    case d:Double => DoubleArtifact(d)
+    case p:Path => ExternalPathArtifact(p)
+    case _ => throw new IllegalArtifactException(v.toString)
+  }).asInstanceOf[Artifact[T]]
+}
+
+class IllegalArtifactException(message:String) extends Throwable(message)
 
 object StringArtifact {
   def apply(s: String) = new MemoryStringArtifact(s) tap {(x:MemoryStringArtifact)=>Storage.provenanceStore.put(ConstantProvenance(x))}

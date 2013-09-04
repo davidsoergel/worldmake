@@ -11,6 +11,8 @@ import scala.collection.GenMap
 import scala.concurrent.{ExecutionContext, Future}
 
 import ExecutionContext.Implicits.global
+import scala.collection.immutable.Queue
+
 //import java.lang.ProcessBuilder.Redirect
 
 import WorldMakeConfig._
@@ -39,6 +41,11 @@ object SystemDerivation {
 
 class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap[String, Derivation[_]]) extends DerivableDerivation[Path] with Logging {
 
+  override def queue: Queue[Derivation[_]] = {
+    val deps = dependencies.seq.toSeq.flatMap(_.queue)
+    Queue[Derivation[_]](deps: _*).distinct.enqueue(this)
+  }
+  
   lazy val derivationId = {
     val dependencyInfos: Seq[String] = namedDependencies.map({
       case (k, v) => k.toString + v.derivationId.s
@@ -46,27 +53,34 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap
     Identifier[Derivation[Path]](WMHashHex(script.derivationId.s + dependencyInfos.mkString("")))
   }
 
-  val description = "EXECUTE(" + script.shortId + "): " + script.description
+  def description = "EXECUTE(" + script.shortId + "): " + script.description
 
   val dependencies = namedDependencies.values.toSet + script
 
-  def deriveFuture = {
-    val reifiedScriptF = script.resolveOneFuture
+  def deriveFuture(implicit strategy: FutureDerivationStrategy) = {
+    val reifiedScriptF = strategy.resolveOne(script)
     val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k=>FutureUtils.futurePair((k,namedDependencies(k))))
-    for( reifiedScript <-  reifiedScriptF;
+    val result = for( reifiedScript <-  reifiedScriptF;
       reifiedDependencies <- reifiedDependenciesF
     ) yield deriveWithArgs( reifiedScript,reifiedDependencies.toMap)
+    result onFailure  {
+      case t => {
+        logger.debug("Error in Future: ", t)
+      }
+    }
+    result
   
   }
   // todo store provenance lifecycle
 
+  /*
   def derive = synchronized {
 
     // todo resolve script and arguments in parallel
     val reifiedScript = script.resolveOne
     val reifiedDependencies = namedDependencies.par.mapValues(_.resolveOne)
     deriveWithArgs( reifiedScript,reifiedDependencies)
-  }
+  }*/
   
   private def deriveWithArgs(reifiedScript:Successful[String],reifiedDependencies:GenMap[String,Successful[_]]) = synchronized {
     
@@ -126,9 +140,9 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap
         log = Some(logWriter),
         output = None)
 
-      logger.error(logWriter.get.fold(x => x, y => y.toString))
+      //logger.error(logWriter.get.fold(x => x, y => y.toString))
 
-      throw new FailedDerivationException
+      throw new FailedDerivationException(logWriter.get.fold(x => x, y => y.toString))
     }
 
     if (WorldMakeConfig.debugWorkingDirectories) {
@@ -153,5 +167,5 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap
 
 object FutureUtils {
 
-   def futurePair[T](kv:(String,Derivation[T])):Future[(String,Successful[T])] = kv._2.resolveOneFuture.map(v=>kv._1->v)
+   def futurePair[T](kv:(String,Derivation[T]))(implicit strategy: FutureDerivationStrategy):Future[(String,Successful[T])] = kv._2.deriveFuture.map(v=>kv._1->v)
 }

@@ -68,9 +68,9 @@ trait DerivedProvenance[T] extends Provenance[T] {
   //def derivation: Derivation[T]
 
 
-  def derivedFromUnnamed: GenSet[Provenance[_]]
+  def derivedFromUnnamed: GenSet[Successful[_]]
 
-  def derivedFromNamed: GenMap[String, Provenance[_]]
+  def derivedFromNamed: GenMap[String, Successful[_]]
 
   def startTime: DateTime
 
@@ -79,6 +79,8 @@ trait DerivedProvenance[T] extends Provenance[T] {
   def exitCode: Option[Integer]
 
   def log: Option[ReadableStringOrFile]
+  
+  def logString: String = log.map(_.get.fold(x => x, y => y.toString)).getOrElse("")
 
   def cost: Map[CostType.CostType, Double]
 
@@ -160,7 +162,7 @@ case object Failure extends ProvenanceStatus("Failure")
 object ProvenanceStatus extends Enumeration {
   type ProvenanceStatus = Value
   
-  val  Constant, Explicit, Blocked, Ready, Pending,Running, Cancelled, Success, Failure = Value
+  val  Constant, Explicit, Blocked, Ready, Pending, Running, Cancelled, Success, Failure = Value
 }
 
 

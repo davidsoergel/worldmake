@@ -6,6 +6,7 @@ import worldmake.storage.{Storage, Identifier}
 import scala.collection.{GenTraversable, GenSet}
 import scala.collection.immutable.Queue
 import scala.concurrent._
+import com.typesafe.scalalogging.slf4j.Logging
 
 //import java.lang.ProcessBuilder.Redirect
 
@@ -29,7 +30,12 @@ trait Derivation[+T] {
   def derivationId: Identifier[Derivation[T]]
 
   def description: String // used only for human-readable debug logs and such
-
+  
+  private var providedSummary: String = ""
+  def setProvidedSummary(s:String) { providedSummary=s }
+  
+  def summary = providedSummary
+  
   def shortId = derivationId.short
 
   def shortDesc = shortId
@@ -47,7 +53,19 @@ trait Derivation[+T] {
 
   override def hashCode: Int = (41 + derivationId.hashCode)
 
+  def deriveFuture(implicit strategy: FutureDerivationStrategy) : Future[Successful[T]]
 
+}
+
+object Derivation {
+  implicit def toDescribedDerivation(s:String) : DerivationSummary = new DerivationSummary(s)
+}
+
+class DerivationSummary(s:String) {
+  def via[T <: Derivation[_]](d:T) : T = { 
+    d.setProvidedSummary(s) //copy(description = s)
+    d
+  }
 }
 
 /*
@@ -85,42 +103,41 @@ class ConstantDerivation[T](p: ConstantProvenance[T]) extends Derivation[T] with
 
   private val value: String = p.output.get.value.toString.replace("\n", "\\n")
 
-  def description = {
-    //"Input: " + 
-    value.limitAtWhitespace(80, "...")
-  }
+  def description = value.limitAtWhitespace(80, "...")
 
   def apply = p
-/*
-  def resolveOneFuture = future {
+
+  def deriveFuture(implicit strategy: FutureDerivationStrategy) = Future.successful(p)
+  /*future {
     p
   } // (promise[Successful[T]]() success p).future 
+  */
 
-  def statusString: String = ProvenanceStatus.Constant.toString
-*/
+//  def statusString: String = ProvenanceStatus.Constant.toString
+
   override def shortId = "         "
 
   override def shortDesc = if (value.matches("[\\s]")) value.limitAtWhitespace(30, "...") else value
 }
 
 
-trait DerivableDerivation[A<:UnresolvedArguments,T] extends Derivation[T] with ((ResolvedArguments)=>Successful[T]){
+trait DerivableDerivation[T] extends Derivation[T] {
 
   //def dependencies : A
-  def dependencies : A //= args.unresolved //: A //GenSet[Derivation[_]]
+  def dependencies : GenSet[Derivation[_]]
 
   override def queue: Queue[Derivation[_]] = {
-    val deps = dependencies.queue //seq.toSeq.flatMap(_.getQueue)
+    val deps = dependencies.seq.toSeq.flatMap(_.queue)
     Queue[Derivation[_]](deps: _*).distinct.enqueue(this)
   }
 }
 
 
-trait LocallyDeterministic[A<:UnresolvedArguments,T] extends DerivableDerivation[A,T] {
-  override def isGloballyDeterministic: Boolean = !dependencies.queue.exists(!_.isGloballyDeterministic)
+trait LocallyDeterministic[T] extends DerivableDerivation[T] {
+  override def isGloballyDeterministic: Boolean = !dependencies.exists(!_.isGloballyDeterministic)
 }
 
-trait LocallyNondeterministic[A<:UnresolvedArguments,T] extends DerivableDerivation[A,T] {
+trait LocallyNondeterministic[T] extends DerivableDerivation[T] {
   def resolvePrecomputed: GenSet[Provenance[T]]
 
   //def resolveNew: Option[Provenance[T]]
@@ -192,7 +209,7 @@ class SystemDerivationJava(val script: Derivation[String], namedDependencies: Ma
 */
 
 
-class FailedDerivationException extends Exception
+class FailedDerivationException(message:String) extends Exception(message)
 
 /*
 trait ExternalPathDerivation extends Derivation[Path] {
@@ -213,7 +230,7 @@ class TraversableProvenance[T](val provenances: Traversable[Provenance[T]]) exte
 }
 */
 
-class TraversableDerivation[AA](xs: GenTraversable[Derivation[AA]]) extends DerivableDerivation[ArgumentsSet[AA],GenTraversable[AA]] {
+class TraversableDerivation[T](val xs: GenTraversable[Derivation[T]]) extends DerivableDerivation[GenTraversable[T]] with Logging {
   /*def derive = {
     val upstream = xs.par.map(_.resolveOne)
     SuccessfulProvenance[GenTraversable[T]](Identifier[Provenance[GenTraversable[T]]](UUID.randomUUID().toString),
@@ -242,19 +259,35 @@ class TraversableDerivation[AA](xs: GenTraversable[Derivation[AA]]) extends Deri
   }*/
 
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
-  def derivationId = Identifier[Derivation[Traversable[AA]]](WMHashHex("traversable" + xs.toSeq.map(_.derivationId).mkString))
+  def derivationId = Identifier[Derivation[Traversable[T]]](WMHashHex("traversable" + xs.toSeq.map(_.derivationId).mkString))
 
   def description = ("Traversable(" + xs.map(_.description) + ")").limitAtWhitespace(80, "...")
 
-  //def dependencies = xs.toSet
-  def apply(args: ArgumentsSet[AA]) = {
+  def dependencies = xs.toSet
+/*  def apply(args: ArgumentsSet[AA]) = {
     val argValues = args.resolved.values
     SuccessfulProvenance[GenTraversable[AA]](Identifier[Provenance[GenTraversable[AA]]](UUID.randomUUID().toString),
       derivationId, ProvenanceStatus.Success,
       derivedFromUnnamed = argValues, //derivedFromUnnamed.toSet.seq,
       output = Some(new GenTraversableArtifact(argValues.map(_.artifact))))
   }
-
+*/
+  def deriveFuture(implicit strategy: FutureDerivationStrategy) =  {
+    val upstreamFF = xs.map(strategy.resolveOne)
+    val upstreamF = Future.sequence(upstreamFF.seq)
+    val result = upstreamF.map(upstream => {
+      SuccessfulProvenance[GenTraversable[T]](Identifier[Provenance[GenTraversable[T]]](UUID.randomUUID().toString),
+        derivationId, ProvenanceStatus.Success,
+        derivedFromUnnamed = upstream.toSet.seq,
+        output = Some(new GenTraversableArtifact(upstream.map(_.artifact))))
+    })
+  result onFailure  {
+    case t => {
+      logger.debug("Error in Future: ", t)
+    }
+  }
+  result
+  }
 }
 
 /*

@@ -98,9 +98,9 @@ class MongoDerivedProvenance[T](val dbo: MongoDBObject) extends MongoProvenance[
 
   override def derivationId: Identifier[Derivation[T]] = Identifier[Derivation[T]](dbo.as[String]("derivationId"))
 
-  override def derivedFromUnnamed: Set[Provenance[_]] = dbo.as[Set[Provenance[_]]]("derivedFromUnnamed")  // todo wtf
+  override def derivedFromUnnamed: Set[Successful[_]] = dbo.as[Set[Successful[_]]]("derivedFromUnnamed")  // todo wtf
 
-  override def derivedFromNamed: Map[String, Provenance[_]] = dbo.as[Map[String, Provenance[_]]]("derivedFromNamed")
+  override def derivedFromNamed: Map[String, Successful[_]] = dbo.as[Map[String, Successful[_]]]("derivedFromNamed")
 
   override def startTime: DateTime = dbo.as[DateTime]("startTime")
 

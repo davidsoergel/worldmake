@@ -1,13 +1,12 @@
 package worldmake
 
 import scala.concurrent._
-import scala.collection.GenSet
+import scala.collection.{mutable, GenSet}
 import worldmake.storage.Storage
-import worldmake.{UnresolvedArgumentsNamed, UnresolvedArguments2, FailedDerivationException}
-import scala.concurrent.duration.Duration
 import com.typesafe.scalalogging.slf4j.Logging
-import scalaz.Monad
-import scalaz.Id
+import ExecutionContext.Implicits.global
+import worldmake.storage.Identifier
+import scala.util.{Success, Failure}
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -43,14 +42,7 @@ trait DerivationStrategy {
 }
 */
 trait FutureDerivationStrategy extends Logging {
-  def resolveOne[T](d:Derivation[T]): Future[Successful[T]]
-  
-  def resolveArguments(args:UnresolvedArguments0):Future[ResolvedArguments0] = future { new ResolvedArguments0 }
-  def resolveArguments[A](args:UnresolvedArguments1[A]):Future[ResolvedArguments1[A]] = resolveOne(args.a) map (new ResolvedArguments1(_))
-  def resolveArguments[A,B](args:UnresolvedArguments2[A,B]):Future[ResolvedArguments2[A,B]]
-  def resolveArguments[A,B,C](args:UnresolvedArguments3[A,B,C]):Future[ResolvedArguments3[A,B,C]]
-  def resolveArguments[A](args:UnresolvedArgumentsSet[A]):Future[ResolvedArgumentsSet[A]]
-  def resolveArguments[A](args:UnresolvedArgumentsNamed[A]):Future[ResolvedArgumentsNamed[A]]
+  def resolveOne[T](d: Derivation[T]): Future[Successful[T]]
 
   // even if a derivation claims to be deterministic, it may still be derived multiple times (e.g. to confirm identical results)
 
@@ -58,7 +50,6 @@ trait FutureDerivationStrategy extends Logging {
 
 
   //lazy val resolveOneFuture: Future[Successful[T]] = future { resolveOne }
-
 
 
 }
@@ -79,12 +70,13 @@ trait LocalDerivationStrategy extends DerivationStrategy {
 }
 */
 trait QsubDerivationStrategy extends FutureDerivationStrategy {
-  
+
 }
 
 
-trait CachingDerivationStrategy { //extends DerivationStrategy {
-  
+trait CachingFutureDerivationStrategy extends FutureDerivationStrategy {
+  //extends DerivationStrategy {
+
   //val fallback : DerivationStrategy
 
   // the "best" status found among the Provenances
@@ -92,40 +84,42 @@ trait CachingDerivationStrategy { //extends DerivationStrategy {
 
   // def statusString[T](d:Derivation[T]): String //= status.name
 
-  def printTree[T](d:Derivation[T], prefix: String): String = {
+
+  def printTree[T](d: Derivation[T], prefix: String): String = {
     d.shortId + prefix + " [" + statusString(d) + "] " + d.description
   }
 
-  def printTree[A,T](d:DerivableDerivation[A,T], prefix: String): String = {
-    printTree(d.asInstanceOf[Derivation[T]],prefix) + "\n" + d.dependencies.derivations.map(printTree(_,prefix + WorldMakeConfig.prefixIncrement)).mkString("\n")
+  def printTree[A, T](d: DerivableDerivation[T], prefix: String): String = {
+    printTree(d.asInstanceOf[Derivation[T]], prefix) + "\n" + d.dependencies.map(printTree(_, prefix + WorldMakeConfig.prefixIncrement)).mkString("\n")
   }
 
-  
-  def statusLine[T](d:Derivation[T]) = {
-    val stat = f" [ ${statusString(d)}%22s ] "
-    d.shortId + stat + d.description
+  def statusLine[T](d: Derivation[T]) = {
+    //val stat = f" [ ${statusString(d)}%22s ] "
+    //d.shortId + stat + d.summary + d.description
+    f"${d.shortId}%8s [ ${statusString(d)}%22s ] ${d.summary}%40s : ${d.description}%-40s"
   }
 
+  /*
+    def resolveOne[T](d:Derivation[T]): Successful[T] = synchronized {
+      successes(d).toSeq.headOption.getOrElse({
+        val p = fallback.resolveOne(d)
+        if (p.status == ProvenanceStatus.Success) p else throw new FailedDerivationException
+      })
+    }
+  */
 
-  def resolveOne[T](d:Derivation[T]): Successful[T] = synchronized {
-    successes(d).toSeq.headOption.getOrElse({
-      val p = fallback.resolveOne(d)
-      if (p.status == ProvenanceStatus.Success) p else throw new FailedDerivationException
-    })
-  }
+  private def provenances[T](d: Derivation[T]): GenSet[Provenance[T]] = Storage.provenanceStore.getDerivedFrom(d.derivationId)
 
-  private def provenances[T](d:Derivation[T]): GenSet[Provenance[T]] = Storage.provenanceStore.getDerivedFrom(d.derivationId)
-
-  def successes[T](d:Derivation[T]): GenSet[Successful[T]] = // provenances.filter(_.status == ProvenanceStatus.Success)
+  def successes[T](d: Derivation[T]): GenSet[Successful[T]] = // provenances.filter(_.status == ProvenanceStatus.Success)
     provenances(d).collect({
       case x: Successful[T] => x
     })
 
   // .filter(_.status == Success)
-  def failures[T](d:Derivation[T]) = provenances(d).filter(_.status == ProvenanceStatus.Failure)
+  def failures[T](d: Derivation[T]) = provenances(d).filter(_.status == ProvenanceStatus.Failure)
 
 
-  def statusString[T](d:Derivation[T]): String = {
+  def statusString[T](d: Derivation[T]): String = {
     if (successes(d).size > 0) {
       ProvenanceStatus.Success + " (" + successes(d).size + " variants)"
     } else if (failures(d).size > 0) {
@@ -134,8 +128,55 @@ trait CachingDerivationStrategy { //extends DerivationStrategy {
     else "no status" // todo print other statuses
   }
 
+  val fallback: FutureDerivationStrategy
+
+  // todo super tricky: if the computation is already running in another thread / in another JVM / on another machine, wait for it instead of starting a new one.
+
+  def resolveOne[T](d: Derivation[T]): Future[Successful[T]] = synchronized {
+    successes(d).toSeq.headOption.map(x => Future.successful(x)).getOrElse(
+      RunningDerivations.getAs(d.derivationId)
+        .getOrElse({
+        val result = fallback.resolveOne(d)
+
+        /*val result = f.map(p => {
+          RunningDerivations.remove(d.derivationId)
+          if (p.status == ProvenanceStatus.Constant || p.status == ProvenanceStatus.Success) { 
+            p 
+          } else {
+            throw new FailedDerivationException("Impossible: successful provenance has status " + p.status)
+            /*p match {
+              case dp : DerivedProvenance[T] =>
+                throw new FailedDerivationException(dp.logString)
+              case _ => throw new FailedDerivationException("Impossible failure of ")
+            }*/
+          }
+        })*/
+
+        RunningDerivations.put(d.derivationId, result)
+        result onComplete {
+          case Success(t) => RunningDerivations.remove(d.derivationId)
+          case Failure(t) => RunningDerivations.remove(d.derivationId)
+        }
+        result
+      }))
+  }
 }
 
+object RunningDerivations {
+  private val running: mutable.Map[Identifier[Derivation[_]], Future[Successful[_]]] = new mutable.HashMap[Identifier[Derivation[_]], Future[Successful[_]]] with mutable.SynchronizedMap[Identifier[Derivation[_]], Future[Successful[_]]]
+
+  def put(id: Identifier[Derivation[_]], f: Future[Successful[_]]) {
+    running.put(id, f)
+  }
+
+  def getAs[T](id: Identifier[Derivation[T]]): Option[Future[Successful[T]]] = running.get(id).map(_.asInstanceOf[Future[Successful[T]]])
+
+  def remove(id: Identifier[Derivation[_]]) {
+    running.remove(id)
+  }
+}
+
+/*
 trait CachingFutureDerivationStrategy extends CachingDerivationStrategy with FutureDerivationStrategy {
 
   val fallback : FutureDerivationStrategy
@@ -152,17 +193,20 @@ trait CachingFutureDerivationStrategy extends CachingDerivationStrategy with Fut
       })
     })
   }
-}
+}*/
 
 class LocalFutureDerivationStrategy(upstreamStrategy: FutureDerivationStrategy) extends FutureDerivationStrategy {
   @throws(classOf[FailedDerivationException])
-  def resolveOne[T](d: DerivableDerivation[UnresolvedArguments, T]):Future[Successful[T]] = future {
-    val resolved : Future[ResolvedArguments] = upstreamStrategy.resolveArguments(d.dependencies) //.resolved()
-    val result : Future[Successful[T]] = resolved.map(d(_))
-    result
-  }
+  def resolveOne[T](d: Derivation[T]): Future[Successful[T]] = d.deriveFuture(upstreamStrategy)
+
+  /*future {
+  val resolved : Future[Successful[T]] = upstreamStrategy.resolveArguments(d.dependencies) //.resolved()
+  val result : Future[Successful[T]] = resolved.map(d)
+  result
+}*/
 }
 
+/*
 class LocalDerivationStrategy(upstreamStrategy: DerivationStrategy) extends DerivationStrategy {
   @throws(classOf[FailedDerivationException])
   def resolveOne[A<:UnresolvedArguments,T](d: DerivableDerivation[A,T]):Successful[T] = {
@@ -171,3 +215,4 @@ class LocalDerivationStrategy(upstreamStrategy: DerivationStrategy) extends Deri
     result
   }
 }
+*/
