@@ -219,6 +219,7 @@ class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1
   def get: Either[String, Path] = current.fold(sb => Left(sb.toString), p => Right(p))
 
   //override def toString : String = current.fold(sb=>sb.toString,p=>p.toAbsolute.path)
+  def getString : String = current.fold(sb => sb.toString, y => y.toString)
 }
 
 

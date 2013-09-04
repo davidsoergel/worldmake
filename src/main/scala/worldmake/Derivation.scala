@@ -53,7 +53,7 @@ trait Derivation[+T] {
 
   override def hashCode: Int = (41 + derivationId.hashCode)
 
-  def deriveFuture(implicit strategy: FutureDerivationStrategy) : Future[Successful[T]]
+  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) : Future[Successful[T]]
 
 }
 
@@ -107,7 +107,7 @@ class ConstantDerivation[T](p: ConstantProvenance[T]) extends Derivation[T] with
 
   def apply = p
 
-  def deriveFuture(implicit strategy: FutureDerivationStrategy) = Future.successful(p)
+  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = Future.successful(p)
   /*future {
     p
   } // (promise[Successful[T]]() success p).future 
@@ -272,8 +272,8 @@ class TraversableDerivation[T](val xs: GenTraversable[Derivation[T]]) extends De
       output = Some(new GenTraversableArtifact(argValues.map(_.artifact))))
   }
 */
-  def deriveFuture(implicit strategy: FutureDerivationStrategy) =  {
-    val upstreamFF = xs.map(strategy.resolveOne)
+  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) =  {
+    val upstreamFF = xs.map(upstreamStrategy.resolveOne)
     val upstreamF = Future.sequence(upstreamFF.seq)
     val result = upstreamF.map(upstream => {
       SuccessfulProvenance[GenTraversable[T]](Identifier[Provenance[GenTraversable[T]]](UUID.randomUUID().toString),

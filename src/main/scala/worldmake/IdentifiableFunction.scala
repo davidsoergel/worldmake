@@ -67,7 +67,7 @@ class IdentifiableFunction0[R](val id: String, f: Function0[R]) {
 class Derivation0[R](f: IdentifiableFunction0[R]) extends DerivableDerivation[R] with Logging {
   def dependencies = Set.empty
 
-  def deriveFuture(implicit strategy: FutureDerivationStrategy) = {
+  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
     val result = future { derive }
     result onFailure  {
       case t => {
@@ -127,8 +127,8 @@ class Derivation1[T1, R](f: IdentifiableFunction1[T1, R], a: Derivation[T1]) ext
     deriveWithArg(p)
   }*/
 
-  def deriveFuture(implicit strategy: FutureDerivationStrategy): Future[Successful[R]] = {
-    val pf = strategy.resolveOne(a)
+  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy): Future[Successful[R]] = {
+    val pf = upstreamStrategy.resolveOne(a)
     val result = pf.map(deriveWithArg)
     result onFailure  {
       case t => {
@@ -160,9 +160,9 @@ class Derivation2[T1,T2, R](f: IdentifiableFunction2[T1,T2, R], a: Derivation[T1
     val q = b.resolveOne
     deriveWithArgs(p, q)
   }*/
-  def deriveFuture(implicit strategy: FutureDerivationStrategy): Future[Provenance[R] with Successful[R]] = {
-    val p = strategy.resolveOne(a)
-    val q = strategy.resolveOne(b)
+  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy): Future[Provenance[R] with Successful[R]] = {
+    val p = upstreamStrategy.resolveOne(a)
+    val q = upstreamStrategy.resolveOne(b)
     val result = for {
       x <- p
       y <- q

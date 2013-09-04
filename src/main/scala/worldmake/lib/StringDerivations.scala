@@ -25,8 +25,8 @@ class StringInterpolationDerivation(sc: StringContext, args: Seq[Derivation[Any]
   }*/
 
 
-  def deriveFuture(implicit strategy: FutureDerivationStrategy) = {
-    val resolvedProvenancesF: Future[Seq[Successful[Any]]] = Future.sequence(args.map(strategy.resolveOne))
+  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
+    val resolvedProvenancesF: Future[Seq[Successful[Any]]] = Future.sequence(args.map(upstreamStrategy.resolveOne))
     val result = for( resolvedProvenances <- resolvedProvenancesF
     ) yield deriveWithArgs( resolvedProvenances)
     result onFailure  {

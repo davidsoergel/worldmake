@@ -57,12 +57,12 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap
 
   val dependencies = namedDependencies.values.toSet + script
 
-  def deriveFuture(implicit strategy: FutureDerivationStrategy) = {
-    val reifiedScriptF = strategy.resolveOne(script)
+  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
+
+    val reifiedScriptF = upstreamStrategy.resolveOne(script)
     val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k=>FutureUtils.futurePair((k,namedDependencies(k))))
-    val result = for( reifiedScript <-  reifiedScriptF;
-      reifiedDependencies <- reifiedDependenciesF
-    ) yield deriveWithArgs( reifiedScript,reifiedDependencies.toMap)
+    
+    val result = upstreamStrategy.systemExecution(derivationId, reifiedScriptF,reifiedDependenciesF)
     result onFailure  {
       case t => {
         logger.debug("Error in Future: ", t)
@@ -73,95 +73,7 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap
   }
   // todo store provenance lifecycle
 
-  /*
-  def derive = synchronized {
-
-    // todo resolve script and arguments in parallel
-    val reifiedScript = script.resolveOne
-    val reifiedDependencies = namedDependencies.par.mapValues(_.resolveOne)
-    deriveWithArgs( reifiedScript,reifiedDependencies)
-  }*/
   
-  private def deriveWithArgs(reifiedScript:Successful[String],reifiedDependencies:GenMap[String,Successful[_]]) = synchronized {
-    
-    val startTime = DateTime.now()
-    
-    // this path does not yet exist.
-    // the derivation may write a single file to it, or create a directory there.
-    val outputPath: Path = fileStore.newPath
-    
-    val workingDir = Path.createTempDirectory()
-    //val log: File = (outputPath / "worldmake.log").fileOption.getOrElse(throw new Error("can't create log: " + outputPath / "worldmake.log"))
-    //val logWriter = Resource.fromFile(log)
-
-    val logWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
-
-    
-    val dependenciesEnvironment: GenMap[String, String] = reifiedDependencies.mapValues(x => SystemDerivation.toEnvironmentString(x.artifact))
-    val environment: GenMap[String, String] = WorldMakeConfig.globalEnvironment ++ dependenciesEnvironment ++ Map("out" -> outputPath.toAbsolute.path) //, "PATH" -> WorldMakeConfig.globalPath)
-
-    val runner = Resource.fromFile(new File((workingDir / "worldmake.runner").toAbsolute.path))
-    runner.write(reifiedScript.artifact.value)
-
-    val envlog = Resource.fromFile(new File((workingDir / "worldmake.environment").toAbsolute.path))
-    envlog.write(environment.map({
-      case (k, v) => k + " = " + v
-    }).mkString("\n"))
-
-    val pb = Process(Seq("/bin/sh", "./worldmake.runner"), workingDir.jfile, environment.toArray: _*)
-
-    // any successful output should be written to a file in the output directory, so anything on stdout or stderr is 
-    // logging output and should be combined for easier debugging
-    val pbLogger = ProcessLogger(
-      (o: String) => logWriter.write(o),
-      (e: String) => logWriter.write(e))
-
-    val exitCode = pb ! pbLogger
-
-    // todo: detect retained dependencies like Nix
-
-    val result = ExternalPathArtifact(outputPath)
-
-    val endTime = DateTime.now()
-
-    if (exitCode != 0) {
-      logger.warn("Deleting output: " + outputPath)
-      outputPath.deleteRecursively()
-      logger.warn("Retaining working directory: " + workingDir)
-
-      Provenance(Identifier[Provenance[Path]](UUID.randomUUID().toString),
-        derivationId = SystemDerivation.this.derivationId,
-        status = ProvenanceStatus.Failure,
-        derivedFromNamed = reifiedDependencies,
-        derivedFromUnnamed = Set(reifiedScript),
-        startTime = startTime,
-        endTime = endTime,
-        statusCode = Some(exitCode),
-        log = Some(logWriter),
-        output = None)
-
-      //logger.error(logWriter.get.fold(x => x, y => y.toString))
-
-      throw new FailedDerivationException(logWriter.get.fold(x => x, y => y.toString))
-    }
-
-    if (WorldMakeConfig.debugWorkingDirectories) {
-      logger.warn("Retaining working directory: " + workingDir)
-    } else {
-      workingDir.deleteRecursively()
-    }
-
-    SuccessfulProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString),
-      derivationId = SystemDerivation.this.derivationId,
-      status = ProvenanceStatus.Success,
-      derivedFromNamed = reifiedDependencies,
-      derivedFromUnnamed = Set(reifiedScript),
-      startTime = startTime,
-      endTime = endTime,
-      statusCode = Some(exitCode),
-      log = Some(logWriter),
-      output = Some(result))
-  }
 }
 
 

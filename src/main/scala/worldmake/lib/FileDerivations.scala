@@ -52,7 +52,7 @@ class AssemblyDerivation(namedDependencies: GenMap[String, Derivation[Path]]) ex
   }*/
 
 
-  def deriveFuture(implicit strategy: FutureDerivationStrategy) = {
+  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
 
     val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k=>FutureUtils.futurePair((k,namedDependencies(k))))
     val result = for( reifiedDependencies <- reifiedDependenciesF

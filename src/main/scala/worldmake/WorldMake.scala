@@ -34,7 +34,7 @@ object WorldMake extends Logging {
     // val targets:Map[String,Derivation[_]] = Map("chpat"->EmergeWorld.allChinesePatentsTokenized)
 
     val strategy: CachingFutureDerivationStrategy = new CachingFutureDerivationStrategy {
-      lazy val fallback = new LocalFutureDerivationStrategy(this)
+      lazy val fallback = new ComputeFutureDerivationStrategy(this, QsubExecutionStrategy)
     }
     
     val command = args(1)
@@ -114,6 +114,10 @@ object WorldMakeConfig {
 
   def debugWorkingDirectories: Boolean = conf.getBoolean("debugWorkingDirectories")
 
+  def qsub : String = conf.getString("qsub")
+  
+  // a scratch directory available from all grid nodes
+  def qsubGlobalTempDir : String = conf.getString("qsubGlobalTempDir")
 
   val fileStore = new FileStore(Path.fromString(conf.getString("filestore")))
 

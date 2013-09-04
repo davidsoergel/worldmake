@@ -87,8 +87,8 @@ object DerivationWrapper extends Logging {
       override def summary = d.summary
       override def setProvidedSummary(s:String) { d.setProvidedSummary(s) }
 
-      def deriveFuture(implicit strategy: FutureDerivationStrategy) : Future[Successful[T]] = {
-        val pf = strategy.resolveOne(d)
+      def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) : Future[Successful[T]] = {
+        val pf = upstreamStrategy.resolveOne(d)
         val result = pf.map(p => wrapProvenance(p))
         result onFailure  {
           case t => {
