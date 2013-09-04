@@ -1,0 +1,3 @@
+Provenances may be stored.  Whenever a provenance is created, it is tapped for storage in the configured Storage.  (should that be an implicit instead?)
+
+A DerivationStrategy produces provenances from derivations.  It may or may not consult some storage.

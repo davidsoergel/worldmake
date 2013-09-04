@@ -15,7 +15,7 @@
       </appender>
     -->
 
-    <root level="debug">
+    <root level="info">
         <!--<appender-ref ref="socket"/>-->
         <appender-ref ref="STDERR"/>
     </root>

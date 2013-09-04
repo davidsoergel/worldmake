@@ -68,9 +68,9 @@ trait DerivedProvenance[T] extends Provenance[T] {
   //def derivation: Derivation[T]
 
 
-  def derivedFromUnnamed: GenSet[Provenance[_]]
+  def derivedFromUnnamed: GenSet[Successful[_]]
 
-  def derivedFromNamed: GenMap[String, Provenance[_]]
+  def derivedFromNamed: GenMap[String, Successful[_]]
 
   def startTime: DateTime
 
@@ -79,6 +79,8 @@ trait DerivedProvenance[T] extends Provenance[T] {
   def exitCode: Option[Integer]
 
   def log: Option[ReadableStringOrFile]
+  
+  def logString: String = log.map(_.get.fold(x => x, y => y.toString)).getOrElse("")
 
   def cost: Map[CostType.CostType, Double]
 
@@ -92,8 +94,8 @@ object Provenance {
   def apply[T](provenanceId: Identifier[Provenance[T]],
                derivationId: Identifier[Derivation[T]],
                status: ProvenanceStatus.ProvenanceStatus,
-               derivedFromUnnamed: GenSet[Provenance[_]] = Set.empty,
-               derivedFromNamed: GenMap[String, Provenance[_]] = Map.empty,
+               derivedFromUnnamed: GenSet[Successful[_]] = Set.empty,
+               derivedFromNamed: GenMap[String, Successful[_]] = Map.empty,
                startTime: DateTime = DateTime.now(), endTime: DateTime = DateTime.now(),
                statusCode: Option[Integer] = None,
                log: Option[ReadableStringOrFile] = None,
@@ -108,8 +110,8 @@ object SuccessfulProvenance {
   def apply[T](provenanceId: Identifier[Provenance[T]],
                derivationId: Identifier[Derivation[T]],
                status: ProvenanceStatus.ProvenanceStatus,
-               derivedFromUnnamed: GenSet[Provenance[_]] = Set.empty,
-               derivedFromNamed: GenMap[String, Provenance[_]] = Map.empty,
+               derivedFromUnnamed: GenSet[Successful[_]] = Set.empty,
+               derivedFromNamed: GenMap[String, Successful[_]] = Map.empty,
                startTime: DateTime = DateTime.now(), endTime: DateTime = DateTime.now(),
                statusCode: Option[Integer] = None,
                log: Option[ReadableStringOrFile] = None,
@@ -160,7 +162,7 @@ case object Failure extends ProvenanceStatus("Failure")
 object ProvenanceStatus extends Enumeration {
   type ProvenanceStatus = Value
   
-  val  Constant, Explicit, Blocked, Ready, Pending,Running, Cancelled, Success, Failure = Value
+  val  Constant, Explicit, Blocked, Ready, Pending, Running, Cancelled, Success, Failure = Value
 }
 
 
@@ -223,8 +225,8 @@ class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1
 case class MemoryProvenance[T](provenanceId: Identifier[Provenance[T]],
                                derivationId: Identifier[Derivation[T]],
                                status: ProvenanceStatus.ProvenanceStatus,
-                               derivedFromUnnamed: GenSet[Provenance[_]] = Set.empty,
-                               derivedFromNamed: GenMap[String, Provenance[_]] = Map.empty,
+                               derivedFromUnnamed: GenSet[Successful[_]] = Set.empty,
+                               derivedFromNamed: GenMap[String, Successful[_]] = Map.empty,
                                startTime: DateTime = DateTime.now(), endTime: DateTime = DateTime.now(),
                                exitCode: Option[Integer] = None,
                                log: Option[ReadableStringOrFile] = None,

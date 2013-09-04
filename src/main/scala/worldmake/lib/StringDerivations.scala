@@ -11,30 +11,36 @@ import edu.umass.cs.iesl.scalacommons.StringUtils._
 import scala.concurrent.{ExecutionContext, Future}
 
 import ExecutionContext.Implicits.global
+import com.typesafe.scalalogging.slf4j.Logging
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
-class StringInterpolationDerivation(sc: StringContext, args: Seq[Derivation[_]]) extends DerivableDerivation[String] {
+class StringInterpolationDerivation(sc: StringContext, args: Seq[Derivation[Any]]) extends DerivableDerivation[String] with Logging {
 
 
-  protected def derive = {
+  /*protected def derive = {
     val resolvedProvenances = args.map(_.resolveOne)
     deriveWithArgs(resolvedProvenances)
-  }
+  }*/
 
 
-  def deriveFuture = {
-    val resolvedProvenancesF = Future.sequence(args.map(_.resolveOneFuture))
-    for( resolvedProvenances <- resolvedProvenancesF
+  def deriveFuture(implicit strategy: FutureDerivationStrategy) = {
+    val resolvedProvenancesF: Future[Seq[Successful[Any]]] = Future.sequence(args.map(strategy.resolveOne))
+    val result = for( resolvedProvenances <- resolvedProvenancesF
     ) yield deriveWithArgs( resolvedProvenances)
-
+    result onFailure  {
+      case t => {
+        logger.debug("Error in Future: ", t)
+      }
+    }
+    result
   }
 
 
 
 
-  def deriveWithArgs(resolvedProvenances: Seq[Successful[_]]): Provenance[String] with Successful[String] = {
+  def deriveWithArgs(resolvedProvenances: Seq[Successful[Any]]): Provenance[String] with Successful[String] = {
 
 
     val startTime = DateTime.now()

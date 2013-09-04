@@ -33,7 +33,7 @@ object FileDerivations extends Logging {
 
 }
 
-class AssemblyDerivation(namedDependencies: GenMap[String, Derivation[Path]]) extends DerivableDerivation[Path] {
+class AssemblyDerivation(namedDependencies: GenMap[String, Derivation[Path]]) extends DerivableDerivation[Path] with Logging {
 
   lazy val derivationId = {
     val dependencyInfos: Seq[String] = namedDependencies.map({
@@ -46,17 +46,23 @@ class AssemblyDerivation(namedDependencies: GenMap[String, Derivation[Path]]) ex
 
   def dependencies = namedDependencies.values.toSet
 
-  protected def derive = {
+  /*protected def derive = {
     val reifiedDependencies = namedDependencies.par.mapValues(_.resolveOne)
     deriveWithArgs(reifiedDependencies)
-  }
+  }*/
 
 
-  def deriveFuture = {
+  def deriveFuture(implicit strategy: FutureDerivationStrategy) = {
 
     val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k=>FutureUtils.futurePair((k,namedDependencies(k))))
-    for( reifiedDependencies <- reifiedDependenciesF
+    val result = for( reifiedDependencies <- reifiedDependenciesF
     ) yield deriveWithArgs( reifiedDependencies.toMap)
+    result onFailure  {
+      case t => {
+        logger.debug("Error in Future: ", t)
+      }
+    }
+    result
 
   }
   

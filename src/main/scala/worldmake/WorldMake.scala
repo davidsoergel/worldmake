@@ -13,6 +13,10 @@ import worldmake.storage.{FileStore, StorageSetter}
 import scala.collection.mutable
 import edu.umass.cs.iesl.scalacommons.StringUtils
 import StringUtils._
+import scala.util.{Failure, Success}
+
+import scala.concurrent.ExecutionContext
+import ExecutionContext.Implicits.global
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -29,6 +33,10 @@ object WorldMake extends Logging {
     // temp hack
     // val targets:Map[String,Derivation[_]] = Map("chpat"->EmergeWorld.allChinesePatentsTokenized)
 
+    val strategy: CachingFutureDerivationStrategy = new CachingFutureDerivationStrategy {
+      lazy val fallback = new LocalFutureDerivationStrategy(this)
+    }
+    
     val command = args(1)
     command match {
       case "make" => {
@@ -37,13 +45,23 @@ object WorldMake extends Logging {
         //val derivationArtifact = Storage.artifactStore.get(derivationId)
         val derivation: Derivation[_] = world(target)
         try {
-          val result = derivation.resolveOne
-          logger.info("Done: " + result.provenanceId)
-          logger.info(result.artifact.value.toString)
+          val result = strategy.resolveOne(derivation)
+
+          result onComplete {
+            case Success(x) => {  
+              logger.info("Done: " + x.provenanceId)
+              logger.info(x.artifact.value.toString)
+            }
+            case Failure(t) => {
+              logger.error("Error", t)
+              throw t
+            }
+          }
+          
         }
         catch {
           case e: FailedDerivationException => {
-            logger.error("FAILED.");
+            logger.error("FAILED.")
             System.exit(1)
           }
         }
@@ -53,14 +71,16 @@ object WorldMake extends Logging {
         //val derivationId = symbolTable.getProperty(target) 
         //val derivationArtifact = Storage.artifactStore.get(derivationId)
         val derivation: Derivation[_] = world(target)
-        logger.info(derivation.printTree(""))
+        logger.info(strategy.printTree(derivation, ""))
       }
       case "showqueue" => {
         val target = args(2)
         //val derivationId = symbolTable.getProperty(target) 
         //val derivationArtifact = Storage.artifactStore.get(derivationId)
         val derivation: Derivation[_] = world(target)
-        logger.info("\n"+derivation.getQueue.filterNot(_.isInstanceOf[ConstantDerivation[_]]).map(_.statusLine).mkString("\n"))
+        logger.info("\n"+derivation.queue.filterNot(_.isInstanceOf[ConstantDerivation[Any]]).map(x=>strategy.statusLine(x)).mkString("\n"))
+
+        //logger.info("\n"+derivation.queue.map(x=>strategy.statusLine(x)).mkString("\n"))
       }
       //case "import"
       //case "set"
