@@ -149,6 +149,8 @@ trait ExternalPathArtifact extends Artifact[Path] {
 
   def abspath = value.toAbsolute.path
 
+  def basename = value.name
+  
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
   override def constantId = Identifier[Artifact[Path]]("Path(" + abspath + ")")
 
@@ -173,7 +175,8 @@ class MemoryExternalPathArtifact(path: Path) extends MemoryArtifact[Path](path) 
   }*/
   override lazy val contentHashBytes: Array[Byte] = if (path.isFile) WMHash(path.fileOption.get)
   else {
-    WMHash(children.map(_.contentHash).mkString)
+    // this doesn't take into account the filenames directly, but does concatenate the child hashes in filename-sorted order. 
+    WMHash(children.map(p=> p.basename + p.contentHash).mkString)
   }
   //override 
   private lazy val children: Seq[ExternalPathArtifact] = {
