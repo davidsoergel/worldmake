@@ -10,13 +10,13 @@ import worldmake.storage.casbah.CasbahStorage
 import edu.umass.cs.iesl.scalacommons.util.Hash
 import java.io.{File, InputStream}
 import worldmake.storage.{FileStore, StorageSetter}
-import scala.collection.mutable
-import edu.umass.cs.iesl.scalacommons.StringUtils
-import StringUtils._
-import scala.util.{Failure, Success}
 
 import scala.concurrent.ExecutionContext
 import ExecutionContext.Implicits.global
+import worldmake.derivationstrategy._
+import worldmake.executionstrategy.{DetectQsubPollingAction, QsubExecutionStrategy}
+import scala.util.Failure
+import scala.util.Success
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -33,65 +33,73 @@ object WorldMake extends Logging {
     // temp hack
     // val targets:Map[String,Derivation[_]] = Map("chpat"->EmergeWorld.allChinesePatentsTokenized)
 
-    val strategy: CachingFutureDerivationStrategy = new CachingFutureDerivationStrategy {
-      lazy val fallback = new ComputeFutureDerivationStrategy(this, QsubExecutionStrategy)
-    }
-    
-    val command = args(1)
-    command match {
-      case "make" => {
-        val target = args(2)
-        //val derivationId = symbolTable.getProperty(target) 
-        //val derivationArtifact = Storage.artifactStore.get(derivationId)
-        val derivation: Derivation[_] = world(target)
-        try {
-          val result = strategy.resolveOne(derivation)
+    val notifier = new PollingNotifier(Seq(DetectSuccessPollingAction, DetectFailedPollingAction, DetectQsubPollingAction))
 
-          result onComplete {
-            case Success(x) => {  
-              logger.info("Done: " + x.provenanceId)
-              logger.info(x.artifact.value.toString)
+    try {
+
+      val strategy: LifecycleAwareFutureDerivationStrategy = new LifecycleAwareFutureDerivationStrategy {
+        lazy val fallback = new ComputeFutureDerivationStrategy(this, new QsubExecutionStrategy(notifier))
+        val tracker = new LifecycleTracker(notifier)
+      }
+
+      val command = args(1)
+      command match {
+        case "make" => {
+          val target = args(2)
+          //val derivationId = symbolTable.getProperty(target) 
+          //val derivationArtifact = Storage.artifactStore.get(derivationId)
+          val derivation: Derivation[_] = world(target)
+          try {
+            val result = strategy.resolveOne(derivation)
+
+            result onComplete {
+              case Success(x) => {
+                logger.info("Done: " + x.provenanceId)
+                logger.info(x.output.value.toString)
+              }
+              case Failure(t) => {
+                logger.error("Error", t)
+                throw t
+              }
             }
-            case Failure(t) => {
-              logger.error("Error", t)
-              throw t
+
+          }
+          catch {
+            case e: FailedDerivationException => {
+              logger.error("FAILED.")
+              System.exit(1)
             }
           }
-          
         }
-        catch {
-          case e: FailedDerivationException => {
-            logger.error("FAILED.")
-            System.exit(1)
-          }
+        case "status" => {
+          val target = args(2)
+          //val derivationId = symbolTable.getProperty(target) 
+          //val derivationArtifact = Storage.artifactStore.get(derivationId)
+          val derivation: Derivation[_] = world(target)
+          logger.info(strategy.tracker.printTree(derivation, ""))
         }
-      }
-      case "status" => {
-        val target = args(2)
-        //val derivationId = symbolTable.getProperty(target) 
-        //val derivationArtifact = Storage.artifactStore.get(derivationId)
-        val derivation: Derivation[_] = world(target)
-        logger.info(strategy.printTree(derivation, ""))
-      }
-      case "showqueue" => {
-        val target = args(2)
-        //val derivationId = symbolTable.getProperty(target) 
-        //val derivationArtifact = Storage.artifactStore.get(derivationId)
-        val derivation: Derivation[_] = world(target)
-        logger.info("\n"+derivation.queue.filterNot(_.isInstanceOf[ConstantDerivation[Any]]).map(x=>strategy.statusLine(x)).mkString("\n"))
+        case "showqueue" => {
+          val target = args(2)
+          //val derivationId = symbolTable.getProperty(target) 
+          //val derivationArtifact = Storage.artifactStore.get(derivationId)
+          val derivation: Derivation[_] = world(target)
+          logger.info("\n" + derivation.queue.filterNot(_.isInstanceOf[ConstantDerivation[Any]]).map(x => strategy.tracker.statusLine(x)).mkString("\n"))
 
-        //logger.info("\n"+derivation.queue.map(x=>strategy.statusLine(x)).mkString("\n"))
-      }
-      //case "import"
-      //case "set"
+          //logger.info("\n"+derivation.queue.map(x=>strategy.statusLine(x)).mkString("\n"))
+        }
+        //case "import"
+        //case "set"
 
 
-      // some required derivations have errors.  Are you sure?
-      // 1) examine errors
-      // 2) compute everything else
-      // 3) try again including the errored derivations
+        // some required derivations have errors.  Are you sure?
+        // 1) examine errors
+        // 2) compute everything else
+        // 3) try again including the errored derivations
+      }
+    } finally {
+      notifier.shutdown()
+      System.exit(0)
     }
-
   }
 }
 
@@ -114,10 +122,14 @@ object WorldMakeConfig {
 
   def debugWorkingDirectories: Boolean = conf.getBoolean("debugWorkingDirectories")
 
-  def qsub : String = conf.getString("qsub")
-  
+  def qsub: String = conf.getString("qsub")
+
+  def qstat: String = conf.getString("qstat")
+
+  def retryFailures: Boolean = conf.getBoolean("retryFailures")
+
   // a scratch directory available from all grid nodes
-  def qsubGlobalTempDir : String = conf.getString("qsubGlobalTempDir")
+  def qsubGlobalTempDir: String = conf.getString("qsubGlobalTempDir")
 
   val fileStore = new FileStore(Path.fromString(conf.getString("filestore")))
 

@@ -18,7 +18,8 @@ object WorldMakeBuild extends Build {
     "org.mongodb" %% "casbah" % "2.5.0",
     scalazCore("7.0.0"),
     "org.scalaz" %% "scalaz-concurrent" % "7.0.0",
-    scalatime()
+    scalatime(),
+    akkaActor()
   )
 /*    dsutils(),
     commonsIo(),

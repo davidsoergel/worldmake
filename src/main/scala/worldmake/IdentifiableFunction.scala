@@ -4,29 +4,25 @@ import java.util.UUID
 import edu.umass.cs.iesl.scalacommons.util.Hash
 import worldmake.WorldMakeConfig._
 import worldmake.storage.Identifier
-import scala.Some
-import org.joda.time.DateTime
-import java.io.InputStream
-import worldmake.storage.Identifier
-import scala.Some
-import worldmake.storage.Identifier
-import scala.Some
 
 import scala.concurrent._
 
 import ExecutionContext.Implicits.global
-import scala.util.{Failure, Success}
 import com.typesafe.scalalogging.slf4j.Logging
+import worldmake.derivationstrategy.FutureDerivationStrategy
 
 object NamedFunction {
-  def apply[R](n:String)(f:Function0[R]) = new IdentifiableFunction0[R](n,f)
-  def apply[T1,R](n:String)(f:Function1[T1,R]) = new IdentifiableFunction1[T1,R](n,f)
-  def apply[T1,T2,R](n:String)(f:Function2[T1,T2,R]) = new IdentifiableFunction2[T1,T2,R](n,f)
+  def apply[R](n: String)(f: Function0[R]) = new IdentifiableFunction0[R](n, f)
+
+  def apply[T1, R](n: String)(f: Function1[T1, R]) = new IdentifiableFunction1[T1, R](n, f)
+
+  def apply[T1, T2, R](n: String)(f: Function2[T1, T2, R]) = new IdentifiableFunction2[T1, T2, R](n, f)
 }
 
 
 trait Hashable {
   def contentHashBytes: Array[Byte]
+
   def contentHash = Hash.toHex(contentHashBytes)
 }
 
@@ -43,13 +39,12 @@ trait StreamHashable {
 */
 
 
-
 trait ContentHashableArtifact[T] extends Artifact[T] {
   def contentHashBytes: Array[Byte] = value match {
-  case h:Hashable =>h.contentHashBytes
-  case i:Integer=>WMHash(i.toString)
-  case d:Double=>WMHash(d.toString)
-  case s:String=>WMHash(s)
+    case h: Hashable => h.contentHashBytes
+    case i: Int => WMHash(i.toString)
+    case d: Double => WMHash(d.toString)
+    case s: String => WMHash(s)
   }
 }
 
@@ -60,6 +55,7 @@ trait ContentHashableArtifact[T] extends Artifact[T] {
 
 class IdentifiableFunction0[R](val id: String, f: Function0[R]) {
   def evaluate() = f()
+
   def apply() = new Derivation0(this)
 }
 
@@ -68,26 +64,34 @@ class Derivation0[R](f: IdentifiableFunction0[R]) extends DerivableDerivation[R]
   def dependencies = Set.empty
 
   def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
-    val result = future { derive }
-    result onFailure  {
-      case t => {
-        logger.debug("Error in Future: ", t)
-      }
+    val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId)
+    val result = future {
+      derive(pr.pending(Set.empty,Map.empty))
     }
     result
   }
-  def derive: Provenance[R] with Successful[R] = {
-    val startTime = DateTime.now()
 
-    val result : Artifact[R] = Artifact[R](f.evaluate())
-    /*
-    val result = new ContentHashableArtifact[R] {
-      def artifactId = Identifier[Artifact[R]](UUID.randomUUID().toString)
-
-      def value = f.evaluate()
-    }*/
-    val endTime = DateTime.now()
-    SuccessfulProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId,ProvenanceStatus.Success, startTime = startTime, endTime = endTime, output = Some(result))
+  private def derive(pr: PendingProvenance[R]): CompletedProvenance[R] = {
+    val prs = pr.running(new MemoryWithinJvmRunningInfo)
+    try {
+      val result: Artifact[R] = Artifact[R](f.evaluate())
+      /*
+      val result = new ContentHashableArtifact[R] {
+        def artifactId = Identifier[Artifact[R]](UUID.randomUUID().toString)
+  
+        def value = f.evaluate()
+      }*/
+      //val endTime = DateTime.now()
+      prs.completed(0, None, Map.empty, result)
+      //SuccessfulProvenance(pr.provenanceId, derivationId,ProvenanceStatus.Success, startTime = Some(startTime), endTime = Some(endTime), output = Some(result))
+    }
+    catch {
+      case t: Throwable => {
+        val prf = prs.failed(1, None, Map.empty)
+        logger.debug("Error in Derivation0: ", t) // todo better log message
+        throw FailedDerivationException("Failed Derivation0", prf, t)
+      }
+    }
   }
 
   def derivationId = Identifier[Derivation[R]](Hash.toHex(WMHash(f.id)))
@@ -98,49 +102,38 @@ class Derivation0[R](f: IdentifiableFunction0[R]) extends DerivableDerivation[R]
 
 class IdentifiableFunction1[T1, R](val id: String, f: Function1[T1, R]) {
   def evaluate(t1: T1) = f(t1)
-  def apply(t1: Derivation[T1]) = new Derivation1(this,t1)
+
+  def apply(t1: Derivation[T1]) = new Derivation1(this, t1)
 }
 
 
 class Derivation1[T1, R](f: IdentifiableFunction1[T1, R], a: Derivation[T1]) extends DerivableDerivation[R] with Logging {
- 
-  
-  private def deriveWithArg(p:Successful[T1]) : Provenance[R] with Successful[R] = {
-    val startTime = DateTime.now()
-    val result : Artifact[R] = Artifact[R](f.evaluate(p.artifact.value))
-  
-      /*new ContentHashableArtifact[R] {
-      
-
-      def artifactId = Identifier[Artifact[R]](UUID.randomUUID().toString)
-
-      def value = f.evaluate(p.artifact.value)
-    }*/
-    
-    
-    val endTime = DateTime.now()
-    SuccessfulProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId, ProvenanceStatus.Success, derivedFromUnnamed = Set(p), startTime = startTime, endTime = endTime, output = Some(result))
-  }
-  
- /* def derive: Provenance[R] with Successful[R] = {
-    val p = a.resolveOne
-    deriveWithArg(p)
-  }*/
 
   def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy): Future[Successful[R]] = {
+    val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId)
     val pf = upstreamStrategy.resolveOne(a)
-    val result = pf.map(deriveWithArg)
-    result onFailure  {
-      case t => {
-        logger.debug("Error in Future: ", t)
+    val result = pf.map(a1 => deriveWithArg(pr.pending(Set(a1),Map.empty), a1))
+    result
+  }
+
+  private def deriveWithArg(pr: PendingProvenance[R], a1: Successful[T1]): CompletedProvenance[R] = {
+    val prs = pr.running(new MemoryWithinJvmRunningInfo)
+    try {
+      val result: Artifact[R] = Artifact[R](f.evaluate(a1.output.value))
+      prs.completed(0, None, Map.empty, result)
+    }
+    catch {
+      case t: Throwable => {
+        val prf = prs.failed(1, None, Map.empty)
+        logger.debug("Error in Derivation1: ", t) // todo better log message
+        throw FailedDerivationException("Failed Derivation1", prf, t)
       }
     }
-    result
   }
 
   def derivationId = Identifier[Derivation[R]](WMHashHex(f.id + a.derivationId))
 
-  def description =  s"""${f.id}(${a.shortDesc})"""
+  def description = s"""${f.id}(${a.shortDesc})"""
 
   def dependencies = Set(a)
 
@@ -149,52 +142,46 @@ class Derivation1[T1, R](f: IdentifiableFunction1[T1, R], a: Derivation[T1]) ext
 
 
 class IdentifiableFunction2[T1, T2, R](val id: String, f: Function2[T1, T2, R]) {
-  def evaluate(t1: T1,t2: T2) = f(t1,t2)
-  def apply(t1: Derivation[T1],t2: Derivation[T2]) = new Derivation2(this,t1,t2)
+  def evaluate(t1: T1, t2: T2) = f(t1, t2)
+
+  def apply(t1: Derivation[T1], t2: Derivation[T2]) = new Derivation2(this, t1, t2)
 }
 
 
-class Derivation2[T1,T2, R](f: IdentifiableFunction2[T1,T2, R], a: Derivation[T1],b:Derivation[T2]) extends DerivableDerivation[R] with Logging  {
-  /*def derive: Provenance[R] with Successful[R] = {
-    val p = a.resolveOne
-    val q = b.resolveOne
-    deriveWithArgs(p, q)
-  }*/
+class Derivation2[T1, T2, R](f: IdentifiableFunction2[T1, T2, R], a: Derivation[T1], b: Derivation[T2]) extends DerivableDerivation[R] with Logging {
+
   def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy): Future[Provenance[R] with Successful[R]] = {
+
+    val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId)
     val p = upstreamStrategy.resolveOne(a)
     val q = upstreamStrategy.resolveOne(b)
     val result = for {
       x <- p
       y <- q
-    } yield deriveWithArgs(x, y)
-
-    result onFailure  {
-      case t => {
-        logger.debug("Error in Future: ", t)
-      }
-    }
-    result 
+    } yield deriveWithArgs(pr.pending(Set(x,y),Map.empty), x, y)
+    result
   }
 
 
-  def deriveWithArgs(p: Successful[T1], q: Successful[T2]): Successful[R] = {
-    val startTime = DateTime.now()
-
-    val result : Artifact[R] = Artifact[R](f.evaluate(p.artifact.value, q.artifact.value))
-    /*val result = new ContentHashableArtifact[R] {
-
-      def artifactId = Identifier[Artifact[R]](UUID.randomUUID().toString)
-
-      def value = f.evaluate(p.artifact.value, q.artifact.value)
-    }*/
-    val endTime = DateTime.now()
-    SuccessfulProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId, ProvenanceStatus.Success, derivedFromUnnamed = Set(p), startTime = startTime, endTime = endTime, output = Some(result))
+  def deriveWithArgs(pr: PendingProvenance[R], p: Successful[T1], q: Successful[T2]): Successful[R] = {
+    val prs = pr.running(new MemoryWithinJvmRunningInfo)
+    try {
+      val result: Artifact[R] = Artifact[R](f.evaluate(p.output.value, q.output.value))
+      prs.completed(0, None, Map.empty, result)
+    }
+    catch {
+      case t: Throwable => {
+        val prf = prs.failed(1, None, Map.empty)
+        logger.debug("Error in Derivation1: ", t) // todo better log message
+        throw FailedDerivationException("Failed Derivation1", prf, t)
+      }
+    }
   }
 
   def derivationId = Identifier[Derivation[R]](WMHashHex(f.id + a.derivationId + b.derivationId))
 
   def description = s"""${f.id}(${a.shortDesc},${b.shortDesc})"""
 
-  def dependencies = Set(a,b)
+  def dependencies = Set(a, b)
 }
 

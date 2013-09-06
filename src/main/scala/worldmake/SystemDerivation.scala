@@ -7,11 +7,12 @@ import scalax.io.Resource
 import java.util.UUID
 import org.joda.time.DateTime
 import worldmake.storage.Identifier
-import scala.collection.GenMap
+import scala.collection.{GenTraversable, GenMap}
 import scala.concurrent.{ExecutionContext, Future}
 
 import ExecutionContext.Implicits.global
 import scala.collection.immutable.Queue
+import worldmake.derivationstrategy.FutureDerivationStrategy
 
 //import java.lang.ProcessBuilder.Redirect
 
@@ -58,21 +59,12 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap
   val dependencies = namedDependencies.values.toSet + script
 
   def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
-
+    val pr = BlockedProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString), derivationId)
     val reifiedScriptF = upstreamStrategy.resolveOne(script)
-    val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k=>FutureUtils.futurePair((k,namedDependencies(k))))
-    
-    val result = upstreamStrategy.systemExecution(derivationId, reifiedScriptF,reifiedDependenciesF)
-    result onFailure  {
-      case t => {
-        logger.debug("Error in Future: ", t)
-      }
-    }
-    result
-  
+    val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k=>FutureUtils.futurePair((k,namedDependencies(k))))   
+    val result = upstreamStrategy.systemExecution(pr, reifiedScriptF,reifiedDependenciesF)   
+    result 
   }
-  // todo store provenance lifecycle
-
   
 }
 

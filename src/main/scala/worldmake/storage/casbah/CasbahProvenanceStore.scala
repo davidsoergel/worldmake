@@ -36,7 +36,9 @@ class CasbahProvenanceStore(conn: MongoConnection,
     r.map(provenanceFromDb[T](_)).toSet
   }
 
-  def getContentHash[T](id: Identifier[Provenance[T]]) = get(id).flatMap(_.output).map(_.contentHash)
+  def getContentHash[T](id: Identifier[Provenance[T]]): Option[String] = get(id).map({
+    case d:Successful[_] => d.output
+  }).map(_.contentHash)
 }
 
 
@@ -50,17 +52,24 @@ object CasbahProvenanceStore {
   def provenanceFromDbOpt[T](dbo: MongoDBObject): Option[Provenance[T]] = {
     dbo("type") match {
       case MongoConstantProvenance.typehint => new MongoConstantProvenance[T](dbo).some
-      case MongoDerivedProvenance.typehint => {
-        if(dbo("status") == "Success") {
-          (new MongoDerivedProvenance[T](dbo) with Successful[T]).some
-        }
-        else new MongoDerivedProvenance[T](dbo).some
-      }
+      case MongoBlockedProvenance.typehint => new MongoBlockedProvenance[T](dbo).some
+      case MongoPendingProvenance.typehint => new MongoPendingProvenance[T](dbo).some
+      case MongoRunningProvenance.typehint => new MongoRunningProvenance[T](dbo).some
+      case MongoFailedProvenance.typehint => new MongoFailedProvenance[T](dbo).some
+      case MongoCancelledProvenance.typehint => new MongoCancelledProvenance[T](dbo).some
+      case MongoCompletedProvenance.typehint => new MongoCompletedProvenance[T](dbo).some
+        
       case _ => None
     }
   }
 
   def provenanceToDb[T](e: Provenance[T]): MongoWrapper = e match {
     case e: ConstantProvenance[T] => MongoConstantProvenance.toDb(e)
-    case e: DerivedProvenance[T] => MongoDerivedProvenance.toDb(e)  }
+    case e: BlockedProvenance[T] => MongoBlockedProvenance.toDb(e)
+    case e: PendingProvenance[T] => MongoPendingProvenance.toDb(e)
+    case e: RunningProvenance[T] => MongoRunningProvenance.toDb(e)
+    case e: FailedProvenance[T] => MongoFailedProvenance.toDb(e)
+    case e: CancelledProvenance[T] => MongoCancelledProvenance.toDb(e)
+    case e: CompletedProvenance[T] => MongoCompletedProvenance.toDb(e)
+  }
 }

@@ -8,6 +8,7 @@ import worldmake.storage.Identifier
 import ExecutionContext.Implicits.global
 import scalax.file.defaultfs.DefaultPath
 import com.typesafe.scalalogging.slf4j.Logging
+import worldmake.derivationstrategy.FutureDerivationStrategy
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -104,21 +105,20 @@ object DerivationWrapper extends Logging {
       
       private def wrapProvenance(p:Successful[Path]) = {
         new Provenance[T] with Successful[T] {
-          def output = p.output.map(a => new Artifact[T] {
-            def contentHashBytes = a.contentHashBytes
+          def output = new Artifact[T] {
+            def contentHashBytes = p.output.contentHashBytes
 
             def value = {
-              val result = f(a.value)
+              val result = f(p.output.value)
               result.validate()
               result
             }
-          })
+          }
 
           def derivationId = new Identifier[Derivation[T]](d.derivationId.s)
 
           def provenanceId = new Identifier(p.provenanceId.s)
 
-          def status = p.status
         }
       }
 

@@ -7,7 +7,7 @@ import worldmake.IdentifiableFunction2
  */
 object NumberDerivations {
   // todo: figure out how to clean up the user syntax
-  val divide = new IdentifiableFunction2[Integer, Integer, Integer]("divide", {
-    (a: Integer, b: Integer) => a / b
+  val divide = new IdentifiableFunction2[Int, Int, Int]("divide", {
+    (a: Int, b: Int) => a / b
   })
 }

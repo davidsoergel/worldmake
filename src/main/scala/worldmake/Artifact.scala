@@ -6,6 +6,7 @@ import edu.umass.cs.iesl.scalacommons.util.Hash
 import scalax.file.Path
 import edu.umass.cs.iesl.scalacommons.Tap._
 import WorldMakeConfig.WMHash
+import WorldMakeConfig.WMHashHex
 import worldmake.storage.{Storage, Identifier}
 import com.typesafe.scalalogging.slf4j.Logging
 import scala.collection.GenTraversable
@@ -71,9 +72,9 @@ object ConstantArtifact {
 
   implicit def fromDouble(s: Double): Artifact[Double] = DoubleArtifact(s)
 
-  implicit def fromInteger(s: Integer): Artifact[Integer] = IntegerArtifact(s)
+  implicit def fromInt(s: Int): Artifact[Int] = IntArtifact(s)
 
-  implicit def fromInt(s: Int): Artifact[Integer] = IntegerArtifact(s)
+  implicit def fromInt(s: Int): Artifact[Int] = IntArtifact(s)
 
   implicit def fromPath(s: Path): Artifact[Path] = ExternalPathArtifact(s)
 }
@@ -81,7 +82,7 @@ object ConstantArtifact {
 object Artifact {
   def apply[T](v:T) : Artifact[T] = (v match {
     case s:String => StringArtifact(s)
-    case i:Integer => IntegerArtifact(i)
+    case i:Int => IntArtifact(i)
     case d:Double => DoubleArtifact(d)
     case p:Path => ExternalPathArtifact(p)
     case _ => throw new IllegalArtifactException(v.toString)
@@ -105,19 +106,19 @@ class MemoryStringArtifact(s: String) extends MemoryArtifact[String](s) with Str
 }
 
 
-object IntegerArtifact {
-  def apply(s: Integer) = new MemoryIntegerArtifact(s) //tap Storage.provenanceStore.put
+object IntArtifact {
+  def apply(s: Int) = new MemoryIntArtifact(s) //tap Storage.provenanceStore.put
 }
 
-trait IntegerArtifact extends Artifact[Integer] {
+trait IntArtifact extends Artifact[Int] {
   def description = value.toString
 
-  override def constantId = Identifier[Artifact[Integer]]("Integer(" + value.toString + ")") //perf
+  override def constantId = Identifier[Artifact[Int]](WMHashHex("Int(" + value.toString + ")")) //perf
 }
 
-class MemoryIntegerArtifact(s: Integer) extends MemoryArtifact[Integer](s) with IntegerArtifact with ContentHashableArtifact[Integer] {
+class MemoryIntArtifact(s: Int) extends MemoryArtifact[Int](s) with IntArtifact with ContentHashableArtifact[Int] {
   //def contentHashBytes = WMHash(s.toString)
-  def output: Option[Artifact[Integer]] = Some(this)
+  def output: Option[Artifact[Int]] = Some(this)
 }
 
 

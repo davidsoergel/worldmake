@@ -11,11 +11,13 @@ import scala.collection.{GenSet, GenMap}
  */
 trait Provenance[+T] {
   def provenanceId: Identifier[Provenance[T]]
+
   def derivationId: Identifier[Derivation[T]]
 
-  def output: Option[Artifact[T]]
+  //def output: Option[Artifact[T]]
 
-  def status: ProvenanceStatus.ProvenanceStatus
+  //def status: ProvenanceStatus.ProvenanceStatus
+  //def setStatus(st:ProvenanceStatus.ProvenanceStatus)
 
   override def equals(other: Any): Boolean = other match {
     case that: Provenance[T] => (that canEqual this) && provenanceId == that.provenanceId
@@ -28,7 +30,7 @@ trait Provenance[+T] {
 }
 
 trait Successful[+T] extends Provenance[T] {
-  def artifact: Artifact[T] = output.get
+  def output: Artifact[T]
 }
 
 
@@ -46,27 +48,42 @@ object ConstantProvenance {
 // aka Input
 trait ConstantProvenance[T] extends Successful[T] {
   def createdTime: DateTime
-
-  def output: Some[Artifact[T]]
-
-  def status: ProvenanceStatus.ProvenanceStatus = ProvenanceStatus.Constant
-
   def derivationId = Identifier[Derivation[T]](provenanceId.s)
 }
 
-private class MemoryConstantProvenance[T](artifact: Artifact[T]) extends ConstantProvenance[T] {
+private class MemoryConstantProvenance[T](val output: Artifact[T]) extends ConstantProvenance[T] {
   def createdTime = DateTime.now
-
-  def output = Some(artifact)
-
-  def provenanceId = Identifier[Provenance[T]](artifact.constantId.s)
+  def provenanceId = Identifier[Provenance[T]](output.constantId.s)
 }
 
 
-trait DerivedProvenance[T] extends Provenance[T] {
+sealed trait DerivedProvenance[T] extends Provenance[T]
 
-  //def derivation: Derivation[T]
+// enforce lifecycle state machine with types
 
+trait BlockedProvenance[T] extends DerivedProvenance[T] {
+  def createdTime: DateTime
+
+  def pending(derivedFromUnnamed: GenSet[Successful[_]],derivedFromNamed: GenMap[String, Successful[_]]): PendingProvenance[T] = MemoryPendingProvenance(provenanceId, derivationId,  derivedFromUnnamed, derivedFromNamed, createdTime) tap Storage.provenanceStore.put
+}
+
+// aka Enqueued
+trait PendingProvenance[T] extends DerivedProvenance[T] {
+  def createdTime: DateTime
+
+  def enqueuedTime: DateTime
+
+  def derivedFromUnnamed: GenSet[Successful[_]]
+
+  def derivedFromNamed: GenMap[String, Successful[_]]
+
+  def running(runningInfo: RunningInfo): RunningProvenance[T] = MemoryRunningProvenance(provenanceId, derivationId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, DateTime.now(), runningInfo) tap Storage.provenanceStore.put
+}
+
+trait RunningProvenance[T] extends DerivedProvenance[T] {
+  def createdTime: DateTime
+
+  def enqueuedTime: DateTime
 
   def derivedFromUnnamed: GenSet[Successful[_]]
 
@@ -74,37 +91,60 @@ trait DerivedProvenance[T] extends Provenance[T] {
 
   def startTime: DateTime
 
+  def runningInfo: RunningInfo
+
+  def failed(exitCode: Int, log: Option[ReadableStringOrFile], cost: Map[CostType.CostType, Double]): FailedProvenance[T] =
+    MemoryFailedProvenance(provenanceId, derivationId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost) tap Storage.provenanceStore.put
+
+  def cancelled(exitCode: Int, log: Option[ReadableStringOrFile], cost: Map[CostType.CostType, Double]): CancelledProvenance[T] =
+    MemoryCancelledProvenance(provenanceId, derivationId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost) tap Storage.provenanceStore.put
+
+  def completed(exitCode: Int, log: Option[ReadableStringOrFile], cost: Map[CostType.CostType, Double], output: Artifact[T]): CompletedProvenance[T] =
+    MemoryCompletedProvenance(provenanceId, derivationId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost, output) tap Storage.provenanceStore.put
+}
+
+trait PostRunProvenance[T] extends DerivedProvenance[T] {
+  def createdTime: DateTime
+
+  def enqueuedTime: DateTime
+
+  def derivedFromUnnamed: GenSet[Successful[_]]
+
+  def derivedFromNamed: GenMap[String, Successful[_]]
+  
+  def startTime: DateTime
+  
+  def runningInfo: RunningInfo
+  
   def endTime: DateTime
 
-  def exitCode: Option[Integer]
+  def exitCode: Int
 
   def log: Option[ReadableStringOrFile]
-  
+
   def logString: String = log.map(_.get.fold(x => x, y => y.toString)).getOrElse("")
 
   def cost: Map[CostType.CostType, Double]
-
-  // todo: store info about cost / duration / etc.
 }
 
+trait FailedProvenance[T] extends PostRunProvenance[T]
+
+trait CancelledProvenance[T] extends PostRunProvenance[T]
+
+trait CompletedProvenance[T] extends PostRunProvenance[T] with Successful[T]
 
 
-object Provenance {
+object BlockedProvenance {
   // calling this repeatedly with the same ID just overwrites the DB record
   def apply[T](provenanceId: Identifier[Provenance[T]],
                derivationId: Identifier[Derivation[T]],
-               status: ProvenanceStatus.ProvenanceStatus,
-               derivedFromUnnamed: GenSet[Successful[_]] = Set.empty,
-               derivedFromNamed: GenMap[String, Successful[_]] = Map.empty,
-               startTime: DateTime = DateTime.now(), endTime: DateTime = DateTime.now(),
-               statusCode: Option[Integer] = None,
-               log: Option[ReadableStringOrFile] = None,
-               output: Option[Artifact[T]] = None,
-               cost: Map[CostType.CostType, Double] = Map.empty): Provenance[T] = {
-    new MemoryProvenance[T](provenanceId, derivationId, status, derivedFromUnnamed, derivedFromNamed, startTime, endTime, statusCode, log, output, cost) tap Storage.provenanceStore.put
+               enqueueTime: DateTime = DateTime.now()
+                ): BlockedProvenance[T] = {
+    new MemoryBlockedProvenance[T](provenanceId, derivationId, enqueueTime) tap Storage.provenanceStore.put
   }
 }
 
+/*
 object SuccessfulProvenance {
   // calling this repeatedly with the same ID just overwrites the DB record
   def apply[T](provenanceId: Identifier[Provenance[T]],
@@ -112,16 +152,19 @@ object SuccessfulProvenance {
                status: ProvenanceStatus.ProvenanceStatus,
                derivedFromUnnamed: GenSet[Successful[_]] = Set.empty,
                derivedFromNamed: GenMap[String, Successful[_]] = Map.empty,
-               startTime: DateTime = DateTime.now(), endTime: DateTime = DateTime.now(),
-               statusCode: Option[Integer] = None,
+               enqueueTime: DateTime = DateTime.now(),
+               startTime: Option[DateTime] = None,
+               endTime: Option[DateTime] = None,
+               statusCode: Option[Int] = None,
                log: Option[ReadableStringOrFile] = None,
                output: Option[Artifact[T]] = None,
                cost: Map[CostType.CostType, Double] = Map.empty): Successful[T] = { 
     assert(status == ProvenanceStatus.Success)
-    new MemoryProvenance[T](provenanceId, derivationId, status, derivedFromUnnamed, derivedFromNamed, startTime, endTime, statusCode, log, output, cost) with Successful[T] tap Storage.provenanceStore.put
+    new MemoryProvenance[T](provenanceId, derivationId, status, derivedFromUnnamed, derivedFromNamed,enqueueTime, startTime, endTime, statusCode, log, output, cost) with Successful[T] tap Storage.provenanceStore.put
   }
   
 }
+*/
 
 /*
 object ProvenanceStatus {
@@ -159,12 +202,23 @@ case object Success extends ProvenanceStatus("Success")
 case object Failure extends ProvenanceStatus("Failure")
 */
 
+// todo replace these with traits / types
+
+/*
 object ProvenanceStatus extends Enumeration {
   type ProvenanceStatus = Value
   
-  val  Constant, Explicit, Blocked, Ready, Pending, Running, Cancelled, Success, Failure = Value
+  val  Constant, 
+  Explicit, 
+  Blocked, 
+  Ready, 
+  Pending, 
+  Running, 
+  Cancelled, 
+  Success,
+  Failure = Value
 }
-
+*/
 
 object CostType extends Enumeration {
   type CostType = Value
@@ -219,17 +273,95 @@ class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1
   def get: Either[String, Path] = current.fold(sb => Left(sb.toString), p => Right(p))
 
   //override def toString : String = current.fold(sb=>sb.toString,p=>p.toAbsolute.path)
-  def getString : String = current.fold(sb => sb.toString, y => y.toString)
+  def getString: String = current.fold(sb => sb.toString, y => y.toString)
 }
 
 
-case class MemoryProvenance[T](provenanceId: Identifier[Provenance[T]],
-                               derivationId: Identifier[Derivation[T]],
-                               status: ProvenanceStatus.ProvenanceStatus,
-                               derivedFromUnnamed: GenSet[Successful[_]] = Set.empty,
-                               derivedFromNamed: GenMap[String, Successful[_]] = Map.empty,
-                               startTime: DateTime = DateTime.now(), endTime: DateTime = DateTime.now(),
-                               exitCode: Option[Integer] = None,
-                               log: Option[ReadableStringOrFile] = None,
-                               output: Option[Artifact[T]] = None,
-                               cost: Map[CostType.CostType, Double] = Map.empty) extends DerivedProvenance[T]
+case class MemoryBlockedProvenance[T](provenanceId: Identifier[Provenance[T]],
+                                      derivationId: Identifier[Derivation[T]],
+                                      createdTime: DateTime = DateTime.now()
+                                       ) extends BlockedProvenance[T]
+
+case class MemoryPendingProvenance[T](provenanceId: Identifier[Provenance[T]],
+                                      derivationId: Identifier[Derivation[T]],
+                                      derivedFromUnnamed: GenSet[Successful[_]],
+                                      derivedFromNamed: GenMap[String, Successful[_]],
+                                      createdTime: DateTime,
+                                      enqueuedTime: DateTime = DateTime.now()
+                                       ) extends PendingProvenance[T]
+
+case class MemoryRunningProvenance[T](provenanceId: Identifier[Provenance[T]],
+                                      derivationId: Identifier[Derivation[T]],
+                                      derivedFromUnnamed: GenSet[Successful[_]],
+                                      derivedFromNamed: GenMap[String, Successful[_]],
+                                      createdTime: DateTime,
+                                      enqueuedTime: DateTime,
+                                      startTime: DateTime,
+                                      runningInfo: RunningInfo) extends RunningProvenance[T]
+
+
+case class MemoryFailedProvenance[T](provenanceId: Identifier[Provenance[T]],
+                                     derivationId: Identifier[Derivation[T]],
+                                     derivedFromUnnamed: GenSet[Successful[_]],
+                                     derivedFromNamed: GenMap[String, Successful[_]],
+                                     createdTime: DateTime,
+                                     enqueuedTime: DateTime,
+                                     startTime: DateTime,
+                                     runningInfo: RunningInfo,
+                                     endTime: DateTime,
+                                     exitCode: Int,
+                                     log: Option[ReadableStringOrFile],
+                                     cost: Map[CostType.CostType, Double]
+                                      ) extends FailedProvenance[T]
+
+case class MemoryCancelledProvenance[T](provenanceId: Identifier[Provenance[T]],
+                                        derivationId: Identifier[Derivation[T]],
+                                        derivedFromUnnamed: GenSet[Successful[_]],
+                                        derivedFromNamed: GenMap[String, Successful[_]],
+                                        createdTime: DateTime,
+                                        enqueuedTime: DateTime,
+                                        startTime: DateTime,
+                                        runningInfo: RunningInfo,
+                                        endTime: DateTime,
+                                        exitCode: Int,
+                                        log: Option[ReadableStringOrFile],
+                                        cost: Map[CostType.CostType, Double]
+                                         ) extends CancelledProvenance[T]
+
+
+case class MemoryCompletedProvenance[T](provenanceId: Identifier[Provenance[T]],
+                                        derivationId: Identifier[Derivation[T]],
+                                        derivedFromUnnamed: GenSet[Successful[_]],
+                                        derivedFromNamed: GenMap[String, Successful[_]],
+                                        createdTime: DateTime,
+                                        enqueuedTime: DateTime,
+                                        startTime: DateTime,
+                                        runningInfo: RunningInfo,
+                                        endTime: DateTime,
+                                        exitCode: Int,
+                                        log: Option[ReadableStringOrFile],
+                                        cost: Map[CostType.CostType, Double],
+                                        output: Artifact[T]
+                                         ) extends CompletedProvenance[T]
+
+trait RunningInfo {
+  def node: Option[String]
+
+  //def processId: Int
+}
+
+trait WithinJvmRunningInfo extends RunningInfo
+
+class MemoryWithinJvmRunningInfo extends WithinJvmRunningInfo {
+  //def node = "ThisJVM"
+  //def processId = -1
+  val node = Some(java.net.InetAddress.getLocalHost.getHostName + " (in JVM)")
+}
+
+trait LocalRunningInfo extends RunningInfo {
+  def workingDir:Path
+}
+
+class MemoryLocalRunningInfo(val workingDir:Path) extends LocalRunningInfo {
+  val node = Some(java.net.InetAddress.getLocalHost.getHostName + " (local)")
+}

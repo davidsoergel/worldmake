@@ -5,41 +5,44 @@ Done
 * typed Paths.
 * Make an assembly derivation (just ln -s based on a map)
 * Commandline UI: depthfirst queue
+* better descriptions
+* parallelism throughout
 
 Underway
 ========
 
-* parallelism throughout
-
+* qsub integration: detect completion / job killed / etc. (must use qstat)
+* Track job status (e.g., Running); job scheduling
+* qsub status in mongo; treat like CachingDerivationStrategy?
+* non-qsub lifecycle model
+* run on EmergeNet
 
 Immediate
 =========
 
-* better descriptions
-* Commandline UI: cleanup, showlog, lastfailure, depthfirst queue
+* cleanup mongo representation
+* Commandline UI: cleanup, showlog, lastfailure, archive closure
+* db could track total count of downstream consumers, for easy cleanup
 
 Medium
 ======
 
 * mark derivation roots. Database cleanup.
-
-* Track job status (e.g., Running); job scheduling
-
-* qsub integration
 * Add a completion estimator to system derivations
-* Make the file store adapts to usage based on hash characters
+* Make the file store adapt to usage based on hash characters
 * Limit access to the resolve function
-* detect cycles (or make impossible?)
-* Name: provener
+* detect cycles (or make impossible?).  Already impossible due to Scala syntax? 
+* Name: provener, worldmake, unimake
+* url hash verifier
+* qsub the file validations?
+* store info about cost / duration / etc.
 
 
 Hard
 ====
 
-
 * option to continue computing in spite of failure (hard: https://github.com/scala/scala/pull/2563)
 * what if a library function called inside a derivation is changed?  Need to hash the whole call tree??
 * distinguish "meaningful" changes (to the code) from supposedly meaningless context (e.g., platform, JDK version)
-
 * distinguish compile-time from runtime ("retained") dependencies
 * Web UI

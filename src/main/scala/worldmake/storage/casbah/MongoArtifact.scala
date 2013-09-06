@@ -30,7 +30,7 @@ object MongoArtifact {
   def artifactFromDbOpt(dbo: MongoDBObject): Option[Artifact[_]] = {
     dbo("type") match {
       case MongoStringArtifact.typehint => new MongoStringArtifact(dbo).some
-      case MongoIntegerArtifact.typehint => new MongoIntegerArtifact(dbo).some
+      case MongoIntArtifact.typehint => new MongoIntArtifact(dbo).some
       case MongoDoubleArtifact.typehint => new MongoDoubleArtifact(dbo).some
       case MongoExternalPathArtifact.typehint => new MongoExternalPathArtifact(dbo).some
       case _ => None
@@ -39,12 +39,12 @@ object MongoArtifact {
 
   def artifactToDb(e: Artifact[_]): MongoWrapper = e match {
     case e: StringArtifact => MongoStringArtifact.toDb(e)
-    case e: IntegerArtifact => MongoIntegerArtifact.toDb(e)
+    case e: IntArtifact => MongoIntArtifact.toDb(e)
     case e: DoubleArtifact => MongoDoubleArtifact.toDb(e)
     case e: ExternalPathArtifact => MongoExternalPathArtifact.toDb(e)
     /*case e: Artifact => e.value match {
       case f: String => MongoStringArtifact.toDb(e)
-      case f: Integer => MongoIntegerArtifact.toDb(e)
+      case f: Int => MongoIntArtifact.toDb(e)
       case f: Double => MongoDoubleArtifact.toDb(e)
       case f: Path => MongoExternalPathArtifact.toDb(e)
     }*/
@@ -61,15 +61,15 @@ object MongoArtifact {
 }
 
 
-object MongoIntegerArtifact extends MongoSerializer[IntegerArtifact, MongoIntegerArtifact]("i", new MongoIntegerArtifact(_)) {
-  def addFields(e: IntegerArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
+object MongoIntArtifact extends MongoSerializer[IntArtifact, MongoIntArtifact]("i", new MongoIntArtifact(_)) {
+  def addFields(e: IntArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoArtifact.addFields(e, builder)
     builder += "value" -> e.value
   }
 }
 
-class MongoIntegerArtifact(val dbo: MongoDBObject) extends MongoArtifact[Integer] with IntegerArtifact with MongoWrapper {
-  override def value = dbo.as[Integer]("value")
+class MongoIntArtifact(val dbo: MongoDBObject) extends MongoArtifact[Int] with IntArtifact with MongoWrapper {
+  override def value = dbo.as[Int]("value")
 }
 
 
