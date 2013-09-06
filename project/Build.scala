@@ -1,11 +1,12 @@
 import sbt._
 import edu.umass.cs.iesl.sbtbase.Dependencies
 import edu.umass.cs.iesl.sbtbase.IeslProject._
+import sbt.Keys._
 
 object WorldMakeBuild extends Build {
 
   val vers = "0.1-SNAPSHOT"
-
+  
   implicit val allDeps: Dependencies = new Dependencies(); //(CleanLogging.excludeLoggers)  // doesn't work?
 
   import allDeps._
@@ -34,6 +35,6 @@ object WorldMakeBuild extends Build {
     mavenCobertura(),
     mavenFindbugs())*/
 
-  lazy val worldmake = Project("worldmake", file(".")).ieslSetup(vers, deps, Public, WithSnapshotDependencies).cleanLogging.standardLogging
+  lazy val worldmake = Project("worldmake", file(".")).ieslSetup(vers, deps, Public, WithSnapshotDependencies).settings(scalaVersion := "2.10.2").cleanLogging.standardLogging
 
 }
