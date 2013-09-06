@@ -26,8 +26,8 @@ object WorldMake extends Logging {
 
   def main(worldF: WorldFactory, args: Array[String]) {
 
-    val dbname = args(0)
-    StorageSetter(new CasbahStorage(MongoConnection("localhost"), dbname))
+    //val dbname = args(0)
+    StorageSetter(new CasbahStorage(MongoConnection(WorldMakeConfig.mongoHost), WorldMakeConfig.mongoDbName)) //MongoConnection("localhost"), dbname))
     val world = worldF.get
 
     // temp hack
@@ -42,10 +42,10 @@ object WorldMake extends Logging {
         val tracker = new LifecycleTracker(notifier)
       }
 
-      val command = args(1)
+      val command = args(0)
       command match {
         case "make" => {
-          val target = args(2)
+          val target = args(1)
           //val derivationId = symbolTable.getProperty(target) 
           //val derivationArtifact = Storage.artifactStore.get(derivationId)
           val derivation: Derivation[_] = world(target)
@@ -72,14 +72,14 @@ object WorldMake extends Logging {
           }
         }
         case "status" => {
-          val target = args(2)
+          val target = args(1)
           //val derivationId = symbolTable.getProperty(target) 
           //val derivationArtifact = Storage.artifactStore.get(derivationId)
           val derivation: Derivation[_] = world(target)
           logger.info(strategy.tracker.printTree(derivation, ""))
         }
         case "showqueue" => {
-          val target = args(2)
+          val target = args(1)
           //val derivationId = symbolTable.getProperty(target) 
           //val derivationArtifact = Storage.artifactStore.get(derivationId)
           val derivation: Derivation[_] = world(target)
@@ -122,11 +122,11 @@ object WorldMakeConfig {
 
   def debugWorkingDirectories: Boolean = conf.getBoolean("debugWorkingDirectories")
 
+  def retryFailures: Boolean = conf.getBoolean("retryFailures")
+  
   def qsub: String = conf.getString("qsub")
 
   def qstat: String = conf.getString("qstat")
-
-  def retryFailures: Boolean = conf.getBoolean("retryFailures")
 
   // a scratch directory available from all grid nodes
   def qsubGlobalTempDir: String = conf.getString("qsubGlobalTempDir")
@@ -137,6 +137,9 @@ object WorldMakeConfig {
   //val artifactStore = new ArtifactStore(conf.getString("artifactstore"))
   //val symbolTable = new Properties("worldmake.symbols")
 
+  val mongoHost = conf.getString("mongoHost")
+  val mongoDbName = conf.getString("mongoDbName")
+  
   val prefixIncrement = "  |"
 
   val HashType = "SHA-256"
