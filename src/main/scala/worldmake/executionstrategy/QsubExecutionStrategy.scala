@@ -54,7 +54,15 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
 
     val workingDir = Path.createTempDirectory(dir = WorldMakeConfig.qsubGlobalTempDir)
     val runner = Resource.fromFile(new File((workingDir / "worldmake.runner").toAbsolute.path))
+    //http://stackoverflow.com/questions/821396/aborting-a-shell-script-if-any-command-returns-a-non-zero-value
+    runner.write(
+      """#!/bin/bash
+        |set -e
+        |set -o pipefail
+        |
+        |""".stripMargin)
     runner.write(reifiedScript.output.value)
+    runner.write("\n")
 
     val envlog = Resource.fromFile(new File((workingDir / "worldmake.environment").toAbsolute.path))
     envlog.write(environment.map({
@@ -72,8 +80,9 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
      |#PBS -e $stderrLog
      |#PBS -o $stdoutLog
      |cd $work
-     |/bin/sh -c "source ./worldmake.environment; source ./worldmake.runner"
-     |echo $$? > exitcode.log""".stripMargin)
+     |/bin/bash -c "source ./worldmake.environment; /bin/bash ./worldmake.runner; echo $$? > exitcode.log"
+     |
+     |""".stripMargin)
 
     val qsubLogWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
 
