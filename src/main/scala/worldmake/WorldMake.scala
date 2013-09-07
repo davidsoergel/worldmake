@@ -112,6 +112,12 @@ object WorldMakeConfig {
   val mercurialRemoteRoot: String = conf.getString("hgremote")
   mercurialLocalRoot.createDirectory(createParents = true, failIfExists = false)
 
+
+  val gitLocalRoot: Path = Path.fromString(conf.getString("gitlocal"))
+  val gitRemoteRoot: String = conf.getString("gitremote")
+  gitLocalRoot.createDirectory(createParents = true, failIfExists = false)
+
+
   val globalPath: String = conf.getString("globalpath")
 
   import scala.collection.JavaConversions._

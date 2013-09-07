@@ -21,11 +21,13 @@ import ExecutionContext.Implicits.global
 
 trait QsubRunningInfo extends RunningInfo {
   def jobId: Int
+
   def workingDir: Path
+
   def outputPath: Path
 }
 
-case class MemoryQsubRunningInfo(jobId: Int, workingDir: Path, outputPath: Path, node: Option[String]) extends RunningInfo 
+case class MemoryQsubRunningInfo(jobId: Int, workingDir: Path, outputPath: Path, node: Option[String]) extends RunningInfo
 
 class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy with Logging {
 
@@ -70,7 +72,7 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
      |cd $work
      |source ./worldmake.environment
      |/bin/sh ./worldmake.runner
-     |echo     $$? > exitcode.log""".stripMargin)
+     |echo      $$? > exitcode.log""".stripMargin)
 
     val qsubLogWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
 
@@ -162,73 +164,85 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
 }
 
 
-object DetectQsubPollingAction extends PollingAction {
+object DetectQsubPollingAction extends PollingAction with Logging {
   def apply(sps: Iterable[StoredProvenances[_]], notifier: CallbackNotifier) {
-    val qstat = new Qstat()
-    for (sp <- sps) {
-      val jobInfos = sp.running map ((x: RunningProvenance[_]) => (x, x.runningInfo))
-      
-      // it is legit for there to be multiple provenances running simultaneously for the same Derivation.  E.g., multiple runs of a stochastic derivation.
-      
-      for(jobInfo <- jobInfos) {
-    
-        jobInfo match {
-          case ((p: RunningProvenance[Any], ri: QsubRunningInfo)) => {
+    try {
+      val qstat = new Qstat()
+      for (sp <- sps) {
+        val jobInfos = sp.running map ((x: RunningProvenance[_]) => (x, x.runningInfo))
 
-            val exitCode: Option[Int] = try {
-              Some(Resource.fromFile(new File((ri.workingDir / "exitcode.log").toAbsolute.path)).lines().head.toInt)
-            } catch {
-              case e: IOException => None
-            }
+        // it is legit for there to be multiple provenances running simultaneously for the same Derivation.  E.g., multiple runs of a stochastic derivation.
 
-            val log = try {
-              // copy the log from the qsub file into the database or file store, as needed
-              val logWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
-              val logLines = Resource.fromFile(new File((ri.workingDir / "stderr.log").toAbsolute.path)).lines()
-              logLines.map(logWriter.write)
-              Some(logWriter)
-            }
-            catch {
-              case e: IOException => None
-            }
+        for (jobInfo <- jobInfos) {
 
-            def notifyByExitCode() {
-              if (exitCode == Some(0)) {
-                notifier.announceDone(p.completed(0, log, Map.empty, ExternalPathArtifact(ri.outputPath)))
-              }
-              else {
-                
-                notifier.announceFailed(p.failed(exitCode.getOrElse(-1), log, Map.empty))
-              }
-            }
+          jobInfo match {
+            case ((p: RunningProvenance[Any], ri: QsubRunningInfo)) => {
 
-            qstat.jobState(ri.jobId) match {
-              case Some(QstatJobStatus.QWaiting) => {
-                // do nothing
+              val exitCode: Option[Int] = try {
+                Some(Resource.fromFile(new File((ri.workingDir / "exitcode.log").toAbsolute.path)).lines().head.toInt)
+              } catch {
+                case e: IOException => None
               }
-              case Some(QstatJobStatus.QRunning) => {
-                // do nothing
-                // todo update runninginfo node
+
+              val log = try {
+                // copy the log from the qsub file into the database or file store, as needed
+                val logWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
+                val logLines = Resource.fromFile(new File((ri.workingDir / "stderr.log").toAbsolute.path)).lines()
+                logLines.map(logWriter.write)
+                Some(logWriter)
               }
-              case Some(QstatJobStatus.QCancelled) => {
-                notifier.announceCancelled(p.cancelled(exitCode.getOrElse(-1), log, Map.empty))
+              catch {
+                case e: IOException => None
               }
-              case Some(QstatJobStatus.QDone) => notifyByExitCode()
-              case None => notifyByExitCode()
+
+              def notifyByExitCode() {
+                if (exitCode == Some(0)) {
+                  notifier.announceDone(p.completed(0, log, Map.empty, ExternalPathArtifact(ri.outputPath)))
+                }
+                else {
+
+                  notifier.announceFailed(p.failed(exitCode.getOrElse(-1), log, Map.empty))
+                }
+              }
+
+              qstat.jobState(ri.jobId) match {
+                case Some(QstatJobStatus.QWaiting) => {
+                  // do nothing
+                }
+                case Some(QstatJobStatus.QRunning) => {
+                  // do nothing
+                  // todo update runninginfo node
+                }
+                case Some(QstatJobStatus.QCancelled) => {
+                  notifier.announceCancelled(p.cancelled(exitCode.getOrElse(-1), log, Map.empty))
+                }
+                case Some(QstatJobStatus.QDone) => notifyByExitCode()
+                case None => notifyByExitCode()
+              }
             }
           }
         }
       }
     }
-  
-}
+    catch {
+      case e: QstatException => logger.error("Qstat Error, ignoring: " + e.getMessage)
+    }
+
+  }
 
 }
 
 class QstatException(s: String) extends Exception(s)
 
 class Qstat {
-  private val qstatXml = Process(Seq(WorldMakeConfig.qstat, "-xml")).!!
+  private val qstatXml = {
+    try {
+      Process(Seq(WorldMakeConfig.qstat, "-xml")).!!
+    }
+    catch {
+      case e: IOException => throw new QstatException(e.getMessage)
+    }
+  }
   private val qstatRoot = XMLIgnoreDTD.load(qstatXml)
   private val states: Map[Int, QstatJobStatus.QstatJobStatus] = {
     val jobs = qstatRoot \ "queue_info" \ "job_list" ++ qstatRoot \ "job_info" \ "job_list"

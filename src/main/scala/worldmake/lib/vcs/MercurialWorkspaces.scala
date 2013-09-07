@@ -1,4 +1,4 @@
-package worldmake.lib
+package worldmake.lib.vcs
 
 import scalax.file.Path
 
@@ -6,10 +6,14 @@ import scala.sys.process._
 import com.typesafe.scalalogging.slf4j.Logging
 import worldmake._
 
+import ConstantDerivation._
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
-object MercurialWorkspaces extends Logging {
+object MercurialWorkspaces extends VcsWorkspaces with Logging {
+
+  def defaultBranchName = "default"
+  
   def toUrl(id: String): String = WorldMakeConfig.mercurialRemoteRoot + id
 
   def toLocalRepo(id: String): Path = {
@@ -30,19 +34,15 @@ object MercurialWorkspaces extends Logging {
       case v => v
     }
     val args = Map[String, Derivation[_]](
-      "localrepo" ->
-        ConstantDerivation(
-          ConstantProvenance(
-            ExternalPathArtifact(
-              toLocalRepo(id)))),
-      "version" -> ConstantDerivation(ConstantProvenance(StringArtifact(version))))
+      "localrepo" ->toLocalRepo(id),
+      "version" -> version)
 
-    val scriptDerivation = ConstantDerivation(ConstantProvenance(StringArtifact( """cd $out && hg archive -R $localrepo -r $version .""")))
+    val scriptDerivation : Derivation[String] ="""mkdir -p $out && cd $out && hg archive -R $localrepo -r $version ."""
     
     new SystemDerivation(scriptDerivation, args)
   }
 
-  val hgBranchesToChangesetNumber = """(\S+)\s*(\d+):(\S*)( \(.*\))?""".r
+  private val hgBranchesToChangesetNumber = """(\S+)\s*(\d+):(\S*)( \(.*\))?""".r
 
   def getLatestVersions(id: String): Map[String, String] = {
     val localrepo = toLocalRepo(id)
@@ -57,20 +57,6 @@ object MercurialWorkspaces extends Logging {
     }).toMap
   }
 
-  def executeWithLog(command: Seq[String], workingDir: Path) {
-
-    val pb = Process(command, workingDir.toAbsolute.fileOption) //, environment.toArray: _*)
-
-    logger.debug("in " + workingDir.toAbsolute.path + ", executing " + command.mkString(" "))
-
-    // any successful output should be written to a file in the output directory, so anything on stdout or stderr is 
-    // logging output and should be combined for easier debugging
-    val pbLogger = ProcessLogger(
-      (o: String) => logger.debug(o),
-      (e: String) => logger.warn(e))
-
-    val exitCode = pb ! pbLogger
-
-  }
+  
 
 }
