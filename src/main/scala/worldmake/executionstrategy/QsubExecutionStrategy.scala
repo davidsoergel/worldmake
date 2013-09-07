@@ -66,11 +66,13 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
     val stdoutLog = (workingDir / "stdout.log").toAbsolute.path
     val work = workingDir.toAbsolute.path
 
+    // todo make this configurable for different qsub implementations?
+    
     qsubScript.write( s"""#!/bin/sh
      |#PBS -e $stderrLog
      |#PBS -o $stdoutLog
      |cd $work
-     |/bin/sh -c "source ./worldmake.environment; ./worldmake.runner"
+     |/bin/sh -c "source ./worldmake.environment; source ./worldmake.runner"
      |echo $$? > exitcode.log""".stripMargin)
 
     val qsubLogWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
