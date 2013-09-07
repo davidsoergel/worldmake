@@ -14,7 +14,7 @@ object GitWorkspaces extends VcsWorkspaces with Logging {
 
   def defaultBranchName = "master"
   
-   def toUrl(id: String): String = WorldMakeConfig.gitRemoteRoot + id
+   def toUrl(id: String): String = WorldMakeConfig.gitRemoteRoot + (id + ".git")  // add .git because the remote should be bare
  
    def toLocalRepo(id: String): Path = {
      val p: Path = WorldMakeConfig.gitLocalRoot / (id + ".git")  // add .git because we clone bare
