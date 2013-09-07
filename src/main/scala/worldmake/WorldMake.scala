@@ -66,7 +66,7 @@ object WorldMake extends Logging {
           }
           catch {
             case e: FailedDerivationException => {
-              logger.error("FAILED.")
+              logger.error("FAILED: " , e)
               System.exit(1)
             }
           }
