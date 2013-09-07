@@ -289,10 +289,11 @@ object MongoCompletedProvenance {
 
   def addFields(e: CompletedProvenance[_], builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoPostRunProvenance.addFields(e, builder)
+    MongoSuccessful.addFields(e, builder)
   }
 }
 
-class MongoCompletedProvenance[T](val xdbo: MongoDBObject) extends MongoPostRunProvenance[T](xdbo) with FailedProvenance[T] with MongoWrapper
+class MongoCompletedProvenance[T](val xdbo: MongoDBObject) extends MongoPostRunProvenance[T](xdbo) with MongoSuccessful[T] with CompletedProvenance[T] with MongoWrapper
 
 
 
