@@ -135,9 +135,9 @@ class MongoPendingProvenance[T](val dbo: MongoDBObject) extends MongoDerivedProv
 
   override def enqueuedTime: DateTime = dbo.as[DateTime]("enqueuedTime")
 
-  override def derivedFromUnnamed: Set[Successful[_]] = dbo.as[Set[String]]("derivedFromUnnamed").flatMap(id=>Storage.provenanceStore.getSuccessful(new Identifier[Successful[_]](id)))
+  override def derivedFromUnnamed: Set[Successful[_]] = dbo.as[Set[String]]("derivedFromUnnamed").flatMap(id=>Storage.provenanceStore.getSuccessful[Any](new Identifier[Successful[_]](id)))
 
-  override def derivedFromNamed: Map[String, Successful[_]] = dbo.as[Map[String, String]]("derivedFromNamed").mapValues(id=>Storage.provenanceStore.getSuccessful(new Identifier[Successful[_]](id)).get) 
+  override def derivedFromNamed: Map[String, Successful[_]] = dbo.as[Map[String, String]]("derivedFromNamed").mapValues(id=>Storage.provenanceStore.getSuccessful[Any](new Identifier[Successful[_]](id)).get) 
 }
 
 
@@ -173,9 +173,9 @@ class MongoRunningProvenance[T](val dbo: MongoDBObject) extends MongoDerivedProv
   override def enqueuedTime: DateTime = dbo.as[DateTime]("enqueuedTime")
 
 
-  override def derivedFromUnnamed: Set[Successful[_]] = dbo.as[Set[String]]("derivedFromUnnamed").flatMap(id=>Storage.provenanceStore.getSuccessful(new Identifier[Successful[_]](id)))
+  override def derivedFromUnnamed: Set[Successful[_]] = dbo.as[Set[String]]("derivedFromUnnamed").flatMap(id=>Storage.provenanceStore.getSuccessful[Any](new Identifier[Successful[_]](id)))
 
-  override def derivedFromNamed: Map[String, Successful[_]] = dbo.as[Map[String, String]]("derivedFromNamed").mapValues(id=>Storage.provenanceStore.getSuccessful(new Identifier[Successful[_]](id)).get)
+  override def derivedFromNamed: Map[String, Successful[_]] = dbo.as[Map[String, String]]("derivedFromNamed").mapValues(id=>Storage.provenanceStore.getSuccessful[Any](new Identifier[Successful[_]](id)).get)
 
 
   override def startTime: DateTime = dbo.as[DateTime]("startTime")
@@ -226,9 +226,9 @@ abstract class MongoPostRunProvenance[T](val dbo: MongoDBObject) extends MongoDe
   override def enqueuedTime: DateTime = dbo.as[DateTime]("enqueuedTime")
 
 
-  override def derivedFromUnnamed: Set[Successful[_]] = dbo.as[Set[String]]("derivedFromUnnamed").flatMap(id=>Storage.provenanceStore.getSuccessful(new Identifier[Successful[_]](id)))
+  override def derivedFromUnnamed: Set[Successful[_]] = dbo.as[Set[String]]("derivedFromUnnamed").flatMap(id=>Storage.provenanceStore.getSuccessful[Any](new Identifier[Successful[_]](id)))
 
-  override def derivedFromNamed: Map[String, Successful[_]] = dbo.as[Map[String, String]]("derivedFromNamed").mapValues(id=>Storage.provenanceStore.getSuccessful(new Identifier[Successful[_]](id)).get)
+  override def derivedFromNamed: Map[String, Successful[_]] = dbo.as[Map[String, String]]("derivedFromNamed").mapValues(id=>Storage.provenanceStore.getSuccessful[Any](new Identifier[Successful[_]](id)).get)
 
 
   override def startTime: DateTime = dbo.as[DateTime]("startTime")
