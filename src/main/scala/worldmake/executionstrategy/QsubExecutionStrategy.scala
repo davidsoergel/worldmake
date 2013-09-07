@@ -66,7 +66,7 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
     val stdoutLog = (workingDir / "stdout.log").toAbsolute.path
     val work = workingDir.toAbsolute.path
 
-    qsubScript.write( s"""#/bin/sh
+    qsubScript.write( s"""#!/bin/sh
      |#PBS -e $stderrLog
      |#PBS -o $stdoutLog
      |cd $work
