@@ -140,17 +140,17 @@ class StoredProvenances[T](val derivationId: Identifier[Derivation[T]]) {
     */
   val statusString: String = {
     if (successes.size > 0) {
-      "Success (" + successes.size + " variants)"
+      "Success (" + successes.size + ")"
     } else if (running.size > 0) {
-      "Running (" + running.size + " failures)"
+      "Running (" + running.size + ")"
     } else if (pending.size > 0) {
-      "Pending (" + pending.size + " pending)"
+      "Pending (" + pending.size + ")"
     } else if (blocked.size > 0) {
-      "Blocked (" + blocked.size + " blocked)"
+      "Blocked (" + blocked.size + ")"
     } else if (cancelled.size > 0) {
-      "Cancelled (" + cancelled.size + " failures)"
+      "Cancelled (" + cancelled.size + ")"
     } else if (failures.size > 0) {
-      "Failure (" + failures.size + " failures)"
+      "Failure (" + failures.size + ")"
     }
     else "no status" // todo print other statuses
   }

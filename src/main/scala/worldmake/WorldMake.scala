@@ -11,12 +11,13 @@ import edu.umass.cs.iesl.scalacommons.util.Hash
 import java.io.{File, InputStream}
 import worldmake.storage.{FileStore, StorageSetter}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Await, ExecutionContext}
 import ExecutionContext.Implicits.global
 import worldmake.derivationstrategy._
 import worldmake.executionstrategy.{DetectQsubPollingAction, QsubExecutionStrategy}
 import scala.util.Failure
 import scala.util.Success
+import scala.concurrent.duration.Duration
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -62,6 +63,8 @@ object WorldMake extends Logging {
                 throw t
               }
             }
+            
+            Await.result(result, Duration.Inf)
 
           }
           catch {
