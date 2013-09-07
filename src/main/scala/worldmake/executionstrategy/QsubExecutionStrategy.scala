@@ -244,7 +244,7 @@ class Qstat {
       case e: IOException => throw new QstatException(e.getMessage)
     }
   }
-  private val qstatRoot = XMLIgnoreDTD.load(qstatXml)
+  private val qstatRoot = XMLIgnoreDTD.loadString(qstatXml)
   private val states: Map[Int, QstatJobStatus.QstatJobStatus] = {
     val jobs = qstatRoot \ "queue_info" \ "job_list" ++ qstatRoot \ "job_info" \ "job_list"
     val pairs = for (job <- jobs) yield {
