@@ -27,7 +27,7 @@ trait QsubRunningInfo extends RunningInfo {
   def outputPath: Path
 }
 
-case class MemoryQsubRunningInfo(jobId: Int, workingDir: Path, outputPath: Path, node: Option[String]) extends RunningInfo
+case class MemoryQsubRunningInfo(jobId: Int, workingDir: Path, outputPath: Path, node: Option[String]) extends QsubRunningInfo
 
 class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy with Logging {
 
