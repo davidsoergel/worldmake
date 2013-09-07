@@ -5,6 +5,7 @@ import worldmake._
 
 trait ProvenanceStore {
   def get[T](id: Identifier[Provenance[T]]): Option[Provenance[T]]
+  def getSuccessful[T](id: Identifier[Successful[T]]): Option[Successful[T]]
 
   //def getForArtifact[T](id: Identifier[Artifact[T]]): Option[Provenance[T]]
   def getDerivedFrom[T](id: Identifier[Derivation[T]]): Set[Provenance[T]]
@@ -77,6 +78,7 @@ class AggregateArtifactStore(primaryStore: ArtifactStore, otherStores: GenSet[Ar
 class AggregateProvenanceStore(primaryStore: ProvenanceStore, otherStores: GenSet[ProvenanceStore]) extends ProvenanceStore {
 
   def get[T](id: Identifier[Provenance[T]]): Option[Provenance[T]] = primaryStore.get(id).orElse(otherStores.flatMap(_.get(id)).headOption) // perf
+  def getSuccessful[T](id: Identifier[Successful[T]]): Option[Successful[T]] = primaryStore.getSuccessful(id).orElse(otherStores.flatMap(_.getSuccessful(id)).headOption) // perf
 
   def getDerivedFrom[T](id: Identifier[Derivation[T]]) = primaryStore.getDerivedFrom(id) ++ otherStores.flatMap(_.getDerivedFrom(id)) // perf
 

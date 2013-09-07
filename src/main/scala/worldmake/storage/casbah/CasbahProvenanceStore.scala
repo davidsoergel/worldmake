@@ -31,6 +31,9 @@ class CasbahProvenanceStore(conn: MongoConnection,
     r.map(provenanceFromDb[T](_))
   }
 
+
+  def getSuccessful[T](id: Identifier[Successful[T]]) = get(id).map(_.asInstanceOf[Successful[T]])
+
   override def getDerivedFrom[T](id: Identifier[Derivation[T]]): Set[Provenance[T]] = {
     val r = mongoColl.find(MongoDBObject("derivationId" -> id.s))
     r.map(provenanceFromDb[T](_)).toSet

@@ -1,12 +1,12 @@
 package worldmake.storage.casbah
 
 import worldmake._
-import scala.collection.{GenMap, GenSet, mutable}
+import scala.collection.mutable
 import com.mongodb.casbah.commons.Imports
 import com.mongodb.casbah.Imports._
 import org.joda.time.DateTime
 import scalax.file.Path
-import worldmake.storage.Identifier
+import worldmake.storage.{Storage, Identifier}
 
 /*
 // don't use, because of parameterized types
@@ -121,22 +121,24 @@ object MongoPendingProvenance {
     MongoDerivedProvenance.addFields(e, builder)
     builder += "createdTime" -> e.createdTime
     builder += "enqueuedTime" -> e.createdTime
-    builder += "derivedFromUnnamed" -> e.derivedFromUnnamed.seq.map(_.provenanceId)
-    builder += "derivedFromNamed" -> e.derivedFromNamed.seq.mapValues(_.provenanceId)
+    if (e.derivedFromUnnamed.nonEmpty) {
+      builder += "derivedFromUnnamed" -> e.derivedFromUnnamed.seq.map(_.provenanceId.s)
+    }
+    if (e.derivedFromNamed.nonEmpty) {
+      builder += "derivedFromNamed" -> e.derivedFromNamed.seq.mapValues(_.provenanceId.s)
+    }
   }
 }
 
 class MongoPendingProvenance[T](val dbo: MongoDBObject) extends MongoDerivedProvenance[T] with PendingProvenance[T] with MongoWrapper {
   override def createdTime: DateTime = dbo.as[DateTime]("createdTime")
-  
+
   override def enqueuedTime: DateTime = dbo.as[DateTime]("enqueuedTime")
 
-  override def derivedFromUnnamed: Set[Successful[_]] = dbo.as[Set[Successful[_]]]("derivedFromUnnamed")  // todo wtf
+  override def derivedFromUnnamed: Set[Successful[_]] = dbo.as[Set[String]]("derivedFromUnnamed").flatMap(id=>Storage.provenanceStore.getSuccessful(new Identifier[Successful[_]](id)))
 
-  override def derivedFromNamed: Map[String, Successful[_]] = dbo.as[Map[String, Successful[_]]]("derivedFromNamed")
+  override def derivedFromNamed: Map[String, Successful[_]] = dbo.as[Map[String, String]]("derivedFromNamed").mapValues(id=>Storage.provenanceStore.getSuccessful(new Identifier[Successful[_]](id)).get) 
 }
-
-
 
 
 object MongoRunningProvenance {
@@ -154,8 +156,12 @@ object MongoRunningProvenance {
     MongoDerivedProvenance.addFields(e, builder)
     builder += "createdTime" -> e.createdTime
     builder += "enqueuedTime" -> e.createdTime
-    builder += "derivedFromUnnamed" -> e.derivedFromUnnamed.seq.map(_.provenanceId)
-    builder += "derivedFromNamed" -> e.derivedFromNamed.seq.mapValues(_.provenanceId)
+    if (e.derivedFromUnnamed.nonEmpty) {
+      builder += "derivedFromUnnamed" -> e.derivedFromUnnamed.seq.map(_.provenanceId.s)
+    }
+    if (e.derivedFromNamed.nonEmpty) {
+      builder += "derivedFromNamed" -> e.derivedFromNamed.seq.mapValues(_.provenanceId.s)
+    }
     builder += "startTime" -> e.startTime
     builder += "runningInfo" -> MongoRunningInfo.toDb(e.runningInfo).dbo
   }
@@ -166,16 +172,16 @@ class MongoRunningProvenance[T](val dbo: MongoDBObject) extends MongoDerivedProv
 
   override def enqueuedTime: DateTime = dbo.as[DateTime]("enqueuedTime")
 
-  override def derivedFromUnnamed: Set[Successful[_]] = dbo.as[Set[Successful[_]]]("derivedFromUnnamed")  // todo wtf
 
-  override def derivedFromNamed: Map[String, Successful[_]] = dbo.as[Map[String, Successful[_]]]("derivedFromNamed")
-  
+  override def derivedFromUnnamed: Set[Successful[_]] = dbo.as[Set[String]]("derivedFromUnnamed").flatMap(id=>Storage.provenanceStore.getSuccessful(new Identifier[Successful[_]](id)))
+
+  override def derivedFromNamed: Map[String, Successful[_]] = dbo.as[Map[String, String]]("derivedFromNamed").mapValues(id=>Storage.provenanceStore.getSuccessful(new Identifier[Successful[_]](id)).get)
+
+
   override def startTime: DateTime = dbo.as[DateTime]("startTime")
-  
+
   override def runningInfo: RunningInfo = MongoRunningInfo.fromDb(dbo.as[DBObject]("runningInfo"))
 }
-
-
 
 
 object MongoPostRunProvenance {
@@ -195,15 +201,19 @@ object MongoPostRunProvenance {
     MongoDerivedProvenance.addFields(e, builder)
     builder += "createdTime" -> e.createdTime
     builder += "enqueuedTime" -> e.createdTime
-    builder += "derivedFromUnnamed" -> e.derivedFromUnnamed.seq.map(_.provenanceId)
-    builder += "derivedFromNamed" -> e.derivedFromNamed.seq.mapValues(_.provenanceId)
+    if (e.derivedFromUnnamed.nonEmpty) {
+      builder += "derivedFromUnnamed" -> e.derivedFromUnnamed.seq.map(_.provenanceId.s)
+    }
+    if (e.derivedFromNamed.nonEmpty) {
+      builder += "derivedFromNamed" -> e.derivedFromNamed.seq.mapValues(_.provenanceId.s)
+    }
     builder += "startTime" -> e.startTime
     builder += "runningInfo" -> MongoRunningInfo.toDb(e.runningInfo).dbo
     builder += "endTime" -> e.endTime
     builder += "exitCode" -> e.exitCode
     for (x <- e.log) {
       builder += "log" -> MongoStringOrFile.toDb(x).dbo
-    } 
+    }
     builder += "cost" -> e.cost.map({
       case (k, v) => (k.toString, v)
     })
@@ -215,9 +225,11 @@ abstract class MongoPostRunProvenance[T](val dbo: MongoDBObject) extends MongoDe
 
   override def enqueuedTime: DateTime = dbo.as[DateTime]("enqueuedTime")
 
-  override def derivedFromUnnamed: Set[Successful[_]] = dbo.as[Set[Successful[_]]]("derivedFromUnnamed")  // todo wtf
 
-  override def derivedFromNamed: Map[String, Successful[_]] = dbo.as[Map[String, Successful[_]]]("derivedFromNamed")
+  override def derivedFromUnnamed: Set[Successful[_]] = dbo.as[Set[String]]("derivedFromUnnamed").flatMap(id=>Storage.provenanceStore.getSuccessful(new Identifier[Successful[_]](id)))
+
+  override def derivedFromNamed: Map[String, Successful[_]] = dbo.as[Map[String, String]]("derivedFromNamed").mapValues(id=>Storage.provenanceStore.getSuccessful(new Identifier[Successful[_]](id)).get)
+
 
   override def startTime: DateTime = dbo.as[DateTime]("startTime")
 
@@ -232,12 +244,12 @@ abstract class MongoPostRunProvenance[T](val dbo: MongoDBObject) extends MongoDe
   override def cost: Map[CostType.Value, Double] = dbo.as[MongoDBObject]("cost").map({
     case (k, v) => (CostType.withName(k), v.asInstanceOf[Double])
   }).toMap
-  
+
 }
 
 
 object MongoFailedProvenance {
-  
+
   val typehint = "FailedProvenance"
 
   def toDb[T](e: FailedProvenance[T]): MongoFailedProvenance[T] = {
@@ -247,7 +259,7 @@ object MongoFailedProvenance {
     val dbo = builder.result()
     new MongoFailedProvenance[T](dbo)
   }
-  
+
   def addFields(e: FailedProvenance[_], builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoPostRunProvenance.addFields(e, builder)
   }
@@ -294,10 +306,6 @@ object MongoCompletedProvenance {
 }
 
 class MongoCompletedProvenance[T](val xdbo: MongoDBObject) extends MongoPostRunProvenance[T](xdbo) with MongoSuccessful[T] with CompletedProvenance[T] with MongoWrapper
-
-
-
-
 
 
 object MongoStringOrFile {
