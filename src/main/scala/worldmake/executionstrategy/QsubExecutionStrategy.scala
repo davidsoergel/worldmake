@@ -70,13 +70,12 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
      |#PBS -e $stderrLog
      |#PBS -o $stdoutLog
      |cd $work
-     |source ./worldmake.environment
-     |/bin/sh ./worldmake.runner
-     |echo      $$? > exitcode.log""".stripMargin)
+     |/bin/sh -c "source ./worldmake.environment; ./worldmake.runner"
+     |echo $$? > exitcode.log""".stripMargin)
 
     val qsubLogWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
 
-    val qsubPb = Process(Seq(WorldMakeConfig.qsub, "./worldmake.qsub"), workingDir.jfile)
+    val qsubPb = Process(Seq(WorldMakeConfig.qsub, "-C", "#PBS", "./worldmake.qsub"), workingDir.jfile)
 
     // any successful output should be written to a file in the output directory, so anything on stdout or stderr is 
     // logging output and should be combined for easier debugging
