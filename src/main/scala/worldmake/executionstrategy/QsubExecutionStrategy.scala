@@ -207,6 +207,7 @@ object DetectQsubPollingAction extends PollingAction with Logging {
 
               def notifyByExitCode() {
                 if (exitCode == Some(0)) {
+                  logger.debug("Qstat reported job done with exit code 0: " + p.provenanceId)
                   notifier.announceDone(p.completed(0, log, Map.empty, ExternalPathArtifact(ri.outputPath)))
                 }
                 else {
@@ -243,7 +244,7 @@ object DetectQsubPollingAction extends PollingAction with Logging {
 
 class QstatException(s: String) extends Exception(s)
 
-class Qstat {
+class Qstat extends Logging {
   private val qstatXml = {
     try {
       Process(Seq(WorldMakeConfig.qstat, "-xml")).!!
@@ -253,6 +254,7 @@ class Qstat {
     }
   }
   private val qstatRoot = XMLIgnoreDTD.loadString(qstatXml)
+  logger.debug(qstatXml)
   private val states: Map[Int, QstatJobStatus.QstatJobStatus] = {
     val jobs = qstatRoot \ "queue_info" \ "job_list" ++ qstatRoot \ "job_info" \ "job_list"
     val pairs = for (job <- jobs) yield {

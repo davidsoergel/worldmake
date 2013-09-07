@@ -32,6 +32,7 @@ class BasicCallbackNotifier extends CallbackNotifier {
 
   def announceDone(pr: Successful[_]) = {
     for (p <- waitingFor.get(pr.derivationId)) {
+      waitingFor.remove(pr.derivationId)
       p success pr
     }
   }
