@@ -189,7 +189,7 @@ object DetectQsubPollingAction extends PollingAction with Logging {
             case ((p: RunningProvenance[Any], ri: QsubRunningInfo)) => {
 
               val exitCode: Option[Int] = try {
-                Some(Resource.fromFile(new File((ri.workingDir / "exitcode.log").toAbsolute.path)).lines().head.toInt)
+                Resource.fromFile(new File((ri.workingDir / "exitcode.log").toAbsolute.path)).lines().headOption.map(_.toInt)
               } catch {
                 case e: IOException => None
               }
@@ -210,7 +210,6 @@ object DetectQsubPollingAction extends PollingAction with Logging {
                   notifier.announceDone(p.completed(0, log, Map.empty, ExternalPathArtifact(ri.outputPath)))
                 }
                 else {
-
                   notifier.announceFailed(p.failed(exitCode.getOrElse(-1), log, Map.empty))
                 }
               }
