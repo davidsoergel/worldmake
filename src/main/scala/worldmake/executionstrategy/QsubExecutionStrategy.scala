@@ -48,7 +48,7 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
     //val logWriter = Resource.fromFile(log)
 
 
-    val dependenciesEnvironment: GenMap[String, String] = reifiedDependencies.mapValues(x => SystemDerivation.toEnvironmentString(x.output))
+    val dependenciesEnvironment: GenMap[String, String] = reifiedDependencies.mapValues(_.output.environmentString)
     val environment: GenMap[String, String] = WorldMakeConfig.globalEnvironment ++ dependenciesEnvironment ++ Map("out" -> outputPath.toAbsolute.path) //, "PATH" -> WorldMakeConfig.globalPath)
 
 

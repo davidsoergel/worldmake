@@ -31,12 +31,12 @@ object SystemDerivation {
   // "toEnvironmentString" is not a method of the Derivation trait because the Any->String conversion may differ by 
   // context (at least, eg., # of sig figs, or filename vs file contents, etc.)
   // For that matter, what if it differs for different arguments of the same type? 
-  def toEnvironmentString[T](x: Artifact[T]): String = x match {
+ /* def toEnvironmentString[T](x: Artifact[T]): String = x match {
     case f: ExternalPathArtifact => f.abspath
     case f: GenTraversableArtifact[T] => f.artifacts.map((x: Artifact[_]) => toEnvironmentString(x)).mkString(" ")
     //case f:GenTraversableArtifact => f.artifacts.map(toEnvironmentString).mkString(" ")
     case f => f.value.toString
-  }
+  }*/
 
 }
 

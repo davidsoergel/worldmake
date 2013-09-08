@@ -30,7 +30,7 @@ class StringInterpolationDerivation(sc: StringContext, args: Seq[Derivation[Any]
     val prs = pr.running(new MemoryWithinJvmRunningInfo)
     try {
       val result = {
-        val resolvedArgs = resolvedProvenances.map(x => SystemDerivation.toEnvironmentString(x.output)) //.value)
+        val resolvedArgs = resolvedProvenances.map(_.output.environmentString) //.value)
 
         // this stripMargin takes effect after interpolation; see https://github.com/scala/scala/pull/1655 for alternative
         val r = StringArtifact(sc.s(resolvedArgs: _*).stripMargin)

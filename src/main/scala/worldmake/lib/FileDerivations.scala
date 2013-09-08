@@ -15,6 +15,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import ExecutionContext.Implicits.global
 import worldmake.derivationstrategy.FutureDerivationStrategy
 
+import StringInterpolationDerivation._
+
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
@@ -31,6 +33,9 @@ object FileDerivations extends Logging {
     logger.debug(s"Found $result lines")
     result
   })
+
+  def sedFile(sedFile:TypedPathDerivation[TextFile],input:TypedPathDerivation[TextFile]) = sys"sed -f ${sedFile} < ${input} > $${out}"
+  def sedExpr(sedExpr:Derivation[String],input:TypedPathDerivation[TextFile]) = sys"sed -e '${sedExpr}' < ${input} > $${out}"
 
 }
 

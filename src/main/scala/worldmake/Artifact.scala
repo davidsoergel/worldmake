@@ -38,6 +38,8 @@ trait Artifact[+T] extends Hashable {
 
   def value: T
 
+  def environmentString: String = value.toString
+  
   //def contentHashBytes: Array[Byte]
 
 
@@ -92,7 +94,7 @@ object Artifact {
 class IllegalArtifactException(message:String) extends Throwable(message)
 
 object StringArtifact {
-  def apply(s: String) = new MemoryStringArtifact(s) tap {(x:MemoryStringArtifact)=>Storage.provenanceStore.put(ConstantProvenance(x))}
+  def apply(s: String) = new MemoryStringArtifact(s) // tap {(x:MemoryStringArtifact)=>Storage.provenanceStore.put(ConstantProvenance(x))}
 }
 
 trait StringArtifact extends Artifact[String] {
@@ -157,7 +159,7 @@ trait ExternalPathArtifact extends Artifact[Path] {
 
   // Navigating inside an artifact is a derivation; it shouldn't be possible to do it in the raw sense
   // def /(s: String): ExternalPathArtifact = value / s
-
+  override def environmentString = abspath
 }
 
 class MemoryExternalPathArtifact(path: Path) extends MemoryArtifact[Path](path) with ExternalPathArtifact with Logging  with ContentHashableArtifact[Path] {
@@ -199,6 +201,8 @@ class GenTraversableArtifact[T](val artifacts: GenTraversable[Artifact[T]]) exte
   def contentHashBytes = artifacts.toSeq.map(_.contentHashBytes).flatten.toArray
 
   lazy val value = artifacts.map(_.value)
+
+  override def environmentString = artifacts.map(_.environmentString).mkString(" ")
 }
 
 /*

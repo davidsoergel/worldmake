@@ -30,11 +30,18 @@ abstract class BinaryFile(p: Path) extends TypedFile(p)
 
 abstract class TextFile(p: Path) extends TypedFile(p)
 
+
+object BasicTextFile {
+  private val wrapper: (Derivation[Path]) => TypedPathDerivation[BasicTextFile] = DerivationWrapper.wrapDerivation(new BasicTextFile(_))
+  implicit def wrapDerivation(d: Derivation[Path]): TypedPathDerivation[BasicTextFile] = wrapper(d)
+}
+class BasicTextFile(path: Path) extends TextFile(path) with Logging
+
 abstract class CsvFile(p: Path) extends TextFile(p)
 
 abstract class TsvFile(p: Path) extends TextFile(p)
 
-trait TypedPathDerivation[T <: TypedPath] extends Derivation[T] {
+trait TypedPathDerivation[+T <: TypedPath] extends Derivation[T] {
   def toPathDerivation: Derivation[Path]
 }
 
@@ -105,20 +112,35 @@ object DerivationWrapper extends Logging {
       
       private def wrapProvenance(p:Successful[Path]) = {
         new Provenance[T] with Successful[T] {
-          def output = new Artifact[T] {
+          
+          // this Artifact must act like an ExternalPathArtifact, though it can't literally be one because TypedFile does not extend Path
+          def output = new Artifact[T] { //with ExternalPathArtifact {
             def contentHashBytes = p.output.contentHashBytes
 
-            def value = {
+            def value : T = {
               val result = f(p.output.value)
               result.validate()
               result
             }
+
+            def description = p.output.value.toAbsolute.path
+
+            def abspath = p.output.value.toAbsolute.path
+
+            def basename = p.output.value.name
+
+            // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
+            override def constantId = Identifier[Artifact[T]]("TypedPath(" + abspath + ")")
+
+
+            // Navigating inside an artifact is a derivation; it shouldn't be possible to do it in the raw sense
+            // def /(s: String): ExternalPathArtifact = value / s
+            override def environmentString = abspath
           }
 
           def derivationId = new Identifier[Derivation[T]](d.derivationId.s)
 
           def provenanceId = new Identifier(p.provenanceId.s)
-
         }
       }
 
