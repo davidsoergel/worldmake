@@ -237,7 +237,10 @@ class TraversableProvenance[T](val provenances: Traversable[Provenance[T]]) exte
 
   def status = ???
 }
-*/
+*/ 
+object TraversableDerivation {
+  implicit def wrapTraversable[T](xs:GenTraversable[Derivation[T]]) = new TraversableDerivation(xs)
+}
 
 class TraversableDerivation[T](val xs: GenTraversable[Derivation[T]]) extends DerivableDerivation[GenTraversable[T]] with Logging {
   /*def derive = {
