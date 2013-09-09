@@ -262,6 +262,7 @@ class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1
   def write(s: String) = synchronized {
     current.fold(
       sb => {
+        logger.trace("Appending to StringBuffer: " + s)
         sb.append(s)
         logger.trace(s)
         if (sb.length() > maxStringLength) {
@@ -271,7 +272,10 @@ class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1
           current = Right(p)
         }
       },
-      p => p.write(s))
+      p => {
+        logger.trace("Appending to Path: " + p)
+        p.write(s)
+      })
     count += s.length
   }
 
