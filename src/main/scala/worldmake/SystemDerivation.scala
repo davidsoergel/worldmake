@@ -40,7 +40,7 @@ object SystemDerivation {
 
 }
 
-class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap[String, Derivation[_]]) extends DerivableDerivation[TypedPath] with Logging {
+class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap[String, Derivation[_]]) extends DerivableDerivation[Path] with Logging {
 
   override def queue: Queue[Derivation[_]] = {
     val deps = dependencies.seq.toSeq.flatMap(_.queue)
@@ -51,7 +51,7 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap
     val dependencyInfos: Seq[String] = namedDependencies.map({
       case (k, v) => k.toString + v.derivationId.s
     }).toSeq.seq.sorted
-    Identifier[Derivation[TypedPath]](WMHashHex(script.derivationId.s + dependencyInfos.mkString("")))
+    Identifier[Derivation[Path]](WMHashHex(script.derivationId.s + dependencyInfos.mkString("")))
   }
 
   def description = "EXECUTE(" + script.shortId + "): " + script.description
@@ -59,7 +59,7 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap
   val dependencies = namedDependencies.values.toSet + script
 
   def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
-    val pr = BlockedProvenance(Identifier[Provenance[TypedPath]](UUID.randomUUID().toString), derivationId)
+    val pr = BlockedProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString), derivationId)
     val reifiedScriptF = upstreamStrategy.resolveOne(script)
     val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k=>FutureUtils.futurePair((k,namedDependencies(k))))   
     val result = upstreamStrategy.systemExecution(pr, reifiedScriptF,reifiedDependenciesF)   

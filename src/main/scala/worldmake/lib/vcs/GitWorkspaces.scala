@@ -16,7 +16,7 @@ object GitWorkspaces extends VcsWorkspaces with Logging {
   
    def toUrl(id: String): String = WorldMakeConfig.gitRemoteRoot + (id + ".git")  // add .git because the remote should be bare
  
-   def toLocalRepo(id: String, pathType:String="worldmake.UnknownTypedPath"): TypedPath = {
+   def toLocalRepo(id: String): Path = {
      val p: Path = WorldMakeConfig.gitLocalRoot / (id + ".git")  // add .git because we clone bare
      if (p.isDirectory) {
        logger.debug("Pulling changes to " + id)
@@ -25,10 +25,10 @@ object GitWorkspaces extends VcsWorkspaces with Logging {
        logger.debug("Cloning " + id)
        executeWithLog(Seq("git", "clone", "--bare", toUrl(id)), WorldMakeConfig.gitLocalRoot)
      }
-     TypedPathMapper.map(pathType,p)
+     p
    }
  
-   def get(id: String, requestVersion: String = "latest"): Derivation[TypedPath] = {
+   def get(id: String, requestVersion: String = "latest"): Derivation[Path] = {
      val version = requestVersion match {
        case "latest" => getLatestVersions(id)("master")
        case v => v
@@ -50,7 +50,7 @@ object GitWorkspaces extends VcsWorkspaces with Logging {
    def getLatestVersions(id: String): Map[String, String] = {
      val localrepo = toLocalRepo(id)
  
-     logger.debug("Finding latest versions in " + localrepo.abspath)
+     logger.debug("Finding latest versions in " + localrepo.toAbsolute.path)
      val pb = Process(Seq("git", "branch", "-v"), localrepo.fileOption) //, environment.toArray: _*)
  
      pb.lines.map(line => {

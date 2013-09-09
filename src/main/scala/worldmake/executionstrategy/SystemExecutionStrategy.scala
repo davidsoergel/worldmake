@@ -9,6 +9,6 @@ import worldmake.{TypedPath, BlockedProvenance, Successful, Derivation}
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 trait SystemExecutionStrategy {
-  def apply[T <: TypedPath: ClassManifest](pr: BlockedProvenance[T], scriptF: Future[Successful[String]], env: Future[Iterable[(String, Successful[Any])]]): Future[Successful[T]]
+  def apply(pr: BlockedProvenance[Path], scriptF: Future[Successful[String]], env: Future[Iterable[(String, Successful[Any])]]): Future[Successful[Path]]
 
 }

@@ -13,7 +13,7 @@ trait VcsWorkspaces extends Logging {
   
   def toUrl(id: String): String
 
-  def toLocalRepo(id: String, pathType:String="unknown"): TypedPath
+  def toLocalRepo(id: String): Path
 
   /**
    * A Derivation that extracts the requested version from the VCS repository to the output path.
@@ -21,7 +21,7 @@ trait VcsWorkspaces extends Logging {
    * @param requestVersion
    * @return
    */
-  def get(id: String, requestVersion: String = "latest"): Derivation[TypedPath]
+  def get(id: String, requestVersion: String = "latest"): Derivation[Path]
 
   def getLatestVersions(id: String): Map[String, String]
 

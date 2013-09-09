@@ -41,7 +41,7 @@ object MongoArtifact {
     case e: StringArtifact => MongoStringArtifact.toDb(e)
     case e: IntArtifact => MongoIntArtifact.toDb(e)
     case e: DoubleArtifact => MongoDoubleArtifact.toDb(e)
-    case e: TypedPathArtifact => MongoTypedPathArtifact.toDb(e)
+    case e: PathArtifact => MongoPathArtifact.toDb(e)
     /*case e: Artifact => e.value match {
       case f: String => MongoStringArtifact.toDb(e)
       case f: Int => MongoIntArtifact.toDb(e)
@@ -97,17 +97,18 @@ class MongoStringArtifact(val dbo: MongoDBObject) extends MongoArtifact[String] 
 }
 
 
-object MongoTypedPathArtifact extends MongoSerializer[TypedPathArtifact, MongoTypedPathArtifact]("p", new MongoTypedPathArtifact(_)) {
-  def addFields(e: TypedPathArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
+object MongoPathArtifact extends MongoSerializer[PathArtifact, MongoPathArtifact]("p", new MongoPathArtifact(_)) {
+  def addFields(e: PathArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoArtifact.addFields(e, builder)
     builder += "value" -> e.value.toURL
-    builder += "pathType" -> e.pathType
+    //builder += "pathType" -> e.pathType
   }
 }
 
-class MongoTypedPathArtifact(val dbo: MongoDBObject) extends MongoArtifact[TypedPath] with TypedPathArtifact with MongoWrapper {
+class MongoPathArtifact(val dbo: MongoDBObject) extends MongoArtifact[Path] with PathArtifact with MongoWrapper {
 
-  def pathType = dbo.as[String]("pathType")
-  override def value = TypedPathMapper.map( pathType, Path.fromString(dbo.as[URL]("value").toExternalForm))
+  //def pathType = dbo.as[String]("pathType")
+  //override def value = TypedPathMapper.map( pathType, Path.fromString(dbo.as[URL]("value").toExternalForm))
+  override def value = Path.fromString(dbo.as[URL]("value").toExternalForm)
 
 }

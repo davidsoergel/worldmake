@@ -26,21 +26,21 @@ trait QsubRunningInfo extends RunningInfo {
 
   def outputPath: Path
   
-  def requestedType: String
+  //def requestedType: String
 }
 
-case class MemoryQsubRunningInfo(jobId: Int, workingDir: Path, outputPath: Path, node: Option[String], requestedType:String) extends QsubRunningInfo
+case class MemoryQsubRunningInfo(jobId: Int, workingDir: Path, outputPath: Path, node: Option[String]) extends QsubRunningInfo  //, requestedType:String
 
 class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy with Logging {
 
-  def apply[T <: TypedPath: ClassManifest](pr: BlockedProvenance[T], reifiedScriptF: Future[Successful[String]], reifiedDependenciesF: Future[Iterable[(String, Successful[Any])]]): Future[Successful[T]] = {
+  def apply(pr: BlockedProvenance[Path], reifiedScriptF: Future[Successful[String]], reifiedDependenciesF: Future[Iterable[(String, Successful[Any])]]): Future[Successful[Path]] = {
     for (reifiedScript <- reifiedScriptF;
          reifiedDependencies <- reifiedDependenciesF;
-         x <- systemExecuteWithArgs[T](pr.pending(Set(reifiedScript), reifiedDependencies.toMap), reifiedScript, reifiedDependencies.toMap)
+         x <- systemExecuteWithArgs(pr.pending(Set(reifiedScript), reifiedDependencies.toMap), reifiedScript, reifiedDependencies.toMap)
     ) yield x
   }
 
-  private def systemExecuteWithArgs[T <: TypedPath: ClassManifest](pp: PendingProvenance[T], reifiedScript: Successful[String], reifiedDependencies: GenMap[String, Successful[_]]): Future[Successful[T]] = {
+  private def systemExecuteWithArgs(pp: PendingProvenance[Path], reifiedScript: Successful[String], reifiedDependencies: GenMap[String, Successful[_]]): Future[Successful[Path]] = {
 
 
     // this path does not yet exist.
@@ -100,13 +100,13 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
 
     val qsubOutput = qsubLogWriter.getString
 
-    val requestedType = classManifest[T].toString() //.getName
+   // val requestedType = classManifest[T].toString() //.getName
     
     if (qsubPbExitCode != 0) {
       logger.warn("Deleting output: " + outputPath)
       outputPath.deleteRecursively()
       logger.warn("Retaining working directory: " + workingDir)
-      val prsx = pp.running(new MemoryQsubRunningInfo(0, workingDir, outputPath, None,requestedType))
+      val prsx = pp.running(new MemoryQsubRunningInfo(0, workingDir, outputPath, None)) //,requestedType))
       val f = prsx.failed(qsubPbExitCode, Some(qsubLogWriter), Map.empty)
 
       throw FailedDerivationException(qsubOutput, f)
@@ -115,9 +115,9 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
     val jobIdRE(jobId) = qsubOutput
 
 
-    val prs = pp.running(new MemoryQsubRunningInfo(jobId.toInt, workingDir, outputPath, None,requestedType))
+    val prs = pp.running(new MemoryQsubRunningInfo(jobId.toInt, workingDir, outputPath, None)) //,requestedType))
 
-    notifier.request[T](prs.derivationId)
+    notifier.request[Path](prs.derivationId)
   }
 
   /*
@@ -213,7 +213,9 @@ object DetectQsubPollingAction extends PollingAction with Logging {
                 if (exitCode == Some(0)) {
                   logger.debug("Qstat reported job done with exit code 0: " + p.provenanceId)
                   
-                  notifier.announceDone(p.completed(0, log, Map.empty, TypedPathArtifact(TypedPathMapper.map(ri.requestedType, ri.outputPath))))
+                  //notifier.announceDone(p.completed(0, log, Map.empty, TypedPathArtifact(TypedPathMapper.map(ri.requestedType, ri.outputPath))))
+
+                  notifier.announceDone(p.completed(0, log, Map.empty, PathArtifact( ri.outputPath)))
                 }
                 else {
                   notifier.announceFailed(p.failed(exitCode.getOrElse(-1), log, Map.empty))

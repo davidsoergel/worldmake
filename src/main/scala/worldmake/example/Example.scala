@@ -17,7 +17,7 @@ class Example {
 // todo update
 
 object ConcatenateFiles {
-  def apply(xs: Traversable[Derivation[File]]) : Derivation[TypedPath] = {
+  def apply(xs: Traversable[Derivation[File]]) : Derivation[Path] = {
     val script : Derivation[String] =
       """
         |#!/bin/sh

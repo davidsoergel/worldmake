@@ -89,7 +89,7 @@ object Artifact {
     case s:String => StringArtifact(s)
     case i:Int => IntArtifact(i)
     case d:Double => DoubleArtifact(d)
-    case p:TypedPath => TypedPathArtifact(p)
+    case p:Path => PathArtifact(p)
     case _ => throw new IllegalArtifactException(v.toString)
   }).asInstanceOf[Artifact[T]]
 }
@@ -146,6 +146,31 @@ class MemoryDoubleArtifact(s: Double) extends MemoryArtifact[Double](s) with Dou
 
 }
 
+
+object PathArtifact {
+  def apply(s: Path) : Artifact[Path] = new MemoryPathArtifact(s) //tap Storage.provenanceStore.put
+
+}
+
+trait PathArtifact extends Artifact[Path] {
+  // def description //= value.abspath
+
+  def abspath = value.toAbsolute.path
+
+  def basename = value.name
+
+  //def pathType : String //= value.pathType
+
+  // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
+  override def constantId = Identifier[Artifact[Path]]("Path(" + abspath + ")")
+
+
+  // Navigating inside an artifact is a derivation; it shouldn't be possible to do it in the raw sense
+  // def /(s: String): ExternalPathArtifact = value / s
+  override def environmentString = abspath
+}
+
+/*
 object TypedPathArtifact {
   def apply[T <: TypedPath: ClassManifest](s: T) : Artifact[T] = new MemoryTypedPathArtifact[T](s) //tap Storage.provenanceStore.put
 
@@ -158,7 +183,7 @@ trait TypedPathArtifact extends Artifact[TypedPath] {
 
   def basename = value.basename
   
-  def pathType : String //= value.pathType
+  //def pathType : String //= value.pathType
   
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
   override def constantId = Identifier[Artifact[TypedPath]]("Path(" + abspath + ")")
@@ -168,15 +193,16 @@ trait TypedPathArtifact extends Artifact[TypedPath] {
   // def /(s: String): ExternalPathArtifact = value / s
   override def environmentString = abspath
 }
+*/
 
-class MemoryTypedPathArtifact[T <: TypedPath:ClassManifest](path: T) extends MemoryArtifact[T](path) with TypedPathArtifact with Logging  with ContentHashableArtifact[T] {
+class MemoryPathArtifact(path: Path) extends MemoryArtifact[Path](path) with PathArtifact with Logging  with ContentHashableArtifact[Path] {
   // ** require(path.exists)
   
   if(!path.exists) {
     logger.warn("External path artifact does not exist: " + path)
   }
   
-  require(!path.abspath.endsWith(".hg"))
+  require(!path.toAbsolute.path.endsWith(".hg"))
   //   If it's a directory, this should in some sense include all the files in it (maybe just tgz?)-- but be careful about ignoring irrelevant metadata.
   /*override protected def bytesForContentHash = if (path.isFile) new FileInputStream(path.fileOption.get)
   else {
@@ -188,30 +214,35 @@ class MemoryTypedPathArtifact[T <: TypedPath:ClassManifest](path: T) extends Mem
     WMHash(children.map(p=> p.basename + p.contentHash).mkString)
   }
   //override 
-  private lazy val children: Seq[TypedPathArtifact] = {
+  private lazy val children: Seq[PathArtifact] = {
     //val isf = path.isFile
-    if (path.nonExistent || path.isFile) Nil else path.children().toSeq.filter(p=>{!WorldMakeConfig.ignoreFilenames.contains(p.name)}).sorted.map(f=>new MemoryTypedPathArtifact(TypedPathMapper.map("worldmake.UnknownTypedPath", f)))
+    if (path.nonExistent || path.isFile) Nil else path.children().toSeq.filter(p=>{!WorldMakeConfig.ignoreFilenames.contains(p.name)}).sorted.map(f=>new MemoryPathArtifact(f))
   }
   /*
   override def /(s: String): ExternalPathArtifact = new MemoryExternalPathArtifact(path / s)
  */
 
-  def output: Option[TypedPathArtifact] = Some(this)
+  def output: Option[PathArtifact] = Some(this)
 
-  def pathType = classManifest[T].toString
+  //def pathType = classManifest[T].toString
 }
 
 trait TypedPathCompanion {
   def mapper : Path=>TypedPath
 
-  private def wrapper[T<:TypedPath]: (Derivation[TypedPath]) => TypedPathDerivation[T] = DerivationWrapper.wrapDerivation[T](p=>mapper(p.path).asInstanceOf[T])
+  private def wrapper[T<:TypedPath:ClassManifest]: (Derivation[Path]) => TypedPathDerivation[T] = DerivationWrapper.wrapDerivation[T](p=>mapper(p).asInstanceOf[T])
 
   //implicit
-  implicit def wrapDerivation[T<: TypedPath](d: Derivation[TypedPath]): TypedPathDerivation[T] = wrapper(d)
+  def wrapDerivation[T<: TypedPath:ClassManifest](d: Derivation[Path]): TypedPathDerivation[T] = {
+    val w = wrapper[T]
+    w(d)
+  }
 
-  //def wrapper: (Derivation[TypedPath]) => TypedPathDerivation[T] = DerivationWrapper.wrapDerivation[T](mapper)
+  //def wrapper: (Derivation[Path]) => TypedPathDerivation[T] = DerivationWrapper.wrapDerivation[T](mapper)
 }
 
+
+/*
 object TypedPathMapper {
   /*val typeMappings : mutable.Map[String, Path=>TypedPath] = mutable.HashMap[String, Path=>TypedPath]()
    
@@ -244,6 +275,7 @@ object TypedPathMapper {
   }
 
 }
+*/
 
 /*object GenTraversableArtifact {
   def resultType = "Traversable"

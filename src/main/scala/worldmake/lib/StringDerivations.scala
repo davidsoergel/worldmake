@@ -70,13 +70,13 @@ object StringInterpolationDerivation {
     def ds(args: Derivation[_]*): Derivation[String] = new StringInterpolationDerivation(sc, args)
 
     // this builds the script as a String derivation first, and then runs it-- as opposed to the raw SystemDerivation where dependencies are passed as environment variables.
-    def sys(args: Derivation[_]*): Derivation[TypedPath] = new SystemDerivation(new StringInterpolationDerivation(sc, args), Map.empty)
+    def sys(args: Derivation[_]*): Derivation[Path] = new SystemDerivation(new StringInterpolationDerivation(sc, args), Map.empty)
   }
 
 }
 
 /*
-class StringInterpolationSystemDerivation(sc: StringContext, args: Seq[Derivation[_]]) extends DerivableDerivation[TypedPath] {
+class StringInterpolationSystemDerivation(sc: StringContext, args: Seq[Derivation[_]]) extends DerivableDerivation[Path] {
 
   private val resolvedProvenances = args.map(_.resolveOne)
 
@@ -109,7 +109,7 @@ object StringInterpolationSystemDerivation {
   // Note: We extends AnyVal to prevent runtime instantiation.  See 
   // value class guide for more info.
   implicit class StringInterpolationDerivationHelper(val sc: StringContext) extends AnyVal {
-    def sys(args: Derivation[_]*): Derivation[TypedPath] = new StringInterpolationSystemDerivation(sc, args)
+    def sys(args: Derivation[_]*): Derivation[Path] = new StringInterpolationSystemDerivation(sc, args)
   }
 
 }

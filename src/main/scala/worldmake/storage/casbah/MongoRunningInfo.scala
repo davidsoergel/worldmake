@@ -76,7 +76,7 @@ object MongoQsubRunningInfo extends MongoSerializer[QsubRunningInfo, MongoQsubRu
     builder += "jobId" -> e.jobId
     builder += "workingDir" -> e.workingDir.toAbsolute.path
     builder += "outputPath" -> e.outputPath.toAbsolute.path
-    builder += "requestedType" -> e.requestedType
+//    builder += "requestedType" -> e.requestedType
   }
 }
 
@@ -84,7 +84,7 @@ class MongoQsubRunningInfo(val dbo: MongoDBObject) extends MongoRunningInfo with
   def jobId = dbo.as[Int]("jobId")
   def workingDir = Path.fromString(dbo.as[String]("workingDir"))
   def outputPath = Path.fromString(dbo.as[String]("outputPath"))
-  def requestedType = dbo.as[String]("requestedType")
+//  def requestedType = dbo.as[String]("requestedType")
 }
 
 

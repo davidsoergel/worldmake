@@ -98,7 +98,7 @@ object ConstantDerivation {
 
   implicit def fromInt(s: Int): ConstantDerivation[Int] = ConstantDerivation(ConstantProvenance(IntArtifact(s)))
 
-  implicit def fromTypedPath(s: TypedPath): ConstantDerivation[TypedPath] = ConstantDerivation(ConstantProvenance(TypedPathArtifact(s)))
+  implicit def fromPath(s: Path): ConstantDerivation[Path] = ConstantDerivation(ConstantProvenance(PathArtifact(s)))
 }
 
 class ConstantDerivation[T](p: ConstantProvenance[T]) extends Derivation[T] with (() => ConstantProvenance[T]) {
@@ -151,7 +151,7 @@ trait LocallyNondeterministic[T] extends DerivableDerivation[T] {
 
 
 /*
-class SystemDerivationJava(val script: Derivation[String], namedDependencies: Map[String, Derivation[_]]) extends ExternalPathDerivation with DerivableDerivation[TypedPath] with Logging {
+class SystemDerivationJava(val script: Derivation[String], namedDependencies: Map[String, Derivation[_]]) extends ExternalPathDerivation with DerivableDerivation[Path] with Logging {
 
   def dependencies = namedDependencies.values.toSet
 
@@ -221,10 +221,10 @@ object FailedDerivationException {
 class FailedDerivationException(message: String, derivationId: Identifier[Derivation[_]], opr: Option[FailedProvenance[_]]) extends Exception(message)
 
 /*
-trait ExternalPathDerivation extends Derivation[TypedPath] {
+trait ExternalPathDerivation extends Derivation[Path] {
 
   //def children : Seq[ExternalPathArtifact]
-  def /(s: String): Derivation[TypedPath] = new Derivation1[Path, Path](new IdentifiableFunction1[Path, Path]("/", (p: Path) => p / s), this) //with ExternalPathDerivation
+  def /(s: String): Derivation[Path] = new Derivation1[Path, Path](new IdentifiableFunction1[Path, Path]("/", (p: Path) => p / s), this) //with ExternalPathDerivation
 
 }
 */

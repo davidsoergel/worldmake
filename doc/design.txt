@@ -10,3 +10,5 @@ Path Types
 
 executors must remember
 artifacts must remember
+
+Ack-- everything to do with TypedPaths is unnecessary.  Leaving it in for now in case we need to reinstate.

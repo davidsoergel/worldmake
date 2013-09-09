@@ -52,11 +52,13 @@ class UnknownTypedPath(path: Path) extends TypedPath(path) with Logging {
 
  
 object BasicTextFile extends TypedPathCompanion{
-//  private val wrapper: (Derivation[TypedPath]) => TypedPathDerivation[BasicTextFile] = DerivationWrapper.wrapDerivation(new BasicTextFile(_))
-  //implicit def wrapDerivation(d: Derivation[TypedPath]): TypedPathDerivation[BasicTextFile] = wrapper(d)
+//  private val wrapper: (Derivation[Path]) => TypedPathDerivation[BasicTextFile] = DerivationWrapper.wrapDerivation(new BasicTextFile(_))
+  //implicit def wrapDerivation(d: Derivation[Path]): TypedPathDerivation[BasicTextFile] = wrapper(d)
   //TypedPathMapper.register("textfile", new BasicTextFile(_))
 
   def mapper = (p:Path) => new BasicTextFile(p)
+
+  implicit def wrapDerivation(d: Derivation[Path]): TypedPathDerivation[BasicTextFile] = super.wrapDerivation(d)
 }
 
 class BasicTextFile(path: Path) extends TextFile(path) with Logging {
@@ -68,13 +70,13 @@ abstract class CsvFile(p: Path) extends TextFile(p)
 abstract class TsvFile(p: Path) extends TextFile(p)
 
 trait TypedPathDerivation[+T <: TypedPath] extends Derivation[T] {
-  def toPathDerivation: Derivation[TypedPath]
+  def toPathDerivation: Derivation[Path]
 }
 
 object DerivationWrapper extends Logging {
   
   /*
-  def pathFromString(ds:Derivation[String]):Derivation[TypedPath] = new DerivableDerivation[TypedPath]() {
+  def pathFromString(ds:Derivation[String]):Derivation[Path] = new DerivableDerivation[Path]() {
     // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
     def derivationId = new Identifier("path"+ds.derivationId.s)
 
@@ -90,7 +92,7 @@ object DerivationWrapper extends Logging {
           }
         })
 
-        def derivationId = new Identifier[Derivation[TypedPath]](p.derivationId.s)
+        def derivationId = new Identifier[Derivation[Path]](p.derivationId.s)
 
         def provenanceId = new Identifier(p.provenanceId.s)
 
@@ -106,16 +108,16 @@ object DerivationWrapper extends Logging {
     def dependencies = Set(ds)
   }*/
 
-  private val namedPathFromString: IdentifiableFunction1[String, TypedPath] = NamedFunction[String, TypedPath]("pathFromString")((x: String) => new UnknownTypedPath(Path.fromString(x)))
+  private val namedPathFromString: IdentifiableFunction1[String, Path] = NamedFunction[String, Path]("pathFromString")((x: String) => Path.fromString(x))
 
-  def pathFromString(ds:Derivation[String]):Derivation[TypedPath] = new Derivation1(namedPathFromString,ds)
+  def pathFromString(ds:Derivation[String]):Derivation[Path] = new Derivation1(namedPathFromString,ds)
   
   
-  def wrapDerivation[T <: TypedPath](f: TypedPath => T)(d: Derivation[TypedPath]): TypedPathDerivation[T] = {
+  def wrapDerivation[T <: TypedPath:ClassManifest](f: Path => T)(d: Derivation[Path]): TypedPathDerivation[T] = {
     new TypedPathDerivation[T] {
       def toPathDerivation = d
-
-      def derivationId = new Identifier(d.derivationId.s)
+      private def pathType = classManifest[T].toString
+      def derivationId = new Identifier(pathType+":"+d.derivationId.s)
 
       def description = d.description
       override def summary = d.summary
@@ -136,7 +138,7 @@ object DerivationWrapper extends Logging {
         
       override val queue = d.queue
       
-      private def wrapProvenance(p:Successful[TypedPath]) = {
+      private def wrapProvenance(p:Successful[Path]) = {
         new Provenance[T] with Successful[T] {
           
           // this Artifact must act like an ExternalPathArtifact, though it can't literally be one because TypedFile does not extend Path
@@ -149,11 +151,11 @@ object DerivationWrapper extends Logging {
               result
             }
 
-            def description = p.output.value.abspath
+            def description = p.output.value.toAbsolute.path
 
-            def abspath = p.output.value.abspath
+            def abspath = p.output.value.toAbsolute.path
 
-            def basename = p.output.value.basename
+            def basename = p.output.value.name
 
             // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
             override def constantId = Identifier[Artifact[T]]("TypedPath(" + abspath + ")")

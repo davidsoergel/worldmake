@@ -19,7 +19,7 @@ import scala.reflect.runtime.universe._
 
 object LocalExecutionStrategy extends SystemExecutionStrategy with Logging {
   
-  def apply[T <: TypedPath : ClassManifest](pr: BlockedProvenance[T], reifiedScriptF: Future[Successful[String]], reifiedDependenciesF: Future[Iterable[(String, Successful[Any])]]): Future[Successful[T]] = {
+  def apply(pr: BlockedProvenance[Path], reifiedScriptF: Future[Successful[String]], reifiedDependenciesF: Future[Iterable[(String, Successful[Any])]]): Future[Successful[Path]] = {
     for (reifiedScript <- reifiedScriptF;
          reifiedDependencies <- reifiedDependenciesF
     ) yield {
@@ -28,7 +28,7 @@ object LocalExecutionStrategy extends SystemExecutionStrategy with Logging {
     }
   }
 
-  private def systemExecuteWithArgs[T <: TypedPath : ClassManifest](pp: PendingProvenance[T], reifiedScript: Successful[String], reifiedDependencies: GenMap[String, Successful[_]]): Successful[T] = {
+  private def systemExecuteWithArgs(pp: PendingProvenance[Path], reifiedScript: Successful[String], reifiedDependencies: GenMap[String, Successful[_]]): Successful[Path] = {
 
     // this path does not yet exist.
     // the derivation may write a single file to it, or create a directory there.
@@ -67,11 +67,14 @@ object LocalExecutionStrategy extends SystemExecutionStrategy with Logging {
 
     // todo: detect retained dependencies like Nix
 
+    /*
     val requestedType = {
       classManifest[T].toString //match { case TypeRef(pre, sym, args) => args }
     }
     val result = TypedPathArtifact[T](TypedPathMapper.map(requestedType, outputPath)) //TypedPathArtifact(outputPath)
-
+*/
+    val result = PathArtifact(outputPath)
+    
     if (exitCode != 0) {
       logger.warn("Deleting output: " + outputPath)
       outputPath.deleteRecursively()
