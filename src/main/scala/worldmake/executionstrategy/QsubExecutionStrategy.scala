@@ -204,7 +204,7 @@ object DetectQsubPollingAction extends PollingAction with Logging {
                 val logWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
                 val logLines = Resource.fromFile(new File((ri.workingDir / "stderr.log").toAbsolute.path)).lines()
                 logger.debug(s"Found ${logLines.size} log lines.")
-                for(s <- logLines) { logWriter.write(s) }
+                for(s <- logLines) { logWriter.write(s+"\n") }
                 logger.debug(s"Wrote ${logWriter.count} characters of logging output.")
                 Some(logWriter)
               }
