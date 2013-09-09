@@ -83,7 +83,7 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
      |#PBS -e $stderrLog
      |#PBS -o $stdoutLog
      |cd $work
-     |/bin/bash -c "source ./worldmake.environment; /bin/bash ./worldmake.runner; echo $$? > exitcode.log"
+     |/bin/bash -c 'source ./worldmake.environment; /bin/bash ./worldmake.runner; echo $$? > exitcode.log'
      |
      |""".stripMargin)
 
@@ -203,11 +203,12 @@ object DetectQsubPollingAction extends PollingAction with Logging {
                 // copy the log from the qsub file into the database or file store, as needed
                 val logWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
                 val logLines = Resource.fromFile(new File((ri.workingDir / "stderr.log").toAbsolute.path)).lines()
+                logger.debug(s"Found ${logLines.size} log lines.")
                 logLines.map(logWriter.write)
                 Some(logWriter)
               }
               catch {
-                case e: IOException => None
+                case e: IOException => logger.error("Error collecting log output", e)
               }
 
               def notifyByExitCode() {

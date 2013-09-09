@@ -217,9 +217,11 @@ object MongoPostRunProvenance {
     for (x <- e.log) {
       builder += "log" -> MongoStringOrFile.toDb(x).dbo
     }
-    builder += "cost" -> e.cost.map({
-      case (k, v) => (k.toString, v)
-    })
+    if(e.cost.nonEmpty) {
+      builder += "cost" -> e.cost.map({
+       case (k, v) => (k.toString, v)
+      })
+    }
   }
 }
 

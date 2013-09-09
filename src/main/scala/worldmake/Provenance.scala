@@ -5,6 +5,7 @@ import edu.umass.cs.iesl.scalacommons.Tap._
 import scalax.file.Path
 import worldmake.storage.{Storage, Identifier}
 import scala.collection.{GenSet, GenMap}
+import com.typesafe.scalalogging.slf4j.Logging
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -253,7 +254,7 @@ trait ReadableStringOrFile {
  * @param maxStringLength
  */
 
-class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1000) extends ReadableStringOrFile {
+class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1000) extends ReadableStringOrFile with Logging {
   implicit val codec = scalax.io.Codec.UTF8
   var current: Either[StringBuffer, Path] = Left(new StringBuffer())
 
@@ -261,8 +262,10 @@ class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1
     current.fold(
       sb => {
         sb.append(s)
+        logger.trace(s)
         if (sb.length() > maxStringLength) {
           val p = fg.newPath
+          logger.trace("Switching to file store: " + p)
           p.append(sb.toString)
           current = Right(p)
         }
