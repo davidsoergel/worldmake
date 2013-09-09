@@ -32,7 +32,7 @@ object MongoArtifact {
       case MongoStringArtifact.typehint => new MongoStringArtifact(dbo).some
       case MongoIntArtifact.typehint => new MongoIntArtifact(dbo).some
       case MongoDoubleArtifact.typehint => new MongoDoubleArtifact(dbo).some
-      //case MongoExternalPathArtifact.typehint => new MongoExternalPathArtifact(dbo).some
+      case MongoPathArtifact.typehint => new MongoPathArtifact(dbo).some
       case _ => None
     }
   }
