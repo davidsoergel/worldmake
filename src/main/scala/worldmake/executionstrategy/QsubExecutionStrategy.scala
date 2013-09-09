@@ -196,7 +196,7 @@ object DetectQsubPollingAction extends PollingAction with Logging {
               val exitCode: Option[Int] = try {
                 Resource.fromFile(new File((ri.workingDir / "exitcode.log").toAbsolute.path)).lines().headOption.map(_.toInt)
               } catch {
-                case e: IOException => None
+                case e: IOException =>  { logger.error("Error collecting exit code", e); None }
               }
 
               val log = try {
@@ -208,7 +208,7 @@ object DetectQsubPollingAction extends PollingAction with Logging {
                 Some(logWriter)
               }
               catch {
-                case e: IOException => logger.error("Error collecting log output", e)
+                case e: IOException => { logger.error("Error collecting log output", e); None }
               }
 
               def notifyByExitCode() {
