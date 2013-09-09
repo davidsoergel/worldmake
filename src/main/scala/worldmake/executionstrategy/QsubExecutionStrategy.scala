@@ -70,6 +70,7 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
     envlog.write(environment.map({
       case (k, v) => "export " + k + "=" + v
     }).mkString("\n"))
+    envlog.write("\n")
 
     val qsubScript = Resource.fromFile(new File((workingDir / "worldmake.qsub").toAbsolute.path))
     val stderrLog = (workingDir / "stderr.log").toAbsolute.path
