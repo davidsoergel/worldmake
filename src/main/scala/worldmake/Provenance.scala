@@ -257,8 +257,9 @@ trait ReadableStringOrFile {
 class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1000) extends ReadableStringOrFile with Logging {
   implicit val codec = scalax.io.Codec.UTF8
   var current: Either[StringBuffer, Path] = Left(new StringBuffer())
+  var count = 0
 
-  def write(s: String) {
+  def write(s: String) = synchronized {
     current.fold(
       sb => {
         sb.append(s)
@@ -271,6 +272,7 @@ class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1
         }
       },
       p => p.write(s))
+    count += s.length
   }
 
   def get: Either[String, Path] = current.fold(sb => Left(sb.toString), p => Right(p))
