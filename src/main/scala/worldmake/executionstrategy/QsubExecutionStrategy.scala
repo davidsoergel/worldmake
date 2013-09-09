@@ -199,7 +199,7 @@ object DetectQsubPollingAction extends PollingAction with Logging {
                 case e: IOException =>  { logger.error("Error collecting exit code", e); None }
               }
 
-              val log = try {
+              def log = try {
                 // copy the log from the qsub file into the database or file store, as needed
                 val logWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
                 val logLines = Resource.fromFile(new File((ri.workingDir / "stderr.log").toAbsolute.path)).lines()
