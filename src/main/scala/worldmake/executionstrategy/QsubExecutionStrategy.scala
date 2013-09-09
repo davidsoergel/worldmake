@@ -54,7 +54,7 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
     val environment: GenMap[String, String] = WorldMakeConfig.globalEnvironment ++ dependenciesEnvironment ++ Map("out" -> outputPath.toAbsolute.path) //, "PATH" -> WorldMakeConfig.globalPath)
 
 
-    val workingDir = Path.createTempDirectory(dir = WorldMakeConfig.qsubGlobalTempDir)
+    val workingDir = Path.createTempDirectory(dir = WorldMakeConfig.qsubGlobalTempDir, deleteOnExit = !WorldMakeConfig.debugWorkingDirectories)
     val runner = Resource.fromFile(new File((workingDir / "worldmake.runner").toAbsolute.path))
     //http://stackoverflow.com/questions/821396/aborting-a-shell-script-if-any-command-returns-a-non-zero-value
     runner.write(

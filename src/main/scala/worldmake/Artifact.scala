@@ -280,12 +280,16 @@ object TypedPathMapper {
 /*object GenTraversableArtifact {
   def resultType = "Traversable"
 }*/
-class GenTraversableArtifact[T](val artifacts: GenTraversable[Artifact[T]]) extends Artifact[GenTraversable[T]] {
+trait GenTraversableArtifact[T] extends Artifact[GenTraversable[T]] {
+  def artifacts: GenTraversable[Artifact[T]]
+  lazy val value = artifacts.map(_.value)
+}
+
+class MemoryGenTraversableArtifact[T](val artifacts: GenTraversable[Artifact[T]]) extends GenTraversableArtifact[T] {
   //def provenanceId = Identifier[Artifact[Traversable[T]]](UUID.randomUUID().toString)
 
   def contentHashBytes = artifacts.toSeq.map(_.contentHashBytes).flatten.toArray
 
-  lazy val value = artifacts.map(_.value)
 
   //def resultType = GenTraversableArtifact.resultType
 

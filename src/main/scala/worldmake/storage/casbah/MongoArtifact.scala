@@ -1,7 +1,7 @@
 package worldmake.storage.casbah
 
 import worldmake._
-import scala.collection.mutable
+import scala.collection.{mutable, GenTraversable}
 import com.mongodb.casbah.commons.Imports
 import com.mongodb.casbah.Imports._
 import scalax.file.Path
@@ -33,6 +33,7 @@ object MongoArtifact {
       case MongoIntArtifact.typehint => new MongoIntArtifact(dbo).some
       case MongoDoubleArtifact.typehint => new MongoDoubleArtifact(dbo).some
       case MongoPathArtifact.typehint => new MongoPathArtifact(dbo).some
+      case MongoGenTraversableArtifact.typehint => new MongoGenTraversableArtifact(dbo).some
       case _ => None
     }
   }
@@ -42,6 +43,7 @@ object MongoArtifact {
     case e: IntArtifact => MongoIntArtifact.toDb(e)
     case e: DoubleArtifact => MongoDoubleArtifact.toDb(e)
     case e: PathArtifact => MongoPathArtifact.toDb(e)
+    case e: GenTraversableArtifact[_] => MongoGenTraversableArtifact.toDb(e)
     /*case e: Artifact => e.value match {
       case f: String => MongoStringArtifact.toDb(e)
       case f: Int => MongoIntArtifact.toDb(e)
@@ -111,4 +113,16 @@ class MongoPathArtifact(val dbo: MongoDBObject) extends MongoArtifact[Path] with
   //override def value = TypedPathMapper.map( pathType, Path.fromString(dbo.as[URL]("value").toExternalForm))
   override def value = Path.fromString(dbo.as[URL]("value").toExternalForm)
 
+}
+
+object MongoGenTraversableArtifact extends MongoSerializer[GenTraversableArtifact[_], MongoGenTraversableArtifact[_]]("s", new MongoGenTraversableArtifact(_)) {
+  def addFields(e: GenTraversableArtifact[_], builder: mutable.Builder[(String, Any), Imports.DBObject]) {
+    MongoArtifact.addFields(e, builder)
+    builder += "artifacts" -> e.artifacts
+  }
+
+}
+
+class MongoGenTraversableArtifact[T](val dbo: MongoDBObject) extends MongoArtifact[GenTraversable[T]] with GenTraversableArtifact[T] with MongoWrapper {
+  override def artifacts = dbo.as[MongoDBList]("value").map(a => MongoArtifact.artifactFromDb(a.asInstanceOf[MongoDBObject]).asInstanceOf[Artifact[T]])
 }
