@@ -20,6 +20,8 @@ Underway
 Immediate
 =========
 
+* Artifact[TypedFile] needs to be in the DB to distinguish it from Artifact[DefaultPath].
+
 * cleanup mongo representation
 * Commandline UI: cleanup, showlog, lastfailure, archive closure
 * db could track total count of downstream consumers, for easy cleanup

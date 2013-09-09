@@ -29,7 +29,7 @@ class ConcreteWorld (targets: Map[String, Derivation[_]] ) extends World {
  */
 class ConstantWorld (ts: Map[String, ConstantDerivation[_]] ) extends ConcreteWorld(ts)
 
-class PathWorld (ts: Map[String, Derivation[Path]] ) extends ConcreteWorld(ts) {
+class PathWorld (ts: Map[String, Derivation[TypedPath]] ) extends ConcreteWorld(ts) {
   override def apply(name:String) = ts(name)
   override def get(name:String) = ts.get(name)
 }

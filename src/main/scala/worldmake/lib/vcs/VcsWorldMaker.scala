@@ -1,8 +1,6 @@
 package worldmake.lib.vcs
 
 import worldmake._
-import scalax.file.Path
-import worldmake.lib.vcs.MercurialWorkspaces
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -25,7 +23,7 @@ class VcsWorldMaker(workspaces:VcsWorkspaces) {
       case (k, (b, v)) => (k, v)
     })
 
-    lazy val workingDirs: Map[String, Derivation[Path]] = reposActualVersions.map({
+    lazy val workingDirs: Map[String, Derivation[TypedPath]] = reposActualVersions.map({
       case (k: String, v: String) => (k, workspaces.get(k, v))
     })
     new PathWorld(workingDirs)

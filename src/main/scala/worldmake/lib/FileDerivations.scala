@@ -22,8 +22,8 @@ import StringInterpolationDerivation._
  */
 object FileDerivations extends Logging {
 
-  val fsTraverse = new IdentifiableFunction2[Path, String, Path]("fsTraverse", {
-    (a: Path, b: String) => a / b
+  val fsTraverse = new IdentifiableFunction2[TypedPath, String, TypedPath]("fsTraverse", {
+    (a: TypedPath, b: String) => new UnknownTypedPath(a.path / b)
   })
 
   val countLines = new IdentifiableFunction1[TextFile, Int]("countLines", (tf: TextFile) => {
@@ -39,13 +39,13 @@ object FileDerivations extends Logging {
 
 }
 
-class AssemblyDerivation(namedDependencies: GenMap[String, Derivation[Path]]) extends DerivableDerivation[Path] with Logging {
+class AssemblyDerivation(namedDependencies: GenMap[String, Derivation[TypedPath]]) extends DerivableDerivation[TypedPath] with Logging {
 
   lazy val derivationId = {
     val dependencyInfos: Seq[String] = namedDependencies.map({
       case (k, v) => k.toString + v.derivationId.s
     }).toSeq.seq.sorted
-    Identifier[Derivation[Path]](WMHashHex(dependencyInfos.mkString("")))
+    Identifier[Derivation[TypedPath]](WMHashHex(dependencyInfos.mkString("")))
   }
 
   def description = "Assembly"
@@ -59,7 +59,7 @@ class AssemblyDerivation(namedDependencies: GenMap[String, Derivation[Path]]) ex
 
 
   def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
-    val pr = BlockedProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString), derivationId)
+    val pr = BlockedProvenance(Identifier[Provenance[TypedPath]](UUID.randomUUID().toString), derivationId)
     val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k=>FutureUtils.futurePair((k,namedDependencies(k))))
     val result = for( reifiedDependencies <- reifiedDependenciesF
     ) yield deriveWithArgs(pr.pending(Set.empty,reifiedDependencies.toMap), reifiedDependencies.toMap)
@@ -68,7 +68,7 @@ class AssemblyDerivation(namedDependencies: GenMap[String, Derivation[Path]]) ex
 
   }
   
-  private def deriveWithArgs(pr: PendingProvenance[Path],reifiedDependencies:GenMap[String,Successful[Path]]): CompletedProvenance[Path]  = synchronized {
+  private def deriveWithArgs(pr: PendingProvenance[TypedPath],reifiedDependencies:GenMap[String,Successful[TypedPath]]): CompletedProvenance[TypedPath]  = synchronized {
     val prs = pr.running(new MemoryWithinJvmRunningInfo)
     
     try{
@@ -76,13 +76,13 @@ class AssemblyDerivation(namedDependencies: GenMap[String, Derivation[Path]]) ex
     outputPath.createDirectory(createParents = true, failIfExists = true)
     reifiedDependencies.map({
       case (n, v) => {
-        val target = FileSystems.getDefault.getPath(v.output.value.path)
+        val target = FileSystems.getDefault.getPath(v.output.value.abspath)
         val link: file.Path = FileSystems.getDefault.getPath((outputPath / n).path)
         Files.createSymbolicLink(link, target)
       }
     })
 
-    val result = ExternalPathArtifact(outputPath)
+    val result : Artifact[TypedPath] = TypedPathArtifact(TypedPathMapper.map("assembly", outputPath))
     prs.completed(0, None, Map.empty, result)
     }
     catch {

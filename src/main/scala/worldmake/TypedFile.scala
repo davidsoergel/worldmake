@@ -1,6 +1,6 @@
 package worldmake
 
-import scalax.file.Path
+import scalax.file.{LinkOption, Path}
 import java.lang.Throwable
 import scala.concurrent._
 import worldmake.storage.Identifier
@@ -9,6 +9,7 @@ import ExecutionContext.Implicits.global
 import scalax.file.defaultfs.DefaultPath
 import com.typesafe.scalalogging.slf4j.Logging
 import worldmake.derivationstrategy.FutureDerivationStrategy
+import scalax.file.PathMatcher
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -16,7 +17,19 @@ import worldmake.derivationstrategy.FutureDerivationStrategy
 
 
 abstract class TypedPath(val path: Path) {
+  // def pathType : String
   def validate(): Unit = {} // throws TypedFileValidationException
+
+  def abspath = path.toAbsolute.path
+
+  def basename = path.name
+  
+  def toURL = path.toURL
+  def exists = path.exists
+  def nonExistent = path.nonExistent
+  def isFile = path.isFile
+  def fileOption = path.fileOption
+  def children[U >: Path, F]() = path.children()
 }
 
 abstract class TypedFile(p: Path) extends TypedPath(p)
@@ -30,32 +43,45 @@ abstract class BinaryFile(p: Path) extends TypedFile(p)
 
 abstract class TextFile(p: Path) extends TypedFile(p)
 
-
-object BasicTextFile {
-  private val wrapper: (Derivation[Path]) => TypedPathDerivation[BasicTextFile] = DerivationWrapper.wrapDerivation(new BasicTextFile(_))
-  implicit def wrapDerivation(d: Derivation[Path]): TypedPathDerivation[BasicTextFile] = wrapper(d)
+object UnknownTypedPath extends TypedPathCompanion {
+  def mapper = (p:Path) => new UnknownTypedPath(p)
 }
-class BasicTextFile(path: Path) extends TextFile(path) with Logging
+class UnknownTypedPath(path: Path) extends TypedPath(path) with Logging {
+ // val pathType = "unknown"
+}
+
+ 
+object BasicTextFile extends TypedPathCompanion{
+//  private val wrapper: (Derivation[TypedPath]) => TypedPathDerivation[BasicTextFile] = DerivationWrapper.wrapDerivation(new BasicTextFile(_))
+  //implicit def wrapDerivation(d: Derivation[TypedPath]): TypedPathDerivation[BasicTextFile] = wrapper(d)
+  //TypedPathMapper.register("textfile", new BasicTextFile(_))
+
+  def mapper = (p:Path) => new BasicTextFile(p)
+}
+
+class BasicTextFile(path: Path) extends TextFile(path) with Logging {
+  //val pathType = "textfile"
+}
 
 abstract class CsvFile(p: Path) extends TextFile(p)
 
 abstract class TsvFile(p: Path) extends TextFile(p)
 
 trait TypedPathDerivation[+T <: TypedPath] extends Derivation[T] {
-  def toPathDerivation: Derivation[Path]
+  def toPathDerivation: Derivation[TypedPath]
 }
 
 object DerivationWrapper extends Logging {
   
   /*
-  def pathFromString(ds:Derivation[String]):Derivation[Path] = new DerivableDerivation[Path]() {
+  def pathFromString(ds:Derivation[String]):Derivation[TypedPath] = new DerivableDerivation[TypedPath]() {
     // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
     def derivationId = new Identifier("path"+ds.derivationId.s)
 
-    def deriveFuture(implicit strategy: FutureDerivationStrategy): Future[Successful[Path]] = {
+    def deriveFuture(implicit strategy: FutureDerivationStrategy): Future[Successful[TypedPath]] = {
       val pf = strategy.resolveOne(ds)
-      pf.map(p => new Provenance[Path] with Successful[Path] {
-        def output = p.output.map(a => new Artifact[Path] {
+      pf.map(p => new Provenance[TypedPath] with Successful[TypedPath] {
+        def output = p.output.map(a => new Artifact[TypedPath] {
           def contentHashBytes = a.contentHashBytes
 
           def value = {
@@ -64,7 +90,7 @@ object DerivationWrapper extends Logging {
           }
         })
 
-        def derivationId = new Identifier[Derivation[Path]](p.derivationId.s)
+        def derivationId = new Identifier[Derivation[TypedPath]](p.derivationId.s)
 
         def provenanceId = new Identifier(p.provenanceId.s)
 
@@ -80,12 +106,12 @@ object DerivationWrapper extends Logging {
     def dependencies = Set(ds)
   }*/
 
-  private val namedPathFromString: IdentifiableFunction1[String, Path] = NamedFunction[String, Path]("pathFromString")((x: String) => Path.fromString(x))
+  private val namedPathFromString: IdentifiableFunction1[String, TypedPath] = NamedFunction[String, TypedPath]("pathFromString")((x: String) => new UnknownTypedPath(Path.fromString(x)))
 
-  def pathFromString(ds:Derivation[String]):Derivation[Path] = new Derivation1(namedPathFromString,ds)
+  def pathFromString(ds:Derivation[String]):Derivation[TypedPath] = new Derivation1(namedPathFromString,ds)
   
   
-  def wrapDerivation[T <: TypedPath](f: Path => T)(d: Derivation[Path]): TypedPathDerivation[T] = {
+  def wrapDerivation[T <: TypedPath](f: TypedPath => T)(d: Derivation[TypedPath]): TypedPathDerivation[T] = {
     new TypedPathDerivation[T] {
       def toPathDerivation = d
 
@@ -110,7 +136,7 @@ object DerivationWrapper extends Logging {
         
       override val queue = d.queue
       
-      private def wrapProvenance(p:Successful[Path]) = {
+      private def wrapProvenance(p:Successful[TypedPath]) = {
         new Provenance[T] with Successful[T] {
           
           // this Artifact must act like an ExternalPathArtifact, though it can't literally be one because TypedFile does not extend Path
@@ -123,11 +149,11 @@ object DerivationWrapper extends Logging {
               result
             }
 
-            def description = p.output.value.toAbsolute.path
+            def description = p.output.value.abspath
 
-            def abspath = p.output.value.toAbsolute.path
+            def abspath = p.output.value.abspath
 
-            def basename = p.output.value.name
+            def basename = p.output.value.basename
 
             // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
             override def constantId = Identifier[Artifact[T]]("TypedPath(" + abspath + ")")

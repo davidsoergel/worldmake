@@ -39,7 +39,7 @@ object MongoProvenance {
 
 
 trait MongoSuccessful[T] extends MongoProvenance[T] with Successful[T] with MongoWrapper {
-  override def output: Artifact[T] = MongoArtifact.artifactFromDb(dbo.as[DBObject]("output")).asInstanceOf[Artifact[T]]
+  override def output: Artifact[T] = MongoArtifact.artifactFromDb(dbo.as[DBObject]("output")).asInstanceOf[Artifact[T]]  //unsafe cast due to erasure
 }
 
 object MongoSuccessful {

@@ -16,7 +16,7 @@ object MercurialWorkspaces extends VcsWorkspaces with Logging {
   
   def toUrl(id: String): String = WorldMakeConfig.mercurialRemoteRoot + id
 
-  def toLocalRepo(id: String): Path = {
+  def toLocalRepo(id: String, pathType:String="worldmake.UnknownTypedPath"): TypedPath = {
     val p: Path = WorldMakeConfig.mercurialLocalRoot / id
     if (p.isDirectory) {
       logger.debug("Pulling change to " + id)
@@ -25,10 +25,10 @@ object MercurialWorkspaces extends VcsWorkspaces with Logging {
       logger.debug("Cloning " + id)
       executeWithLog(Seq("hg", "clone", toUrl(id)), WorldMakeConfig.mercurialLocalRoot)
     }
-    p
+    TypedPathMapper.map(pathType,p)
   }
 
-  def get(id: String, requestVersion: String = "latest"): Derivation[Path] = {
+  def get(id: String, requestVersion: String = "latest"): Derivation[TypedPath] = {
     val version = requestVersion match {
       case "latest" => getLatestVersions(id)("default")
       case v => v
@@ -47,8 +47,8 @@ object MercurialWorkspaces extends VcsWorkspaces with Logging {
   def getLatestVersions(id: String): Map[String, String] = {
     val localrepo = toLocalRepo(id)
 
-    logger.debug("Finding latest versions in " + localrepo.toAbsolute.path)
-    val pb = Process(Seq("hg", "branches"), localrepo.toAbsolute.fileOption) //, environment.toArray: _*)
+    logger.debug("Finding latest versions in " + localrepo.abspath)
+    val pb = Process(Seq("hg", "branches"), localrepo.fileOption) //, environment.toArray: _*)
 
     pb.lines.map(line => {
       val hgBranchesToChangesetNumber(branch, local, changeset, status) = line

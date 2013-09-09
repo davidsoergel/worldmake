@@ -64,7 +64,7 @@ sealed trait DerivedProvenance[T] extends Provenance[T]
 trait BlockedProvenance[T] extends DerivedProvenance[T] {
   def createdTime: DateTime
 
-  def pending(derivedFromUnnamed: GenSet[Successful[_]],derivedFromNamed: GenMap[String, Successful[_]]): PendingProvenance[T] = MemoryPendingProvenance(provenanceId, derivationId,  derivedFromUnnamed, derivedFromNamed, createdTime) tap Storage.provenanceStore.put
+  def pending(derivedFromUnnamed: GenSet[Successful[_]],derivedFromNamed: GenMap[String, Successful[_]]): PendingProvenance[T] = MemoryPendingProvenance(provenanceId, derivationId, derivedFromUnnamed, derivedFromNamed, createdTime) tap Storage.provenanceStore.put
 }
 
 // aka Enqueued
@@ -291,7 +291,7 @@ case class MemoryPendingProvenance[T](provenanceId: Identifier[Provenance[T]],
                                        ) extends PendingProvenance[T]
 
 case class MemoryRunningProvenance[T](provenanceId: Identifier[Provenance[T]],
-                                      derivationId: Identifier[Derivation[T]],
+                                      derivationId: Identifier[Derivation[T]], 
                                       derivedFromUnnamed: GenSet[Successful[_]],
                                       derivedFromNamed: GenMap[String, Successful[_]],
                                       createdTime: DateTime,
@@ -330,7 +330,7 @@ case class MemoryCancelledProvenance[T](provenanceId: Identifier[Provenance[T]],
 
 
 case class MemoryCompletedProvenance[T](provenanceId: Identifier[Provenance[T]],
-                                        derivationId: Identifier[Derivation[T]],
+                                        derivationId: Identifier[Derivation[T]], 
                                         derivedFromUnnamed: GenSet[Successful[_]],
                                         derivedFromNamed: GenMap[String, Successful[_]],
                                         createdTime: DateTime,

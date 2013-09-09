@@ -32,7 +32,7 @@ object MongoArtifact {
       case MongoStringArtifact.typehint => new MongoStringArtifact(dbo).some
       case MongoIntArtifact.typehint => new MongoIntArtifact(dbo).some
       case MongoDoubleArtifact.typehint => new MongoDoubleArtifact(dbo).some
-      case MongoExternalPathArtifact.typehint => new MongoExternalPathArtifact(dbo).some
+      //case MongoExternalPathArtifact.typehint => new MongoExternalPathArtifact(dbo).some
       case _ => None
     }
   }
@@ -41,7 +41,7 @@ object MongoArtifact {
     case e: StringArtifact => MongoStringArtifact.toDb(e)
     case e: IntArtifact => MongoIntArtifact.toDb(e)
     case e: DoubleArtifact => MongoDoubleArtifact.toDb(e)
-    case e: ExternalPathArtifact => MongoExternalPathArtifact.toDb(e)
+    case e: TypedPathArtifact => MongoTypedPathArtifact.toDb(e)
     /*case e: Artifact => e.value match {
       case f: String => MongoStringArtifact.toDb(e)
       case f: Int => MongoIntArtifact.toDb(e)
@@ -97,13 +97,17 @@ class MongoStringArtifact(val dbo: MongoDBObject) extends MongoArtifact[String] 
 }
 
 
-object MongoExternalPathArtifact extends MongoSerializer[ExternalPathArtifact, MongoExternalPathArtifact]("p", new MongoExternalPathArtifact(_)) {
-  def addFields(e: ExternalPathArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
+object MongoTypedPathArtifact extends MongoSerializer[TypedPathArtifact, MongoTypedPathArtifact]("p", new MongoTypedPathArtifact(_)) {
+  def addFields(e: TypedPathArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoArtifact.addFields(e, builder)
     builder += "value" -> e.value.toURL
+    builder += "pathType" -> e.pathType
   }
 }
 
-class MongoExternalPathArtifact(val dbo: MongoDBObject) extends MongoArtifact[Path] with ExternalPathArtifact with MongoWrapper {
-  override def value = Path.fromString(dbo.as[URL]("value").toExternalForm)
+class MongoTypedPathArtifact(val dbo: MongoDBObject) extends MongoArtifact[TypedPath] with TypedPathArtifact with MongoWrapper {
+
+  def pathType = dbo.as[String]("pathType")
+  override def value = TypedPathMapper.map( pathType, Path.fromString(dbo.as[URL]("value").toExternalForm))
+
 }

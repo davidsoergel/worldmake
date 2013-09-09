@@ -11,6 +11,7 @@ import java.io.File
 import scala.Some
 import scala.sys.process.{ProcessLogger, Process}
 import ExecutionContext.Implicits.global
+import scala.reflect.runtime.universe._
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -18,7 +19,7 @@ import ExecutionContext.Implicits.global
 
 object LocalExecutionStrategy extends SystemExecutionStrategy with Logging {
   
-  def apply(pr: BlockedProvenance[Path], reifiedScriptF: Future[Successful[String]], reifiedDependenciesF: Future[Iterable[(String, Successful[Any])]]): Future[Successful[Path]] = {
+  def apply[T <: TypedPath : ClassManifest](pr: BlockedProvenance[T], reifiedScriptF: Future[Successful[String]], reifiedDependenciesF: Future[Iterable[(String, Successful[Any])]]): Future[Successful[T]] = {
     for (reifiedScript <- reifiedScriptF;
          reifiedDependencies <- reifiedDependenciesF
     ) yield {
@@ -27,7 +28,7 @@ object LocalExecutionStrategy extends SystemExecutionStrategy with Logging {
     }
   }
 
-  private def systemExecuteWithArgs(pp: PendingProvenance[Path], reifiedScript: Successful[String], reifiedDependencies: GenMap[String, Successful[_]]): Successful[Path] = {
+  private def systemExecuteWithArgs[T <: TypedPath : ClassManifest](pp: PendingProvenance[T], reifiedScript: Successful[String], reifiedDependencies: GenMap[String, Successful[_]]): Successful[T] = {
 
     // this path does not yet exist.
     // the derivation may write a single file to it, or create a directory there.
@@ -66,7 +67,10 @@ object LocalExecutionStrategy extends SystemExecutionStrategy with Logging {
 
     // todo: detect retained dependencies like Nix
 
-    val result = ExternalPathArtifact(outputPath)
+    val requestedType = {
+      classManifest[T].toString //match { case TypeRef(pre, sym, args) => args }
+    }
+    val result = TypedPathArtifact[T](TypedPathMapper.map(requestedType, outputPath)) //TypedPathArtifact(outputPath)
 
     if (exitCode != 0) {
       logger.warn("Deleting output: " + outputPath)
