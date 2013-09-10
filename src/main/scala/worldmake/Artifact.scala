@@ -284,7 +284,6 @@ trait GenTraversableArtifact[T] extends Artifact[GenTraversable[Artifact[T]]] {
   //def artifacts: GenTraversable[Artifact[T]]
   //lazy val value = artifacts.map(_.value)
 
-  def contentHashBytes = value.toSeq.map(_.contentHashBytes).flatten.toArray
 
   override def environmentString = value.map(_.environmentString).mkString(" ")
 }
@@ -292,6 +291,7 @@ trait GenTraversableArtifact[T] extends Artifact[GenTraversable[Artifact[T]]] {
 class MemoryGenTraversableArtifact[T](val value: GenTraversable[Artifact[T]]) extends GenTraversableArtifact[T] {
   //def provenanceId = Identifier[Artifact[Traversable[T]]](UUID.randomUUID().toString)
 
+  def contentHashBytes = value.toSeq.map(_.contentHashBytes).flatten.toArray
 
   //def resultType = GenTraversableArtifact.resultType
 
