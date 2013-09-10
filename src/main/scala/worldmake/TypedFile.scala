@@ -24,7 +24,7 @@ abstract class TypedPath(val path: Path) {
 
   def basename = path.name
   
-  def toURL = path.toURL
+  //def toURL = path.toURL
   def exists = path.exists
   def nonExistent = path.nonExistent
   def isFile = path.isFile

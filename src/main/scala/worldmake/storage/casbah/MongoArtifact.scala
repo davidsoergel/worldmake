@@ -6,7 +6,6 @@ import com.mongodb.casbah.commons.Imports
 import com.mongodb.casbah.Imports._
 import scalax.file.Path
 import edu.umass.cs.iesl.scalacommons.util.Hash
-import java.net.URL
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -102,7 +101,8 @@ class MongoStringArtifact(val dbo: MongoDBObject) extends MongoArtifact[String] 
 object MongoPathArtifact extends MongoSerializer[PathArtifact, MongoPathArtifact]("p", new MongoPathArtifact(_)) {
   def addFields(e: PathArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoArtifact.addFields(e, builder)
-    builder += "value" -> e.value.toURL
+    //builder += "value" -> e.value.toURL
+    builder += "value" -> e.abspath
     //builder += "pathType" -> e.pathType
   }
 }
@@ -111,7 +111,8 @@ class MongoPathArtifact(val dbo: MongoDBObject) extends MongoArtifact[Path] with
 
   //def pathType = dbo.as[String]("pathType")
   //override def value = TypedPathMapper.map( pathType, Path.fromString(dbo.as[URL]("value").toExternalForm))
-  override def value = Path.fromString(dbo.as[URL]("value").toExternalForm)
+  //override def value = Path.fromString(dbo.as[URL]("value").toExternalForm)
+  override def value = Path.fromString(dbo.as[String]("value"))
 
 }
 
