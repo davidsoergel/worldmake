@@ -60,7 +60,7 @@ class AssemblyDerivation(namedDependencies: GenMap[String, Derivation[Path]]) ex
 
   def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
     val pr = BlockedProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString), derivationId)
-    val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k=>FutureUtils.futurePair((k,namedDependencies(k))))
+    val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k=>FutureUtils.futurePair(upstreamStrategy,(k,namedDependencies(k))))
     val result = for( reifiedDependencies <- reifiedDependenciesF
     ) yield deriveWithArgs(pr.pending(Set.empty,reifiedDependencies.toMap), reifiedDependencies.toMap)
     
