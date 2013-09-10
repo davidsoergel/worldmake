@@ -298,7 +298,7 @@ class TraversableDerivation[T](val xs: GenTraversable[Derivation[T]]) extends De
   private def deriveWithArg(pr: PendingProvenance[GenTraversable[T]], a1: Traversable[Successful[T]]): CompletedProvenance[GenTraversable[T]] = {
     val prs = pr.running(new MemoryWithinJvmRunningInfo)
     try {
-      val result: Artifact[GenTraversable[T]] = new MemoryGenTraversableArtifact(a1.map(_.output)) //Artifact[GenTraversable[T]](f.evaluate(a1.output.value))
+      val result: Artifact[GenTraversable[Artifact[T]]] = new MemoryGenTraversableArtifact(a1.map(_.output)) //Artifact[GenTraversable[T]](f.evaluate(a1.output.value))
       prs.completed(0, None, Map.empty, result)
     }
     catch {
