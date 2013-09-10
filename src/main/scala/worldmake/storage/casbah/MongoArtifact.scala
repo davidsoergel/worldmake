@@ -126,5 +126,5 @@ object MongoGenTraversableArtifact extends MongoSerializer[GenTraversableArtifac
 }
 
 class MongoGenTraversableArtifact[T](val dbo: MongoDBObject) extends MongoArtifact[GenTraversable[Artifact[T]]] with GenTraversableArtifact[T] with MongoWrapper {
-  override def value = dbo.as[MongoDBList]("value").map(a => MongoArtifact.artifactFromDb(a.asInstanceOf[MongoDBObject]).asInstanceOf[Artifact[T]])
+  override def value = dbo.as[MongoDBList]("value").map(a => MongoArtifact.artifactFromDb(new MongoDBObject(a.asInstanceOf[BasicDBObject])).asInstanceOf[Artifact[T]])
 }
