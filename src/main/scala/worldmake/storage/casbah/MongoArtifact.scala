@@ -119,11 +119,11 @@ class MongoPathArtifact(val dbo: MongoDBObject) extends MongoArtifact[Path] with
 object MongoGenTraversableArtifact extends MongoSerializer[GenTraversableArtifact[_], MongoGenTraversableArtifact[_]]("s", new MongoGenTraversableArtifact(_)) {
   def addFields(e: GenTraversableArtifact[_], builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoArtifact.addFields(e, builder)
-    builder += "artifacts" -> e.artifacts
+    builder += "value" -> e.value
   }
 
 }
 
-class MongoGenTraversableArtifact[T](val dbo: MongoDBObject) extends MongoArtifact[GenTraversable[T]] with GenTraversableArtifact[T] with MongoWrapper {
-  override def artifacts = dbo.as[MongoDBList]("value").map(a => MongoArtifact.artifactFromDb(a.asInstanceOf[MongoDBObject]).asInstanceOf[Artifact[T]])
+class MongoGenTraversableArtifact[T](val dbo: MongoDBObject) extends MongoArtifact[GenTraversable[Artifact[T]]] with GenTraversableArtifact[T] with MongoWrapper {
+  override def value = dbo.as[MongoDBList]("value").map(a => MongoArtifact.artifactFromDb(a.asInstanceOf[MongoDBObject]).asInstanceOf[Artifact[T]])
 }

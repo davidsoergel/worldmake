@@ -242,7 +242,7 @@ object TraversableDerivation {
   implicit def wrapTraversable[T](xs:GenTraversable[Derivation[T]]) = new TraversableDerivation(xs)
 }
 
-class TraversableDerivation[T](val xs: GenTraversable[Derivation[T]]) extends DerivableDerivation[GenTraversable[T]] with Logging {
+class TraversableDerivation[T](val xs: GenTraversable[Derivation[T]]) extends DerivableDerivation[GenTraversable[Artifact[T]]] with Logging {
   /*def derive = {
     val upstream = xs.par.map(_.resolveOne)
     SuccessfulProvenance[GenTraversable[T]](Identifier[Provenance[GenTraversable[T]]](UUID.randomUUID().toString),
@@ -271,7 +271,7 @@ class TraversableDerivation[T](val xs: GenTraversable[Derivation[T]]) extends De
   }*/
 
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
-  def derivationId = Identifier[Derivation[GenTraversable[T]]](WMHashHex("traversable" + xs.toSeq.map(_.derivationId).mkString))
+  def derivationId = Identifier[Derivation[GenTraversable[Artifact[T]]]](WMHashHex("traversable" + xs.toSeq.map(_.derivationId).mkString))
 
   def description = ("Traversable(" + xs.map(_.description) + ")").limitAtWhitespace(80, "...")
 
@@ -287,7 +287,7 @@ class TraversableDerivation[T](val xs: GenTraversable[Derivation[T]]) extends De
   */
   def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
 
-    val pr = BlockedProvenance(Identifier[Provenance[GenTraversable[T]]](UUID.randomUUID().toString), derivationId)
+    val pr = BlockedProvenance(Identifier[Provenance[GenTraversable[Artifact[T]]]](UUID.randomUUID().toString), derivationId)
     val upstreamFF = xs.map(upstreamStrategy.resolveOne)
     val upstreamF = Future.sequence(upstreamFF.seq)
     val result = upstreamF.map(upstream => deriveWithArg(pr.pending(upstream.toSet, Map.empty), upstream))
@@ -295,7 +295,7 @@ class TraversableDerivation[T](val xs: GenTraversable[Derivation[T]]) extends De
   }
 
 
-  private def deriveWithArg(pr: PendingProvenance[GenTraversable[T]], a1: Traversable[Successful[T]]): CompletedProvenance[GenTraversable[T]] = {
+  private def deriveWithArg(pr: PendingProvenance[GenTraversable[Artifact[T]]], a1: Traversable[Successful[T]]): CompletedProvenance[GenTraversable[Artifact[T]]] = {
     val prs = pr.running(new MemoryWithinJvmRunningInfo)
     try {
       val result: Artifact[GenTraversable[Artifact[T]]] = new MemoryGenTraversableArtifact(a1.map(_.output)) //Artifact[GenTraversable[T]](f.evaluate(a1.output.value))
