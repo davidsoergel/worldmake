@@ -148,7 +148,7 @@ class MemoryDoubleArtifact(s: Double) extends MemoryArtifact[Double](s) with Dou
 
 
 object PathArtifact {
-  def apply(s: Path) : Artifact[Path] = new MemoryPathArtifact(s) //tap Storage.provenanceStore.put
+  def apply(s: Path) : PathArtifact = new MemoryPathArtifact(s) //tap Storage.provenanceStore.put
 
 }
 

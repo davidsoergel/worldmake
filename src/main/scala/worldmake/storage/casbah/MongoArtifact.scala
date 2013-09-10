@@ -42,6 +42,7 @@ object MongoArtifact {
     case e: IntArtifact => MongoIntArtifact.toDb(e)
     case e: DoubleArtifact => MongoDoubleArtifact.toDb(e)
     case e: PathArtifact => MongoPathArtifact.toDb(e)
+    case e: TypedPathArtifact[_] => MongoPathArtifact.toDb(e.asPathArtifact)  // stored without the typing info.  This will be re-wrapped every time it is loaded.  Careful about redundant verification.
     case e: GenTraversableArtifact[_] => MongoGenTraversableArtifact.toDb(e)
     /*case e: Artifact => e.value match {
       case f: String => MongoStringArtifact.toDb(e)

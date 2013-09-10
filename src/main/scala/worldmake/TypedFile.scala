@@ -112,7 +112,6 @@ object DerivationWrapper extends Logging {
 
   def pathFromString(ds:Derivation[String]):Derivation[Path] = new Derivation1(namedPathFromString,ds)
   
-  
   def wrapDerivation[T <: TypedPath:ClassManifest](f: Path => T)(d: Derivation[Path]): TypedPathDerivation[T] = {
     new TypedPathDerivation[T] {
       def toPathDerivation = d
@@ -142,30 +141,7 @@ object DerivationWrapper extends Logging {
         new Provenance[T] with Successful[T] {
           
           // this Artifact must act like an ExternalPathArtifact, though it can't literally be one because TypedFile does not extend Path
-          def output = new Artifact[T] { //with ExternalPathArtifact {
-            def contentHashBytes = p.output.contentHashBytes
-
-            def value : T = {
-              val result = f(p.output.value)
-              result.validate()
-              result
-            }
-
-            def description = p.output.value.toAbsolute.path
-
-            def abspath = p.output.value.toAbsolute.path
-
-            def basename = p.output.value.name
-
-            // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
-            override def constantId = Identifier[Artifact[T]]("TypedPath(" + abspath + ")")
-
-
-            // Navigating inside an artifact is a derivation; it shouldn't be possible to do it in the raw sense
-            // def /(s: String): ExternalPathArtifact = value / s
-            override def environmentString = abspath
-          }
-
+          def output = new TypedPathArtifact(p,f)
           def derivationId = new Identifier[Derivation[T]](d.derivationId.s)
 
           def provenanceId = new Identifier(p.provenanceId.s)
@@ -175,4 +151,31 @@ object DerivationWrapper extends Logging {
       //def statusString = d.statusString
     }
   }
+}
+
+class TypedPathArtifact[T <: TypedPath](p:Successful[Path], f: Path => T) extends Artifact[T] { //with ExternalPathArtifact {
+def contentHashBytes = p.output.contentHashBytes
+
+  val pathValue = p.output.value
+  val asPathArtifact : PathArtifact = PathArtifact(pathValue)
+  
+  def value : T = {
+    val result = f(pathValue)
+    result.validate()
+    result
+  }
+
+  //def description = p.output.value.toAbsolute.path
+
+  def abspath = p.output.value.toAbsolute.path
+
+  //def basename = p.output.value.name
+
+  // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
+  override def constantId = Identifier[Artifact[T]]("TypedPath(" + abspath + ")")
+
+
+  // Navigating inside an artifact is a derivation; it shouldn't be possible to do it in the raw sense
+  // def /(s: String): ExternalPathArtifact = value / s
+  override def environmentString = abspath
 }
