@@ -34,7 +34,7 @@ object LocalExecutionStrategy extends SystemExecutionStrategy with Logging {
     // the derivation may write a single file to it, or create a directory there.
     val outputPath: Path = fileStore.newPath
 
-    val workingDir = Path.createTempDirectory()
+    val workingDir = Path.createTempDirectory(dir = WorldMakeConfig.localTempDir, deleteOnExit = !WorldMakeConfig.debugWorkingDirectories)
     //val log: File = (outputPath / "worldmake.log").fileOption.getOrElse(throw new Error("can't create log: " + outputPath / "worldmake.log"))
     //val logWriter = Resource.fromFile(log)
 

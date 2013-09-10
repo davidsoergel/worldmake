@@ -14,16 +14,44 @@ import worldmake.storage.{FileStore, StorageSetter}
 import scala.concurrent.{Await, ExecutionContext}
 import ExecutionContext.Implicits.global
 import worldmake.derivationstrategy._
-import worldmake.executionstrategy.{DetectQsubPollingAction, QsubExecutionStrategy}
+import worldmake.executionstrategy.{LocalExecutionStrategy, DetectQsubPollingAction, QsubExecutionStrategy}
 import scala.util.Failure
 import scala.util.Success
 import scala.concurrent.duration.Duration
+import scala.collection.mutable
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 object WorldMake extends Logging {
 
+  // todo refactor this spaghetti.  The shutdown hooks could be well handled with Cake per Spiewak
+
+  val notifiersForShutdown: mutable.Set[Notifier] = new mutable.HashSet[Notifier]()
+
+  def getStrategy(withNotifiers: Boolean): LifecycleAwareFutureDerivationStrategy = {
+
+    val strategy: LifecycleAwareFutureDerivationStrategy = WorldMakeConfig.executor match {
+      case "local" => {
+        val notifier = new PollingNotifier(Seq(DetectSuccessPollingAction, DetectFailedPollingAction))
+        notifiersForShutdown += notifier
+        new LifecycleAwareFutureDerivationStrategy {
+          lazy val fallback = new ComputeFutureDerivationStrategy(this, LocalExecutionStrategy)
+          val tracker = new LifecycleTracker(notifier)
+        }
+      }
+      case "qsub" => {
+        val notifier = new PollingNotifier(Seq(DetectSuccessPollingAction, DetectFailedPollingAction, DetectQsubPollingAction))
+        notifiersForShutdown += notifier
+        new LifecycleAwareFutureDerivationStrategy {
+          lazy val fallback = new ComputeFutureDerivationStrategy(this, new QsubExecutionStrategy(notifier))
+          val tracker = new LifecycleTracker(notifier)
+        }
+      }
+    }
+
+    strategy
+  }
 
   def main(worldF: WorldFactory, args: Array[String]) {
 
@@ -31,51 +59,41 @@ object WorldMake extends Logging {
     StorageSetter(new CasbahStorage(MongoConnection(WorldMakeConfig.mongoHost), WorldMakeConfig.mongoDbName)) //MongoConnection("localhost"), dbname))
     val world = worldF.get
 
+
     // temp hack
     // val targets:Map[String,Derivation[_]] = Map("chpat"->EmergeWorld.allChinesePatentsTokenized)
 
-    val notifier = new PollingNotifier(Seq(DetectSuccessPollingAction, DetectFailedPollingAction, DetectQsubPollingAction))
 
-    try {
-
-      val strategy: LifecycleAwareFutureDerivationStrategy = new LifecycleAwareFutureDerivationStrategy {
-        lazy val fallback = new ComputeFutureDerivationStrategy(this, new QsubExecutionStrategy(notifier))
-        val tracker = new LifecycleTracker(notifier)
-      }
+    val exitcode: Int = try {
 
       val command = args(0)
       command match {
         case "make" => {
           val target = args(1)
+
+          val strategy = getStrategy(withNotifiers = true)
+
           //val derivationId = symbolTable.getProperty(target) 
           //val derivationArtifact = Storage.artifactStore.get(derivationId)
           val derivation: Derivation[_] = world(target)
-          try {
-            val result = strategy.resolveOne(derivation)
-
-            result onComplete {
-              case Success(x) => {
-                logger.info("Done: " + x.provenanceId)
-                logger.info(x.output.value.toString)
-              }
-              case Failure(t) => {
-                logger.error("Error", t)
-                throw t
-              }
+          val result = strategy.resolveOne(derivation)
+          result onComplete {
+            case Success(x) => {
+              logger.info("Done: " + x.provenanceId)
+              logger.info(x.output.value.toString)
             }
-            
-            Await.result(result, Duration.Inf)
-
-          }
-          catch {
-            case e: FailedDerivationException => {
-              logger.error("FAILED: " , e)
-              System.exit(1)
+            case Failure(t) => {
+              logger.error("Error", t)
+              throw t
             }
           }
+
+          Await.result(result, Duration.Inf)
+
         }
         case "status" => {
           val target = args(1)
+          val strategy = getStrategy(withNotifiers = false)
           //val derivationId = symbolTable.getProperty(target) 
           //val derivationArtifact = Storage.artifactStore.get(derivationId)
           val derivation: Derivation[_] = world(target)
@@ -83,12 +101,14 @@ object WorldMake extends Logging {
         }
         case "showqueue" => {
           val target = args(1)
+          val strategy = getStrategy(withNotifiers = false)
           //val derivationId = symbolTable.getProperty(target) 
           //val derivationArtifact = Storage.artifactStore.get(derivationId)
           val derivation: Derivation[_] = world(target)
           logger.info("\n" + derivation.queue.filterNot(_.isInstanceOf[ConstantDerivation[Any]]).map(x => strategy.tracker.statusLine(x)).mkString("\n"))
 
-          //logger.info("\n"+derivation.queue.map(x=>strategy.statusLine(x)).mkString("\n"))
+          //logger.info("\n"+derivation.queue.map(x=>strategy.statusLine(x)).mkString("\n")) 
+
         }
         //case "import"
         //case "set"
@@ -98,11 +118,22 @@ object WorldMake extends Logging {
         // 1) examine errors
         // 2) compute everything else
         // 3) try again including the errored derivations
+
+
       }
-    } finally {
-      notifier.shutdown()
-      System.exit(0)
+      0
     }
+    catch {
+      case e: FailedDerivationException => {
+        logger.error("FAILED: ", e)
+        1
+      }
+    }
+    finally {
+      notifiersForShutdown.map(_.shutdown())
+    }
+
+    System.exit(exitcode)
   }
 }
 
@@ -132,13 +163,14 @@ object WorldMakeConfig {
   def debugWorkingDirectories: Boolean = conf.getBoolean("debugWorkingDirectories")
 
   def retryFailures: Boolean = conf.getBoolean("retryFailures")
-  
+
   def qsub: String = conf.getString("qsub")
 
   def qstat: String = conf.getString("qstat")
 
   // a scratch directory available from all grid nodes
   def qsubGlobalTempDir: String = conf.getString("qsubGlobalTempDir")
+  def localTempDir: String = conf.getString("localTempDir")
 
   val fileStore = new FileStore(Path.fromString(conf.getString("filestore")))
 
@@ -148,7 +180,10 @@ object WorldMakeConfig {
 
   val mongoHost = conf.getString("mongoHost")
   val mongoDbName = conf.getString("mongoDbName")
-  
+
+
+  val executor = conf.getString("executor")
+
   val prefixIncrement = "  |"
 
   val HashType = "SHA-256"

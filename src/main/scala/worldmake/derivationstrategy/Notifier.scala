@@ -15,6 +15,7 @@ import worldmake.storage.Identifier
  */
 trait Notifier {
   def request[T](id: Identifier[Derivation[T]]): Future[Successful[T]]
+  def shutdown() {}
 }
 
 trait CallbackNotifier extends Notifier {
@@ -87,7 +88,7 @@ class PollingNotifier(pollingActions: Seq[PollingAction]) extends BasicCallbackN
     interval = Duration(10, TimeUnit.SECONDS),
     runnable = task)
   
-  def shutdown() {
+  override def shutdown() {
     actorSystem.shutdown()
   }
 }
