@@ -119,7 +119,7 @@ class MongoPathArtifact(val dbo: MongoDBObject) extends MongoArtifact[Path] with
 object MongoGenTraversableArtifact extends MongoSerializer[GenTraversableArtifact[_], MongoGenTraversableArtifact[_]]("s", new MongoGenTraversableArtifact(_)) {
   def addFields(e: GenTraversableArtifact[_], builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoArtifact.addFields(e, builder)
-    builder += "value" -> e.value
+    builder += "value" -> e.value.map(MongoArtifact.artifactToDb)
   }
 
 }
