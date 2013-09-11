@@ -72,6 +72,7 @@ object MongoIntArtifact extends MongoSerializer[IntArtifact, MongoIntArtifact]("
 
 class MongoIntArtifact(val dbo: MongoDBObject) extends MongoArtifact[Int] with IntArtifact with MongoWrapper {
   override def value = dbo.as[Int]("value")
+
 }
 
 
@@ -128,5 +129,5 @@ object MongoGenTraversableArtifact extends MongoSerializer[GenTraversableArtifac
 class MongoGenTraversableArtifact[T](val dbo: MongoDBObject) extends MongoArtifact[GenTraversable[Artifact[T]]] with GenTraversableArtifact[T] with MongoWrapper {
   override def value = dbo.as[MongoDBList]("value").map(a => MongoArtifact.artifactFromDb(new MongoDBObject(a.asInstanceOf[BasicDBObject])).asInstanceOf[Artifact[T]])
 
-  override def environmentString = value.map(_.environmentString).mkString(" ")  // unclear why the super version doesn't work; looks like a trait order issue
+  //override def environmentString = value.map(_.environmentString).mkString(" ")  // unclear why the super version doesn't work; looks like a trait order issue
 }

@@ -41,7 +41,7 @@ trait Artifact[+T] extends Hashable {
 
   def value: T
 
-  def environmentString: String = value.toString
+  def environmentString: String //= value.toString  // dangerous to have a default; just provide explicitly in each concrete class
   
   //def contentHashBytes: Array[Byte]
 
@@ -102,6 +102,8 @@ object StringArtifact {
 
 trait StringArtifact extends Artifact[String] {
   def description = value.replace("\n","\\n").limitAtWhitespace(80, "...")
+
+  override def environmentString: String = value.toString
   //def resultType = "String"
 }
 
@@ -121,6 +123,8 @@ trait IntArtifact extends Artifact[Int] {
 
   //def resultType = "Int"
   override def constantId = Identifier[Artifact[Int]](WMHashHex("Int(" + value.toString + ")")) //perf
+
+  override def environmentString: String = value.toString
 }
 
 class MemoryIntArtifact(s: Int) extends MemoryArtifact[Int](s) with IntArtifact with ContentHashableArtifact[Int] {
@@ -138,6 +142,7 @@ trait DoubleArtifact extends Artifact[Double] {
   //def resultType = "Double"
 
   override def constantId = Identifier[Artifact[Double]]("Double(" + value.toString + ")")
+  override def environmentString: String = value.toString
 }
 
 class MemoryDoubleArtifact(s: Double) extends MemoryArtifact[Double](s) with DoubleArtifact with ContentHashableArtifact[Double] {
@@ -291,8 +296,9 @@ trait GenTraversableArtifact[T] extends Artifact[GenTraversable[Artifact[T]]] {
 class MemoryGenTraversableArtifact[T](val value: GenTraversable[Artifact[T]]) extends GenTraversableArtifact[T] {
   //def provenanceId = Identifier[Artifact[Traversable[T]]](UUID.randomUUID().toString)
 
-  def contentHashBytes = value.toSeq.map(_.contentHashBytes).flatten.toArray
+  def contentHashBytes = WMHash(value.toSeq.flatMap(_.contentHash).mkString(""))
 
+  //override def environmentString = value.map(_.environmentString).mkString(" ")
   //def resultType = GenTraversableArtifact.resultType
 
 }
