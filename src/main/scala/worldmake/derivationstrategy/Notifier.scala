@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.ActorSystem
 import worldmake.storage.Identifier
 import worldmake.storage.Identifier
+import com.typesafe.scalalogging.slf4j.Logging
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -28,7 +29,7 @@ trait CallbackNotifier extends Notifier {
   // ** what to do on failure?
 }
 
-class BasicCallbackNotifier extends CallbackNotifier {
+class BasicCallbackNotifier extends CallbackNotifier with Logging {
   val waitingFor: mutable.Map[Identifier[Derivation[_]], Promise[Successful[_]]] = new mutable.HashMap[Identifier[Derivation[_]], Promise[Successful[_]]] with mutable.SynchronizedMap[Identifier[Derivation[_]], Promise[Successful[_]]]
 
   def announceDone(pr: Successful[_]) = {
@@ -49,7 +50,10 @@ class BasicCallbackNotifier extends CallbackNotifier {
     if (sp.successes.isEmpty && sp.potentialSuccesses.isEmpty) {
       val t = FailedDerivationException("Failure detected: no potential success for derivation: " + id, id)
       for (p <- waitingFor.get(id)) {
+        if(p.isCompleted) {
+          logger.error("Promise was already completed; ignoring failure of derivation " + id)
         p failure t
+        }
       }
     }
   }
