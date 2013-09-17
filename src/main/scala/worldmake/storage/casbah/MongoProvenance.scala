@@ -73,13 +73,13 @@ class MongoConstantProvenance[T](val dbo: MongoDBObject) extends MongoSuccessful
 
 
 trait MongoDerivedProvenance[T] extends MongoProvenance[T] with MongoWrapper {
-  override def derivationId = Identifier[Derivation[T]](dbo.as[String]("derivationId"))
+  override def recipeId = Identifier[Recipe[T]](dbo.as[String]("recipeId"))
 }
 
 object MongoDerivedProvenance {
   def addFields(e: DerivedProvenance[_], builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoProvenance.addFields(e, builder)
-    builder += "derivationId" -> e.derivationId.s
+    builder += "recipeId" -> e.recipeId.s
   }
 }
 

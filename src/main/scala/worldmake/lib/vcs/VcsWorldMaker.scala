@@ -24,7 +24,7 @@ class VcsWorldMaker(workspaces:VcsWorkspaces) {
       case (k, (b, v)) => (k, v)
     })
 
-    lazy val workingDirs: Map[String, Derivation[Path]] = reposActualVersions.map({
+    lazy val workingDirs: Map[String, Recipe[Path]] = reposActualVersions.map({
       case (k: String, v: String) => (k, workspaces.get(k, v))
     })
     new PathWorld(workingDirs)

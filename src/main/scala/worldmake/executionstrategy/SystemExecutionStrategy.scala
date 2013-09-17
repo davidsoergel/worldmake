@@ -3,7 +3,7 @@ package worldmake.executionstrategy
 import scalax.file.Path
 import scala.concurrent.Future
 import worldmake.storage.Identifier
-import worldmake.{TypedPath, BlockedProvenance, Successful, Derivation}
+import worldmake.{TypedPath, BlockedProvenance, Successful, Recipe}
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>

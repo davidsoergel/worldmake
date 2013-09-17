@@ -9,7 +9,7 @@ import scala.concurrent._
 
 import ExecutionContext.Implicits.global
 import com.typesafe.scalalogging.slf4j.Logging
-import worldmake.derivationstrategy.FutureDerivationStrategy
+import worldmake.cookingstrategy.CookingStrategy
 
 object NamedFunction {
   def apply[R](n: String)(f: Function0[R]) = new IdentifiableFunction0[R](n, f)
@@ -56,15 +56,15 @@ trait ContentHashableArtifact[T] extends Artifact[T] {
 class IdentifiableFunction0[R](val id: String, f: Function0[R]) {
   def evaluate() = f()
 
-  def apply() = new Derivation0(this)
+  def apply() = new Recipe0(this)
 }
 
 
-class Derivation0[R](f: IdentifiableFunction0[R]) extends DerivableDerivation[R] with Logging {
+class Recipe0[R](f: IdentifiableFunction0[R]) extends DerivableRecipe[R] with Logging {
   def dependencies = Set.empty
 
-  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
-    val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId)
+  def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
+    val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), recipeId)
     val result = future {
       derive(pr.pending(Set.empty,Map.empty))
     }
@@ -88,13 +88,13 @@ class Derivation0[R](f: IdentifiableFunction0[R]) extends DerivableDerivation[R]
     catch {
       case t: Throwable => {
         val prf = prs.failed(1, None, Map.empty)
-        logger.debug("Error in Derivation0: ", t) // todo better log message
-        throw FailedDerivationException("Failed Derivation0", prf, t)
+        logger.debug("Error in Recipe0: ", t) // todo better log message
+        throw FailedRecipeException("Failed Recipe0", prf, t)
       }
     }
   }
 
-  def derivationId = Identifier[Derivation[R]](Hash.toHex(WMHash(f.id)))
+  def recipeId = Identifier[Recipe[R]](Hash.toHex(WMHash(f.id)))
 
   def description = f.id + "()"
 }
@@ -103,15 +103,15 @@ class Derivation0[R](f: IdentifiableFunction0[R]) extends DerivableDerivation[R]
 class IdentifiableFunction1[T1, R](val id: String, f: Function1[T1, R]) {
   def evaluate(t1: T1) = f(t1)
 
-  def apply(t1: Derivation[T1]) = new Derivation1(this, t1)
+  def apply(t1: Recipe[T1]) = new Recipe1(this, t1)
 }
 
 
-class Derivation1[T1, R](f: IdentifiableFunction1[T1, R], a: Derivation[T1]) extends DerivableDerivation[R] with Logging {
+class Recipe1[T1, R](f: IdentifiableFunction1[T1, R], a: Recipe[T1]) extends DerivableRecipe[R] with Logging {
 
-  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy): Future[Successful[R]] = {
-    val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId)
-    val pf = upstreamStrategy.resolveOne(a)
+  def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[R]] = {
+    val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), recipeId)
+    val pf = upstreamStrategy.cookOne(a)
     val result = pf.map(a1 => deriveWithArg(pr.pending(Set(a1),Map.empty), a1))
     result
   }
@@ -125,13 +125,13 @@ class Derivation1[T1, R](f: IdentifiableFunction1[T1, R], a: Derivation[T1]) ext
     catch {
       case t: Throwable => {
         val prf = prs.failed(1, None, Map.empty)
-        logger.debug("Error in Derivation1: ", t) // todo better log message
-        throw FailedDerivationException("Failed Derivation1", prf, t)
+        logger.debug("Error in Recipe1: ", t) // todo better log message
+        throw FailedRecipeException("Failed Recipe1", prf, t)
       }
     }
   }
 
-  def derivationId = Identifier[Derivation[R]](WMHashHex(f.id + a.derivationId))
+  def recipeId = Identifier[Recipe[R]](WMHashHex(f.id + a.recipeId))
 
   def description = s"""${f.id}(${a.shortDesc})"""
 
@@ -144,17 +144,17 @@ class Derivation1[T1, R](f: IdentifiableFunction1[T1, R], a: Derivation[T1]) ext
 class IdentifiableFunction2[T1, T2, R](val id: String, f: Function2[T1, T2, R]) {
   def evaluate(t1: T1, t2: T2) = f(t1, t2)
 
-  def apply(t1: Derivation[T1], t2: Derivation[T2]) = new Derivation2(this, t1, t2)
+  def apply(t1: Recipe[T1], t2: Recipe[T2]) = new Recipe2(this, t1, t2)
 }
 
 
-class Derivation2[T1, T2, R](f: IdentifiableFunction2[T1, T2, R], a: Derivation[T1], b: Derivation[T2]) extends DerivableDerivation[R] with Logging {
+class Recipe2[T1, T2, R](f: IdentifiableFunction2[T1, T2, R], a: Recipe[T1], b: Recipe[T2]) extends DerivableRecipe[R] with Logging {
 
-  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy): Future[Provenance[R] with Successful[R]] = {
+  def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Provenance[R] with Successful[R]] = {
 
-    val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), derivationId)
-    val p = upstreamStrategy.resolveOne(a)
-    val q = upstreamStrategy.resolveOne(b)
+    val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), recipeId)
+    val p = upstreamStrategy.cookOne(a)
+    val q = upstreamStrategy.cookOne(b)
     val result = for {
       x <- p
       y <- q
@@ -172,13 +172,13 @@ class Derivation2[T1, T2, R](f: IdentifiableFunction2[T1, T2, R], a: Derivation[
     catch {
       case t: Throwable => {
         val prf = prs.failed(1, None, Map.empty)
-        logger.debug("Error in Derivation1: ", t) // todo better log message
-        throw FailedDerivationException("Failed Derivation1", prf, t)
+        logger.debug("Error in Recipe2: ", t) // todo better log message
+        throw FailedRecipeException("Failed Recipe2", prf, t)
       }
     }
   }
 
-  def derivationId = Identifier[Derivation[R]](WMHashHex(f.id + a.derivationId + b.derivationId))
+  def recipeId = Identifier[Recipe[R]](WMHashHex(f.id + a.recipeId + b.recipeId))
 
   def description = s"""${f.id}(${a.shortDesc},${b.shortDesc})"""
 

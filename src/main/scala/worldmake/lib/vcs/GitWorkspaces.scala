@@ -5,7 +5,7 @@ import scalax.file.Path
 import scala.sys.process._
 import com.typesafe.scalalogging.slf4j.Logging
 import worldmake._
-import ConstantDerivation._
+import ConstantRecipe._
 
 /**
   * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -28,21 +28,21 @@ object GitWorkspaces extends VcsWorkspaces with Logging {
      p
    }
  
-   def get(id: String, requestVersion: String = "latest"): Derivation[Path] = {
+   def get(id: String, requestVersion: String = "latest"): Recipe[Path] = {
      val version = requestVersion match {
        case "latest" => getLatestVersions(id)("master")
        case v => v
      }
-     val args = Map[String, Derivation[_]](
+     val args = Map[String, Recipe[_]](
        "localrepo" -> toLocalRepo(id),
        "version" -> version)
  
      // note git archive can access remote repos, so we could skip the "local" repo, but we do it anyway because
      // a) good idea to store the complete history locally anyway, and
      // b) symmetry with the hg solution
-     val scriptDerivation = """mkdir -p $out && cd $localrepo && git archive $version | tar -x -C $out"""
+     val scriptRecipe = """mkdir -p $out && cd $localrepo && git archive $version | tar -x -C $out"""
      
-     new SystemDerivation(scriptDerivation, args)
+     new SystemRecipe(scriptRecipe, args)
    }
  
    private val gitBranchesToChangesetNumber = """^[ \*] (\S+) (\S+) (.*)$""".r

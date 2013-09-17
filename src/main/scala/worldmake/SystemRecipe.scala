@@ -9,7 +9,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 import ExecutionContext.Implicits.global
 import scala.collection.immutable.Queue
-import worldmake.derivationstrategy.FutureDerivationStrategy
+import worldmake.cookingstrategy.CookingStrategy
 
 //import java.lang.ProcessBuilder.Redirect
 
@@ -23,7 +23,7 @@ import scalax.file.Path
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 
-object SystemDerivation {
+object SystemRecipe {
   // "toEnvironmentString" is not a method of the Derivation trait because the Any->String conversion may differ by 
   // context (at least, eg., # of sig figs, or filename vs file contents, etc.)
   // For that matter, what if it differs for different arguments of the same type? 
@@ -36,27 +36,27 @@ object SystemDerivation {
 
 }
 
-class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap[String, Derivation[_]]) extends DerivableDerivation[Path] with Logging {
+class SystemRecipe(val script: Recipe[String], namedDependencies: GenMap[String, Recipe[_]]) extends DerivableRecipe[Path] with Logging {
 
-  override def queue: Queue[Derivation[_]] = {
+  override def queue: Queue[Recipe[_]] = {
     val deps = dependencies.seq.toSeq.flatMap(_.queue)
-    Queue[Derivation[_]](deps: _*).distinct.enqueue(this)
+    Queue[Recipe[_]](deps: _*).distinct.enqueue(this)
   }
 
-  lazy val derivationId = {
+  lazy val recipeId = {
     val dependencyInfos: Seq[String] = namedDependencies.map({
-      case (k, v) => k.toString + v.derivationId.s
+      case (k, v) => k.toString + v.recipeId.s
     }).toSeq.seq.sorted
-    Identifier[Derivation[Path]](WMHashHex(script.derivationId.s + dependencyInfos.mkString("")))
+    Identifier[Recipe[Path]](WMHashHex(script.recipeId.s + dependencyInfos.mkString("")))
   }
 
   def description = "EXECUTE(" + script.shortId + "): " + script.description
 
   val dependencies = namedDependencies.values.toSet + script
 
-  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
-    val pr = BlockedProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString), derivationId)
-    val reifiedScriptF = upstreamStrategy.resolveOne(script)
+  def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
+    val pr = BlockedProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString), recipeId)
+    val reifiedScriptF = upstreamStrategy.cookOne(script)
     val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k => FutureUtils.futurePair(upstreamStrategy,(k, namedDependencies(k))))
     val result = upstreamStrategy.systemExecution(pr, reifiedScriptF, reifiedDependenciesF)
     result
@@ -67,9 +67,9 @@ class SystemDerivation(val script: Derivation[String], namedDependencies: GenMap
 
 object FutureUtils {
   //def futurePair[T](kv:(String,Derivation[T]))(implicit strategy: FutureDerivationStrategy):Future[(String,Successful[T])] = kv._2.deriveFuture.map(v=>kv._1->v)
-  def futurePair[T](upstreamStrategy: FutureDerivationStrategy, kv: (String, Derivation[T]))(implicit strategy: FutureDerivationStrategy): Future[(String, Successful[T])] = kv match {
+  def futurePair[T](upstreamStrategy: CookingStrategy, kv: (String, Recipe[T]))(implicit strategy: CookingStrategy): Future[(String, Successful[T])] = kv match {
     case (key, deriv) => {
-      val f = upstreamStrategy.resolveOne(deriv)
+      val f = upstreamStrategy.cookOne(deriv)
       f.map(s => (key, s))
     }
   }

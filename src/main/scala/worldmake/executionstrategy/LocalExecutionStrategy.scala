@@ -83,7 +83,7 @@ object LocalExecutionStrategy extends SystemExecutionStrategy with Logging {
 
       val f = prs.failed(exitCode, Some(logWriter), Map.empty)
 
-      throw FailedDerivationException(logWriter.getString, f)
+      throw FailedRecipeException(logWriter.getString, f)
     }
 
     if (WorldMakeConfig.debugWorkingDirectories) {

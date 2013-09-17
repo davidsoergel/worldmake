@@ -1,4 +1,4 @@
-package worldmake.derivationstrategy
+package worldmake.cookingstrategy
 
 import worldmake._
 import scala.concurrent._
@@ -15,7 +15,7 @@ import com.typesafe.scalalogging.slf4j.Logging
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 trait Notifier {
-  def request[T](id: Identifier[Derivation[T]]): Future[Successful[T]]
+  def request[T](id: Identifier[Recipe[T]]): Future[Successful[T]]
   def shutdown() {}
 }
 
@@ -30,28 +30,28 @@ trait CallbackNotifier extends Notifier {
 }
 
 class BasicCallbackNotifier extends CallbackNotifier with Logging {
-  val waitingFor: mutable.Map[Identifier[Derivation[_]], Promise[Successful[_]]] = new mutable.HashMap[Identifier[Derivation[_]], Promise[Successful[_]]] with mutable.SynchronizedMap[Identifier[Derivation[_]], Promise[Successful[_]]]
+  val waitingFor: mutable.Map[Identifier[Recipe[_]], Promise[Successful[_]]] = new mutable.HashMap[Identifier[Recipe[_]], Promise[Successful[_]]] with mutable.SynchronizedMap[Identifier[Recipe[_]], Promise[Successful[_]]]
 
   def announceDone(pr: Successful[_]) = {
-    for (p <- waitingFor.get(pr.derivationId)) {
-      waitingFor.remove(pr.derivationId)
+    for (p <- waitingFor.get(pr.recipeId)) {
+      waitingFor.remove(pr.recipeId)
       p success pr
     }
   }
 
-  def announceFailed(p: FailedProvenance[_]) = announceFailedOrCancelled(p.derivationId)
-  def announceCancelled(p: CancelledProvenance[_]) = announceFailedOrCancelled(p.derivationId)
+  def announceFailed(p: FailedProvenance[_]) = announceFailedOrCancelled(p.recipeId)
+  def announceCancelled(p: CancelledProvenance[_]) = announceFailedOrCancelled(p.recipeId)
 
-  private def announceFailedOrCancelled(id:Identifier[Derivation[Any]]) = {
+  private def announceFailedOrCancelled(id:Identifier[Recipe[Any]]) = {
 
     // one provenance may have failed, but the downstream provenances could just use a different one
     // see if there are any other successes...
     val sp = StoredProvenances(id)
     if (sp.successes.isEmpty && sp.potentialSuccesses.isEmpty) {
-      val t = FailedDerivationException("Failure detected: no potential success for derivation: " + id, id)
+      val t = FailedRecipeException("Failure detected: no potential success for recipe: " + id, id)
       for (p <- waitingFor.get(id)) {
         if(p.isCompleted) {
-          logger.error("Promise was already completed; ignoring failure of derivation " + id)
+          logger.error("Promise was already completed; ignoring failure of recipe " + id)
         p failure t
         }
       }
@@ -59,7 +59,7 @@ class BasicCallbackNotifier extends CallbackNotifier with Logging {
   }
   
   // the job must actually be started somewhere else.  This just promises to notify.
-  def request[T](id: Identifier[Derivation[T]]): Future[Successful[T]] = {
+  def request[T](id: Identifier[Recipe[T]]): Future[Successful[T]] = {
     val p = waitingFor.get(id).getOrElse({
       val np = promise[Successful[T]]()
       waitingFor.put(id, np.asInstanceOf[Promise[Successful[_]]])

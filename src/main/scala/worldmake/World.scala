@@ -10,15 +10,15 @@ import scalax.file.Path
 /**
  * A World is a Derivation factory.
  */
-trait World extends (String=>Derivation[_]) {
-  def as[T](s:String) : Derivation[T] = apply(s).asInstanceOf[Derivation[T]]
+trait World extends (String=>Recipe[_]) {
+  def as[T](s:String) : Recipe[T] = apply(s).asInstanceOf[Recipe[T]]
 }
 
 /**
  * A ConcreteWorld in prepopulated with named Derivations.
  * @param targets
  */
-class ConcreteWorld (targets: Map[String, Derivation[_]] ) extends World {
+class ConcreteWorld (targets: Map[String, Recipe[_]] ) extends World {
   def apply(name:String) = targets(name)
   def get(name:String) = targets.get(name)
 }
@@ -27,14 +27,14 @@ class ConcreteWorld (targets: Map[String, Derivation[_]] ) extends World {
 /**
  * A ConstantWorld in prepopulated with named Constant derivations, as e.g. loaded from a properties file.
  */
-class ConstantWorld (ts: Map[String, ConstantDerivation[_]] ) extends ConcreteWorld(ts)
+class ConstantWorld (ts: Map[String, ConstantRecipe[_]] ) extends ConcreteWorld(ts)
 
-class PathWorld (ts: Map[String, Derivation[Path]] ) extends ConcreteWorld(ts) {
+class PathWorld (ts: Map[String, Recipe[Path]] ) extends ConcreteWorld(ts) {
   override def apply(name:String) = ts(name)
   override def get(name:String) = ts.get(name)
 }
 
-trait DerivationFactory extends ((World) => Derivation[_])
+trait RecipeFactory extends ((World) => Recipe[_])
 
 trait WorldExpander extends ((World)=>World)
 

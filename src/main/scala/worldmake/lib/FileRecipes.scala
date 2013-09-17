@@ -13,14 +13,14 @@ import java.nio.file.{FileSystems, Files}
 import java.nio.file
 import scala.concurrent.{ExecutionContext, Future}
 import ExecutionContext.Implicits.global
-import worldmake.derivationstrategy.FutureDerivationStrategy
+import worldmake.cookingstrategy.CookingStrategy
 
-import StringInterpolationDerivation._
+import StringInterpolationRecipe._
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
-object FileDerivations extends Logging {
+object FileRecipes extends Logging {
 
   val fsTraverse = new IdentifiableFunction2[Path, String, Path]("fsTraverse", {
     (a: Path, b: String) => a / b
@@ -34,18 +34,18 @@ object FileDerivations extends Logging {
     result
   })
 
-  def sedFile(sedFile:TypedPathDerivation[TextFile],input:TypedPathDerivation[TextFile]) = sys"sed -f ${sedFile} < ${input} > $${out}"
-  def sedExpr(sedExpr:Derivation[String],input:TypedPathDerivation[TextFile]) = sys"sed -e '${sedExpr}' < ${input} > $${out}"
+  def sedFile(sedFile:TypedPathRecipe[TextFile],input:TypedPathRecipe[TextFile]) = sys"sed -f ${sedFile} < ${input} > $${out}"
+  def sedExpr(sedExpr:Recipe[String],input:TypedPathRecipe[TextFile]) = sys"sed -e '${sedExpr}' < ${input} > $${out}"
 
 }
 
-class AssemblyDerivation(namedDependencies: GenMap[String, Derivation[Path]]) extends DerivableDerivation[Path] with Logging {
+class AssemblyRecipe(namedDependencies: GenMap[String, Recipe[Path]]) extends DerivableRecipe[Path] with Logging {
 
-  lazy val derivationId = {
+  lazy val recipeId = {
     val dependencyInfos: Seq[String] = namedDependencies.map({
-      case (k, v) => k.toString + v.derivationId.s
+      case (k, v) => k.toString + v.recipeId.s
     }).toSeq.seq.sorted
-    Identifier[Derivation[Path]](WMHashHex(dependencyInfos.mkString("")))
+    Identifier[Recipe[Path]](WMHashHex(dependencyInfos.mkString("")))
   }
 
   def description = "Assembly"
@@ -58,8 +58,8 @@ class AssemblyDerivation(namedDependencies: GenMap[String, Derivation[Path]]) ex
   }*/
 
 
-  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
-    val pr = BlockedProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString), derivationId)
+  def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
+    val pr = BlockedProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString), recipeId)
     val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k=>FutureUtils.futurePair(upstreamStrategy,(k,namedDependencies(k))))
     val result = for( reifiedDependencies <- reifiedDependenciesF
     ) yield deriveWithArgs(pr.pending(Set.empty,reifiedDependencies.toMap), reifiedDependencies.toMap)
@@ -88,8 +88,8 @@ class AssemblyDerivation(namedDependencies: GenMap[String, Derivation[Path]]) ex
     catch {
       case t: Throwable => {
         val prf = prs.failed(1, None, Map.empty)
-        logger.debug("Error in AssemblyDerivation: ", t) // todo better log message
-        throw FailedDerivationException("Failed AssemblyDerivation", prf, t)
+        logger.debug("Error in AssemblyRecipe: ", t) // todo better log message
+        throw FailedRecipeException("Failed AssemblyRecipe", prf, t)
       }
     }
     

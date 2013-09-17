@@ -11,7 +11,7 @@ import java.io.{IOException, File}
 import worldmake.storage.StoredProvenances
 import scala.Some
 import scala.sys.process.{ProcessLogger, Process}
-import worldmake.derivationstrategy.{CallbackNotifier, PollingAction, Notifier}
+import worldmake.cookingstrategy.{CallbackNotifier, PollingAction, Notifier}
 import edu.umass.cs.iesl.scalacommons.XMLIgnoreDTD
 import ExecutionContext.Implicits.global
 
@@ -110,7 +110,7 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
       val prsx = pp.running(new MemoryQsubRunningInfo(0, workingDir, outputPath, None)) //,requestedType))
       val f = prsx.failed(qsubPbExitCode, Some(qsubLogWriter), Map.empty)
 
-      throw FailedDerivationException(qsubOutput, f)
+      throw FailedRecipeException(qsubOutput, f)
     }
     val jobIdRE = """^Your job (\d+) \(".+?"\) has been submitted$""".r
     val jobIdRE(jobId) = qsubOutput
@@ -118,7 +118,7 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
 
     val prs = pp.running(new MemoryQsubRunningInfo(jobId.toInt, workingDir, outputPath, None)) //,requestedType))
 
-    notifier.request[Path](prs.derivationId)
+    notifier.request[Path](prs.recipeId)
   }
 
   /*

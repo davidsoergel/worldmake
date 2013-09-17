@@ -7,7 +7,7 @@ import scala.collection.{GenTraversable, GenSet}
 import scala.collection.immutable.Queue
 import scala.concurrent._
 import com.typesafe.scalalogging.slf4j.Logging
-import worldmake.derivationstrategy.FutureDerivationStrategy
+import worldmake.cookingstrategy.CookingStrategy
 import worldmake.GenTraversableArtifact
 
 //import java.lang.ProcessBuilder.Redirect
@@ -26,10 +26,10 @@ import ExecutionContext.Implicits.global
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
-trait Derivation[+T] {
+trait Recipe[+T] {
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
   // careful using a hash as an ID, per Valerie Aurora
-  def derivationId: Identifier[Derivation[T]]
+  def recipeId: Identifier[Recipe[T]]
 
   def description: String // used only for human-readable debug logs and such
 
@@ -41,33 +41,33 @@ trait Derivation[+T] {
 
   def summary = providedSummary
 
-  def shortId = derivationId.short
+  def shortId = recipeId.short
 
   def shortDesc = shortId
 
-  def queue: Queue[Derivation[_]] = Queue(this)
+  def queue: Queue[Recipe[_]] = Queue(this)
 
   def isGloballyDeterministic: Boolean = true
 
   override def equals(other: Any): Boolean = other match {
-    case that: Derivation[T] => (that canEqual this) && derivationId == that.derivationId
+    case that: Recipe[T] => (that canEqual this) && recipeId == that.recipeId
     case _ => false
   }
 
-  def canEqual(other: Any): Boolean = other.isInstanceOf[Derivation[T]]
+  def canEqual(other: Any): Boolean = other.isInstanceOf[Recipe[T]]
 
-  override def hashCode: Int = (41 + derivationId.hashCode)
+  override def hashCode: Int = (41 + recipeId.hashCode)
 
-  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy): Future[Successful[T]]
+  def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[T]]
 
 }
 
-object Derivation {
-  implicit def toDescribedDerivation(s: String): DerivationSummary = new DerivationSummary(s)
+object Recipe {
+  implicit def toDescribedRecipe(s: String): RecipeSummary = new RecipeSummary(s)
 }
 
-class DerivationSummary(s: String) {
-  def via[T <: Derivation[_]](d: T): T = {
+class RecipeSummary(s: String) {
+  def via[T <: Recipe[_]](d: T): T = {
     d.setProvidedSummary(s) //copy(description = s)
     d
   }
@@ -89,20 +89,22 @@ case object Error extends DerivationStatus("Error")
 }*/
 
 
-object ConstantDerivation {
-  def apply[T](p: ConstantProvenance[T]) = new ConstantDerivation(p)
+object ConstantRecipe {
+  def apply[T](p: ConstantProvenance[T]) = new ConstantRecipe(p)
 
-  implicit def fromString(s: String): ConstantDerivation[String] = ConstantDerivation(ConstantProvenance(StringArtifact(s)))
+  implicit def fromString(s: String): ConstantRecipe[String] = ConstantRecipe(ConstantProvenance(StringArtifact(s)))
 
-  implicit def fromDouble(s: Double): ConstantDerivation[Double] = ConstantDerivation(ConstantProvenance(DoubleArtifact(s)))
+  implicit def fromBoolean(s: Boolean): ConstantRecipe[Boolean] = ConstantRecipe(ConstantProvenance(BooleanArtifact(s)))
 
-  implicit def fromInt(s: Int): ConstantDerivation[Int] = ConstantDerivation(ConstantProvenance(IntArtifact(s)))
+  implicit def fromDouble(s: Double): ConstantRecipe[Double] = ConstantRecipe(ConstantProvenance(DoubleArtifact(s)))
 
-  implicit def fromPath(s: Path): ConstantDerivation[Path] = ConstantDerivation(ConstantProvenance(PathArtifact(s)))
+  implicit def fromInt(s: Int): ConstantRecipe[Int] = ConstantRecipe(ConstantProvenance(IntArtifact(s)))
+
+  implicit def fromPath(s: Path): ConstantRecipe[Path] = ConstantRecipe(ConstantProvenance(PathArtifact(s)))
 }
 
-class ConstantDerivation[T](p: ConstantProvenance[T]) extends Derivation[T] with (() => ConstantProvenance[T]) {
-  def derivationId = Identifier[Derivation[T]](p.provenanceId.s)
+class ConstantRecipe[T](p: ConstantProvenance[T]) extends Recipe[T] with (() => ConstantProvenance[T]) {
+  def recipeId = Identifier[Recipe[T]](p.provenanceId.s)
 
   private val outputString: String = p.output.value.toString.replace("\n", "\\n")
 
@@ -110,7 +112,7 @@ class ConstantDerivation[T](p: ConstantProvenance[T]) extends Derivation[T] with
 
   def apply = p
 
-  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = Future.successful(p)
+  def deriveFuture(implicit upstreamStrategy: CookingStrategy) = Future.successful(p)
 
   /*future {
     p
@@ -125,23 +127,23 @@ class ConstantDerivation[T](p: ConstantProvenance[T]) extends Derivation[T] with
 }
 
 
-trait DerivableDerivation[T] extends Derivation[T] {
+trait DerivableRecipe[T] extends Recipe[T] {
 
   //def dependencies : A
-  def dependencies: GenSet[Derivation[_]]
+  def dependencies: GenSet[Recipe[_]]
 
-  override def queue: Queue[Derivation[_]] = {
+  override def queue: Queue[Recipe[_]] = {
     val deps = dependencies.seq.toSeq.flatMap(_.queue)
-    Queue[Derivation[_]](deps: _*).distinct.enqueue(this)
+    Queue[Recipe[_]](deps: _*).distinct.enqueue(this)
   }
 }
 
 
-trait LocallyDeterministic[T] extends DerivableDerivation[T] {
+trait LocallyDeterministic[T] extends DerivableRecipe[T] {
   override def isGloballyDeterministic: Boolean = !dependencies.exists(!_.isGloballyDeterministic)
 }
 
-trait LocallyNondeterministic[T] extends DerivableDerivation[T] {
+trait LocallyNondeterministic[T] extends DerivableRecipe[T] {
   def resolvePrecomputed: GenSet[Provenance[T]]
 
   //def resolveNew: Option[Provenance[T]]
@@ -213,12 +215,12 @@ class SystemDerivationJava(val script: Derivation[String], namedDependencies: Ma
 */
 
 //http://mblinn.com/blog/2012/06/30/scala-custom-exceptions/
-object FailedDerivationException {
-  def apply(message: String, derivationId: Identifier[Derivation[_]]) : FailedDerivationException = new FailedDerivationException(message, derivationId, None)
-  def apply(message: String, pr: FailedProvenance[_]) : FailedDerivationException = new FailedDerivationException(message, pr.derivationId,Some(pr))
-  def apply(message: String, pr: FailedProvenance[_], cause: Throwable) = new FailedDerivationException(message,pr.derivationId, Some(pr)).initCause(cause)
+object FailedRecipeException {
+  def apply(message: String, recipeId: Identifier[Recipe[_]]) : FailedRecipeException = new FailedRecipeException(message, recipeId, None)
+  def apply(message: String, pr: FailedProvenance[_]) : FailedRecipeException = new FailedRecipeException(message, pr.recipeId,Some(pr))
+  def apply(message: String, pr: FailedProvenance[_], cause: Throwable) = new FailedRecipeException(message,pr.recipeId, Some(pr)).initCause(cause)
 }
-class FailedDerivationException(message: String, derivationId: Identifier[Derivation[_]], opr: Option[FailedProvenance[_]]) extends Exception(message)
+class FailedRecipeException(message: String, recipeId: Identifier[Recipe[_]], opr: Option[FailedProvenance[_]]) extends Exception(message)
 
 /*
 trait ExternalPathDerivation extends Derivation[Path] {
@@ -238,11 +240,11 @@ class TraversableProvenance[T](val provenances: Traversable[Provenance[T]]) exte
   def status = ???
 }
 */ 
-object TraversableDerivation {
-  implicit def wrapTraversable[T](xs:GenTraversable[Derivation[T]]) = new TraversableDerivation(xs)
+object TraversableRecipe {
+  implicit def wrapTraversable[T](xs:GenTraversable[Recipe[T]]) = new TraversableRecipe(xs)
 }
 
-class TraversableDerivation[T](val xs: GenTraversable[Derivation[T]]) extends DerivableDerivation[GenTraversable[Artifact[T]]] with Logging {
+class TraversableRecipe[T](val xs: GenTraversable[Recipe[T]]) extends DerivableRecipe[GenTraversable[Artifact[T]]] with Logging {
   /*def derive = {
     val upstream = xs.par.map(_.resolveOne)
     SuccessfulProvenance[GenTraversable[T]](Identifier[Provenance[GenTraversable[T]]](UUID.randomUUID().toString),
@@ -271,7 +273,7 @@ class TraversableDerivation[T](val xs: GenTraversable[Derivation[T]]) extends De
   }*/
 
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
-  def derivationId = Identifier[TraversableDerivation[T]](WMHashHex("traversable" + xs.toSeq.map(_.derivationId).mkString))
+  def recipeId = Identifier[TraversableRecipe[T]](WMHashHex("traversable" + xs.toSeq.map(_.recipeId).mkString))
 
   def description = ("Traversable(" + xs.map(_.description) + ")").limitAtWhitespace(80, "...")
 
@@ -285,10 +287,10 @@ class TraversableDerivation[T](val xs: GenTraversable[Derivation[T]]) extends De
         output = Some(new GenTraversableArtifact(argValues.map(_.artifact))))
     }
   */
-  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
+  def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
 
-    val pr = BlockedProvenance(Identifier[Provenance[GenTraversable[Artifact[T]]]](UUID.randomUUID().toString), derivationId)
-    val upstreamFF = xs.map(upstreamStrategy.resolveOne)
+    val pr = BlockedProvenance(Identifier[Provenance[GenTraversable[Artifact[T]]]](UUID.randomUUID().toString), recipeId)
+    val upstreamFF = xs.map(upstreamStrategy.cookOne)
     val upstreamF = Future.sequence(upstreamFF.seq)
     val result: Future[CompletedProvenance[GenTraversable[Artifact[T]]]] = upstreamF.map(upstream => deriveWithArg(pr.pending(upstream.toSet, Map.empty), upstream))
     result
@@ -305,8 +307,8 @@ class TraversableDerivation[T](val xs: GenTraversable[Derivation[T]]) extends De
     catch {
       case t: Throwable => {
         val prf = prs.failed(1, None, Map.empty)
-        logger.debug("Error in TraversableDerivation: ", t) // todo better log message
-        throw FailedDerivationException("Failed TraversableDerivation", prf, t)
+        logger.debug("Error in TraversableRecipe: ", t) // todo better log message
+        throw FailedRecipeException("Failed TraversableRecipe", prf, t)
       }
     }
   }

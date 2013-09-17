@@ -8,7 +8,7 @@ trait ProvenanceStore {
   def getSuccessful[T](id: Identifier[Successful[T]]): Option[Successful[T]]
 
   //def getForArtifact[T](id: Identifier[Artifact[T]]): Option[Provenance[T]]
-  def getDerivedFrom[T](id: Identifier[Derivation[T]]): Set[Provenance[T]]
+  def getDerivedFrom[T](id: Identifier[Recipe[T]]): Set[Provenance[T]]
 
   def getContentHash[T](id: Identifier[Provenance[T]]): Option[String]
 
@@ -80,7 +80,7 @@ class AggregateProvenanceStore(primaryStore: ProvenanceStore, otherStores: GenSe
   def get[T](id: Identifier[Provenance[T]]): Option[Provenance[T]] = primaryStore.get(id).orElse(otherStores.flatMap(_.get(id)).headOption) // perf
   def getSuccessful[T](id: Identifier[Successful[T]]): Option[Successful[T]] = primaryStore.getSuccessful(id).orElse(otherStores.flatMap(_.getSuccessful(id)).headOption) // perf
 
-  def getDerivedFrom[T](id: Identifier[Derivation[T]]) = primaryStore.getDerivedFrom(id) ++ otherStores.flatMap(_.getDerivedFrom(id)) // perf
+  def getDerivedFrom[T](id: Identifier[Recipe[T]]) = primaryStore.getDerivedFrom(id) ++ otherStores.flatMap(_.getDerivedFrom(id)) // perf
 
   def getContentHash[T](id: Identifier[Provenance[T]]) = primaryStore.getContentHash(id).orElse(otherStores.flatMap(_.getContentHash(id)).headOption) // perf
 
@@ -91,12 +91,12 @@ class AggregateProvenanceStore(primaryStore: ProvenanceStore, otherStores: GenSe
 
 
 object StoredProvenances {
-  def apply[T](id: Identifier[Derivation[T]]) = new StoredProvenances(id)
+  def apply[T](id: Identifier[Recipe[T]]) = new StoredProvenances(id)
 }
 
-class StoredProvenances[T](val derivationId: Identifier[Derivation[T]]) {
+class StoredProvenances[T](val recipeId: Identifier[Recipe[T]]) {
 
-  private val provenances: GenSet[Provenance[T]] = Storage.provenanceStore.getDerivedFrom(derivationId)
+  private val provenances: GenSet[Provenance[T]] = Storage.provenanceStore.getDerivedFrom(recipeId)
 
   val successes: GenSet[Successful[T]] =
     provenances.collect({

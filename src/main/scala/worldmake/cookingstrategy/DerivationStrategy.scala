@@ -1,4 +1,4 @@
-package worldmake.derivationstrategy
+package worldmake.cookingstrategy
 
 import scala.concurrent._
 import scala.collection.mutable
@@ -11,8 +11,8 @@ import worldmake.storage.Identifier
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 
-trait FutureDerivationStrategy extends Logging {
-  def resolveOne[T](d: Derivation[T]): Future[Successful[T]]
+trait CookingStrategy extends Logging {
+  def cookOne[T](d: Recipe[T]): Future[Successful[T]]
 
   def systemExecution: SystemExecutionStrategy
 
@@ -38,17 +38,17 @@ trait LocalDerivationStrategy extends DerivationStrategy {
 }
 */
 
-trait FallbackFutureDerivationStrategy extends FutureDerivationStrategy {
-  val fallback: FutureDerivationStrategy
+trait FallbackCookingStrategy extends CookingStrategy {
+  val fallback: CookingStrategy
 
   def systemExecution = fallback.systemExecution
 }
 
 
 
-class ComputeFutureDerivationStrategy(upstreamStrategy: FutureDerivationStrategy, val systemExecution: SystemExecutionStrategy) extends FutureDerivationStrategy {
-  @throws(classOf[FailedDerivationException])
-  def resolveOne[T](d: Derivation[T]): Future[Successful[T]] = d.deriveFuture(upstreamStrategy)
+class ComputeNowCookingStrategy(upstreamStrategy: CookingStrategy, val systemExecution: SystemExecutionStrategy) extends CookingStrategy {
+  @throws(classOf[FailedRecipeException])
+  def cookOne[T](d: Recipe[T]): Future[Successful[T]] = d.deriveFuture(upstreamStrategy)
 
 }
 

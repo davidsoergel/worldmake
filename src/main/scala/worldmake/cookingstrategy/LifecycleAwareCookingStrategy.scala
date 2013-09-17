@@ -1,4 +1,4 @@
-package worldmake.derivationstrategy
+package worldmake.cookingstrategy
 
 import worldmake.storage.{StoredProvenances, Identifier}
 import worldmake._
@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.slf4j.Logging
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
-trait LifecycleAwareFutureDerivationStrategy extends FallbackFutureDerivationStrategy {
+trait LifecycleAwareCookingStrategy extends FallbackCookingStrategy {
 
   val tracker: LifecycleTracker
 
@@ -16,16 +16,16 @@ trait LifecycleAwareFutureDerivationStrategy extends FallbackFutureDerivationStr
 
   // perf multiple calls to tracker produce new DB queries every time
 
-  def resolveOne[T](d: Derivation[T]): Future[Successful[T]] = synchronized {
-    val id = d.derivationId
+  def cookOne[T](d: Recipe[T]): Future[Successful[T]] = synchronized {
+    val id = d.recipeId
     val track = tracker.track(id)
     track.getSuccessAs.map(x => Future.successful(x)).getOrElse(
       track.getPotentialSuccessesAs
         .getOrElse({
         if (track.hasFailure && !WorldMakeConfig.retryFailures) {
-          throw FailedDerivationException("Aborting due to failure of " + d.derivationId, d.derivationId)
+          throw FailedRecipeException("Aborting due to failure of " + d.recipeId, d.recipeId)
         }
-        val result = fallback.resolveOne(d) // trust that the underlying strategy updates the storage
+        val result = fallback.cookOne(d) // trust that the underlying strategy updates the storage
         // RunningDerivations.put(d.derivationId, result)
         /*result onComplete {
           case Success(t) => RunningDerivations.remove(d.derivationId)
@@ -42,7 +42,7 @@ class LifecycleTracker(notifier: Notifier) extends Logging {
   //def getAs[T](id: Identifier[Derivation[T]]): Option[Future[Successful[T]]]
   //def remove(id: Identifier[Derivation[_]])
 
-  class Track[T](id: Identifier[Derivation[T]]) {
+  class Track[T](id: Identifier[Recipe[T]]) {
     val sp = StoredProvenances(id)
 
     def hasFailure: Boolean = sp.failures.nonEmpty
@@ -52,7 +52,7 @@ class LifecycleTracker(notifier: Notifier) extends Logging {
     def getRunningAs: Option[Future[Successful[T]]] = {
       val rr = sp.running.toSeq
       if (rr.size > 1) {
-        logger.warn(rr.size + " running jobs for Derivation " + id + "!")
+        logger.warn(rr.size + " running jobs for Recipe " + id + "!")
       }
       rr.headOption.map(_ => notifier.request(id))
     }
@@ -60,24 +60,24 @@ class LifecycleTracker(notifier: Notifier) extends Logging {
     def getPotentialSuccessesAs: Option[Future[Successful[T]]] = {
       val rr = StoredProvenances(id).potentialSuccesses.toSeq
       if (rr.size > 1) {
-        logger.warn(rr.size + " potentially successful jobs for Derivation " + id + "!")
+        logger.warn(rr.size + " potentially successful jobs for Recipe " + id + "!")
       }
       rr.headOption.map(_ => notifier.request(id))
     }
 
   }
 
-  def track[T](id: Identifier[Derivation[T]]) = new Track(id)
+  def track[T](id: Identifier[Recipe[T]]) = new Track(id)
 
-  def printTree[T](d: Derivation[T], prefix: String): String = {
-    d.shortId + prefix + " [" + StoredProvenances(d.derivationId).statusString + "] " + d.description
+  def printTree[T](d: Recipe[T], prefix: String): String = {
+    d.shortId + prefix + " [" + StoredProvenances(d.recipeId).statusString + "] " + d.description
   }
 
-  def printTree[A, T](d: DerivableDerivation[T], prefix: String): String = {
-    printTree(d.asInstanceOf[Derivation[T]], prefix) + "\n" + d.dependencies.map(printTree(_, prefix + WorldMakeConfig.prefixIncrement)).mkString("\n")
+  def printTree[A, T](d: DerivableRecipe[T], prefix: String): String = {
+    printTree(d.asInstanceOf[Recipe[T]], prefix) + "\n" + d.dependencies.map(printTree(_, prefix + WorldMakeConfig.prefixIncrement)).mkString("\n")
   }
 
-  def statusLine[T](d: Derivation[T]) = f"${d.shortId}%8s [ ${StoredProvenances(d.derivationId).statusString}%22s ] ${d.summary}%40s : ${d.description}%-40s"
+  def statusLine[T](d: Recipe[T]) = f"${d.shortId}%8s [ ${StoredProvenances(d.recipeId).statusString}%22s ] ${d.summary}%40s : ${d.description}%-40s"
 
 
 }

@@ -13,7 +13,7 @@ import com.typesafe.scalalogging.slf4j.Logging
 trait Provenance[+T] {
   def provenanceId: Identifier[Provenance[T]]
 
-  def derivationId: Identifier[Derivation[T]]
+  def recipeId: Identifier[Recipe[T]]
 
   //def output: Option[Artifact[T]]
 
@@ -49,7 +49,7 @@ object ConstantProvenance {
 // aka Input
 trait ConstantProvenance[T] extends Successful[T] {
   def createdTime: DateTime
-  def derivationId = Identifier[Derivation[T]](provenanceId.s)
+  def recipeId = Identifier[Recipe[T]](provenanceId.s)
 }
 
 private class MemoryConstantProvenance[T](val output: Artifact[T]) extends ConstantProvenance[T] {
@@ -65,7 +65,7 @@ sealed trait DerivedProvenance[T] extends Provenance[T]
 trait BlockedProvenance[T] extends DerivedProvenance[T] {
   def createdTime: DateTime
 
-  def pending(derivedFromUnnamed: GenSet[Successful[_]],derivedFromNamed: GenMap[String, Successful[_]]): PendingProvenance[T] = MemoryPendingProvenance(provenanceId, derivationId, derivedFromUnnamed, derivedFromNamed, createdTime) tap Storage.provenanceStore.put
+  def pending(derivedFromUnnamed: GenSet[Successful[_]],derivedFromNamed: GenMap[String, Successful[_]]): PendingProvenance[T] = MemoryPendingProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime) tap Storage.provenanceStore.put
 }
 
 // aka Enqueued
@@ -78,7 +78,7 @@ trait PendingProvenance[T] extends DerivedProvenance[T] {
 
   def derivedFromNamed: GenMap[String, Successful[_]]
 
-  def running(runningInfo: RunningInfo): RunningProvenance[T] = MemoryRunningProvenance(provenanceId, derivationId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, DateTime.now(), runningInfo) tap Storage.provenanceStore.put
+  def running(runningInfo: RunningInfo): RunningProvenance[T] = MemoryRunningProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, DateTime.now(), runningInfo) tap Storage.provenanceStore.put
 }
 
 trait RunningProvenance[T] extends DerivedProvenance[T] {
@@ -95,13 +95,13 @@ trait RunningProvenance[T] extends DerivedProvenance[T] {
   def runningInfo: RunningInfo
 
   def failed(exitCode: Int, log: Option[ReadableStringOrFile], cost: Map[CostType.CostType, Double]): FailedProvenance[T] =
-    MemoryFailedProvenance(provenanceId, derivationId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost) tap Storage.provenanceStore.put
+    MemoryFailedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost) tap Storage.provenanceStore.put
 
   def cancelled(exitCode: Int, log: Option[ReadableStringOrFile], cost: Map[CostType.CostType, Double]): CancelledProvenance[T] =
-    MemoryCancelledProvenance(provenanceId, derivationId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost) tap Storage.provenanceStore.put
+    MemoryCancelledProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost) tap Storage.provenanceStore.put
 
   def completed(exitCode: Int, log: Option[ReadableStringOrFile], cost: Map[CostType.CostType, Double], output: Artifact[T]): CompletedProvenance[T] =
-    MemoryCompletedProvenance(provenanceId, derivationId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost, output) tap Storage.provenanceStore.put
+    MemoryCompletedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost, output) tap Storage.provenanceStore.put
 }
 
 trait PostRunProvenance[T] extends DerivedProvenance[T] {
@@ -138,10 +138,10 @@ trait CompletedProvenance[T] extends PostRunProvenance[T] with Successful[T]
 object BlockedProvenance {
   // calling this repeatedly with the same ID just overwrites the DB record
   def apply[T](provenanceId: Identifier[Provenance[T]],
-               derivationId: Identifier[Derivation[T]],
+               recipeId: Identifier[Recipe[T]],
                enqueueTime: DateTime = DateTime.now()
                 ): BlockedProvenance[T] = {
-    new MemoryBlockedProvenance[T](provenanceId, derivationId, enqueueTime) tap Storage.provenanceStore.put
+    new MemoryBlockedProvenance[T](provenanceId, recipeId, enqueueTime) tap Storage.provenanceStore.put
   }
 }
 
@@ -287,12 +287,12 @@ class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1
 
 
 case class MemoryBlockedProvenance[T](provenanceId: Identifier[Provenance[T]],
-                                      derivationId: Identifier[Derivation[T]],
+                                      recipeId: Identifier[Recipe[T]],
                                       createdTime: DateTime = DateTime.now()
                                        ) extends BlockedProvenance[T]
 
 case class MemoryPendingProvenance[T](provenanceId: Identifier[Provenance[T]],
-                                      derivationId: Identifier[Derivation[T]],
+                                      recipeId: Identifier[Recipe[T]],
                                       derivedFromUnnamed: GenSet[Successful[_]],
                                       derivedFromNamed: GenMap[String, Successful[_]],
                                       createdTime: DateTime,
@@ -300,7 +300,7 @@ case class MemoryPendingProvenance[T](provenanceId: Identifier[Provenance[T]],
                                        ) extends PendingProvenance[T]
 
 case class MemoryRunningProvenance[T](provenanceId: Identifier[Provenance[T]],
-                                      derivationId: Identifier[Derivation[T]], 
+                                      recipeId: Identifier[Recipe[T]], 
                                       derivedFromUnnamed: GenSet[Successful[_]],
                                       derivedFromNamed: GenMap[String, Successful[_]],
                                       createdTime: DateTime,
@@ -310,7 +310,7 @@ case class MemoryRunningProvenance[T](provenanceId: Identifier[Provenance[T]],
 
 
 case class MemoryFailedProvenance[T](provenanceId: Identifier[Provenance[T]],
-                                     derivationId: Identifier[Derivation[T]],
+                                     recipeId: Identifier[Recipe[T]],
                                      derivedFromUnnamed: GenSet[Successful[_]],
                                      derivedFromNamed: GenMap[String, Successful[_]],
                                      createdTime: DateTime,
@@ -324,7 +324,7 @@ case class MemoryFailedProvenance[T](provenanceId: Identifier[Provenance[T]],
                                       ) extends FailedProvenance[T]
 
 case class MemoryCancelledProvenance[T](provenanceId: Identifier[Provenance[T]],
-                                        derivationId: Identifier[Derivation[T]],
+                                        recipeId: Identifier[Recipe[T]],
                                         derivedFromUnnamed: GenSet[Successful[_]],
                                         derivedFromNamed: GenMap[String, Successful[_]],
                                         createdTime: DateTime,
@@ -339,7 +339,7 @@ case class MemoryCancelledProvenance[T](provenanceId: Identifier[Provenance[T]],
 
 
 case class MemoryCompletedProvenance[T](provenanceId: Identifier[Provenance[T]],
-                                        derivationId: Identifier[Derivation[T]], 
+                                        recipeId: Identifier[Recipe[T]], 
                                         derivedFromUnnamed: GenSet[Successful[_]],
                                         derivedFromNamed: GenMap[String, Successful[_]],
                                         createdTime: DateTime,

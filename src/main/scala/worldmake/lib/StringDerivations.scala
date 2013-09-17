@@ -10,16 +10,16 @@ import scala.concurrent.{ExecutionContext, Future}
 
 import ExecutionContext.Implicits.global
 import com.typesafe.scalalogging.slf4j.Logging
-import worldmake.derivationstrategy.FutureDerivationStrategy
+import worldmake.cookingstrategy.CookingStrategy
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
-class StringInterpolationDerivation(sc: StringContext, args: Seq[Derivation[Any]]) extends DerivableDerivation[String] with Logging {
+class StringInterpolationRecipe(sc: StringContext, args: Seq[Recipe[Any]]) extends DerivableRecipe[String] with Logging {
 
-  def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) = {
-    val pr = BlockedProvenance(Identifier[Provenance[String]](UUID.randomUUID().toString), derivationId)
-    val resolvedProvenancesF: Future[Seq[Successful[Any]]] = Future.sequence(args.map(upstreamStrategy.resolveOne))
+  def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
+    val pr = BlockedProvenance(Identifier[Provenance[String]](UUID.randomUUID().toString), recipeId)
+    val resolvedProvenancesF: Future[Seq[Successful[Any]]] = Future.sequence(args.map(upstreamStrategy.cookOne))
     val result = for (resolvedProvenances <- resolvedProvenancesF
     ) yield deriveWithArgs(pr.pending(resolvedProvenances.toSet, Map.empty), resolvedProvenances)
     result
@@ -41,15 +41,15 @@ class StringInterpolationDerivation(sc: StringContext, args: Seq[Derivation[Any]
     catch {
       case t: Throwable => {
         val prf = prs.failed(1, None, Map.empty)
-        logger.debug("Error in StringInterpolationDerivation: ", t) // todo better log message
-        throw FailedDerivationException("Failed StringInterpolationDerivation", prf, t)
+        logger.debug("Error in StringInterpolationRecipe: ", t) // todo better log message
+        throw FailedRecipeException("Failed StringInterpolationRecipe", prf, t)
       }
     }
   }
 
   private val template: String = sc.parts.mkString("???").stripMargin.maskNewlines
 
-  def derivationId = Identifier[Derivation[String]](WMHashHex(template + args.map(_.derivationId).mkString))
+  def recipeId = Identifier[Recipe[String]](WMHashHex(template + args.map(_.recipeId).mkString))
 
   def description = {
     val argIds = args.map(x => "${" + x.shortDesc + "}")
@@ -62,15 +62,15 @@ class StringInterpolationDerivation(sc: StringContext, args: Seq[Derivation[Any]
   def dependencies = args.toSet
 }
 
-object StringInterpolationDerivation {
+object StringInterpolationRecipe {
 
   // Note: We extends AnyVal to prevent runtime instantiation.  See 
   // value class guide for more info.
-  implicit class StringInterpolationDerivationHelper(val sc: StringContext) extends AnyVal {
-    def ds(args: Derivation[_]*): Derivation[String] = new StringInterpolationDerivation(sc, args)
+  implicit class StringInterpolationRecipeHelper(val sc: StringContext) extends AnyVal {
+    def ds(args: Recipe[_]*): Recipe[String] = new StringInterpolationRecipe(sc, args)
 
     // this builds the script as a String derivation first, and then runs it-- as opposed to the raw SystemDerivation where dependencies are passed as environment variables.
-    def sys(args: Derivation[_]*): Derivation[Path] = new SystemDerivation(new StringInterpolationDerivation(sc, args), Map.empty)
+    def sys(args: Recipe[_]*): Recipe[Path] = new SystemRecipe(new StringInterpolationRecipe(sc, args), Map.empty)
   }
 
 }

@@ -6,7 +6,7 @@ import scala.sys.process._
 import com.typesafe.scalalogging.slf4j.Logging
 import worldmake._
 
-import ConstantDerivation._
+import ConstantRecipe._
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
@@ -28,18 +28,18 @@ object MercurialWorkspaces extends VcsWorkspaces with Logging {
     p
   }
 
-  def get(id: String, requestVersion: String = "latest"): Derivation[Path] = {
+  def get(id: String, requestVersion: String = "latest"): Recipe[Path] = {
     val version = requestVersion match {
       case "latest" => getLatestVersions(id)("default")
       case v => v
     }
-    val args = Map[String, Derivation[_]](
+    val args = Map[String, Recipe[_]](
       "localrepo" ->toLocalRepo(id),
       "version" -> version)
 
-    val scriptDerivation : Derivation[String] ="""mkdir -p $out && cd $out && hg archive -R $localrepo -r $version ."""
+    val scriptRecipe : Recipe[String] ="""mkdir -p $out && cd $out && hg archive -R $localrepo -r $version ."""
     
-    new SystemDerivation(scriptDerivation, args)
+    new SystemRecipe(scriptRecipe, args)
   }
 
   private val hgBranchesToChangesetNumber = """(\S+)\s*(\d+):(\S*)( \(.*\))?""".r

@@ -4,6 +4,8 @@ A DerivationStrategy produces provenances from derivations.  It may or may not c
 
 
 
+Derivations should always be specified with def.  They may get created redundantly, but that doesn't matter; when they are resolved, they'll return the same cached result anyway.  Using only defs avoids any confusion about overrides and initialization order.
+
 
 Path Types
 ==========

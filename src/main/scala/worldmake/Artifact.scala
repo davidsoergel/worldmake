@@ -114,6 +114,26 @@ class MemoryStringArtifact(s: String) extends MemoryArtifact[String](s) with Str
 }
 
 
+object BooleanArtifact {
+  def apply(s: Boolean) = new MemoryBooleanArtifact(s) //tap Storage.provenanceStore.put
+}
+
+trait BooleanArtifact extends Artifact[Boolean] {
+  def description = value.toString
+
+  //def resultType = "Int"
+  override def constantId = Identifier[Artifact[Boolean]](WMHashHex("Boolean(" + value.toString + ")")) //perf
+
+  override def environmentString: String = value.toString
+}
+
+class MemoryBooleanArtifact(s: Boolean) extends MemoryArtifact[Boolean](s) with BooleanArtifact with ContentHashableArtifact[Boolean] {
+  //def contentHashBytes = WMHash(s.toString)
+  def output: Option[Artifact[Boolean]] = Some(this)
+}
+
+
+
 object IntArtifact {
   def apply(s: Int) = new MemoryIntArtifact(s) //tap Storage.provenanceStore.put
 }
@@ -235,10 +255,10 @@ class MemoryPathArtifact(path: Path) extends MemoryArtifact[Path](path) with Pat
 trait TypedPathCompanion {
   def mapper : Path=>TypedPath
 
-  private def wrapper[T<:TypedPath:ClassManifest]: (Derivation[Path]) => TypedPathDerivation[T] = DerivationWrapper.wrapDerivation[T](p=>mapper(p).asInstanceOf[T])
+  private def wrapper[T<:TypedPath:ClassManifest]: (Recipe[Path]) => TypedPathRecipe[T] = RecipeWrapper.wrapRecipe[T](p=>mapper(p).asInstanceOf[T])
 
   //implicit
-  def wrapDerivation[T<: TypedPath:ClassManifest](d: Derivation[Path]): TypedPathDerivation[T] = {
+  def wrapRecipe[T<: TypedPath:ClassManifest](d: Recipe[Path]): TypedPathRecipe[T] = {
     val w = wrapper[T]
     w(d)
   }

@@ -13,7 +13,7 @@ import worldmake.storage.{FileStore, StorageSetter}
 
 import scala.concurrent.{Await, ExecutionContext}
 import ExecutionContext.Implicits.global
-import worldmake.derivationstrategy._
+import worldmake.cookingstrategy._
 import worldmake.executionstrategy.{LocalExecutionStrategy, DetectQsubPollingAction, QsubExecutionStrategy}
 import scala.util.Failure
 import scala.util.Success
@@ -29,22 +29,22 @@ object WorldMake extends Logging {
 
   val notifiersForShutdown: mutable.Set[Notifier] = new mutable.HashSet[Notifier]()
 
-  def getStrategy(withNotifiers: Boolean): LifecycleAwareFutureDerivationStrategy = {
+  def getStrategy(withNotifiers: Boolean): LifecycleAwareCookingStrategy = {
 
-    val strategy: LifecycleAwareFutureDerivationStrategy = WorldMakeConfig.executor match {
+    val strategy: LifecycleAwareCookingStrategy = WorldMakeConfig.executor match {
       case "local" => {
         val notifier = new PollingNotifier(Seq(DetectSuccessPollingAction, DetectFailedPollingAction))
         notifiersForShutdown += notifier
-        new LifecycleAwareFutureDerivationStrategy {
-          lazy val fallback = new ComputeFutureDerivationStrategy(this, LocalExecutionStrategy)
+        new LifecycleAwareCookingStrategy {
+          lazy val fallback = new ComputeNowCookingStrategy(this, LocalExecutionStrategy)
           val tracker = new LifecycleTracker(notifier)
         }
       }
       case "qsub" => {
         val notifier = new PollingNotifier(Seq(DetectSuccessPollingAction, DetectFailedPollingAction, DetectQsubPollingAction))
         notifiersForShutdown += notifier
-        new LifecycleAwareFutureDerivationStrategy {
-          lazy val fallback = new ComputeFutureDerivationStrategy(this, new QsubExecutionStrategy(notifier))
+        new LifecycleAwareCookingStrategy {
+          lazy val fallback = new ComputeNowCookingStrategy(this, new QsubExecutionStrategy(notifier))
           val tracker = new LifecycleTracker(notifier)
         }
       }
@@ -75,8 +75,8 @@ object WorldMake extends Logging {
 
           //val derivationId = symbolTable.getProperty(target) 
           //val derivationArtifact = Storage.artifactStore.get(derivationId)
-          val derivation: Derivation[_] = world(target)
-          val result = strategy.resolveOne(derivation)
+          val recipe: Recipe[_] = world(target)
+          val result = strategy.cookOne(recipe)
           result onComplete {
             case Success(x) => {
               logger.info("Done: " + x.provenanceId)
@@ -96,16 +96,16 @@ object WorldMake extends Logging {
           val strategy = getStrategy(withNotifiers = false)
           //val derivationId = symbolTable.getProperty(target) 
           //val derivationArtifact = Storage.artifactStore.get(derivationId)
-          val derivation: Derivation[_] = world(target)
-          logger.info(strategy.tracker.printTree(derivation, ""))
+          val recipe: Recipe[_] = world(target)
+          logger.info(strategy.tracker.printTree(recipe, ""))
         }
         case "showqueue" => {
           val target = args(1)
           val strategy = getStrategy(withNotifiers = false)
           //val derivationId = symbolTable.getProperty(target) 
           //val derivationArtifact = Storage.artifactStore.get(derivationId)
-          val derivation: Derivation[_] = world(target)
-          logger.info("\n" + derivation.queue.filterNot(_.isInstanceOf[ConstantDerivation[Any]]).map(x => strategy.tracker.statusLine(x)).mkString("\n"))
+          val recipe: Recipe[_] = world(target)
+          logger.info("\n" + recipe.queue.filterNot(_.isInstanceOf[ConstantRecipe[Any]]).map(x => strategy.tracker.statusLine(x)).mkString("\n"))
 
           //logger.info("\n"+derivation.queue.map(x=>strategy.statusLine(x)).mkString("\n")) 
 
@@ -124,7 +124,7 @@ object WorldMake extends Logging {
       0
     }
     catch {
-      case e: FailedDerivationException => {
+      case e: FailedRecipeException => {
         logger.error("FAILED: ", e)
         1
       }

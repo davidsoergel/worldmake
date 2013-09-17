@@ -8,7 +8,7 @@ import worldmake.storage.Identifier
 import ExecutionContext.Implicits.global
 import scalax.file.defaultfs.DefaultPath
 import com.typesafe.scalalogging.slf4j.Logging
-import worldmake.derivationstrategy.FutureDerivationStrategy
+import worldmake.cookingstrategy.CookingStrategy
 import scalax.file.PathMatcher
 
 /**
@@ -58,7 +58,7 @@ object BasicTextFile extends TypedPathCompanion{
 
   def mapper = (p:Path) => new BasicTextFile(p)
 
-  implicit def wrapDerivation(d: Derivation[Path]): TypedPathDerivation[BasicTextFile] = super.wrapDerivation(d)
+  implicit def wrapRecipe(d: Recipe[Path]): TypedPathRecipe[BasicTextFile] = super.wrapRecipe(d)
 }
 
 class BasicTextFile(path: Path) extends TextFile(path) with Logging {
@@ -69,11 +69,11 @@ abstract class CsvFile(p: Path) extends TextFile(p)
 
 abstract class TsvFile(p: Path) extends TextFile(p)
 
-trait TypedPathDerivation[+T <: TypedPath] extends Derivation[T] {
-  def toPathDerivation: Derivation[Path]
+trait TypedPathRecipe[+T <: TypedPath] extends Recipe[T] {
+  def toPathRecipe: Recipe[Path]
 }
 
-object DerivationWrapper extends Logging {
+object RecipeWrapper extends Logging {
   
   /*
   def pathFromString(ds:Derivation[String]):Derivation[Path] = new DerivableDerivation[Path]() {
@@ -110,20 +110,20 @@ object DerivationWrapper extends Logging {
 
   private val namedPathFromString: IdentifiableFunction1[String, Path] = NamedFunction[String, Path]("pathFromString")((x: String) => Path.fromString(x))
 
-  def pathFromString(ds:Derivation[String]):Derivation[Path] = new Derivation1(namedPathFromString,ds)
+  def pathFromString(ds:Recipe[String]):Recipe[Path] = new Recipe1(namedPathFromString,ds)
   
-  def wrapDerivation[T <: TypedPath:ClassManifest](f: Path => T)(d: Derivation[Path]): TypedPathDerivation[T] = {
-    new TypedPathDerivation[T] {
-      def toPathDerivation = d
+  def wrapRecipe[T <: TypedPath:ClassManifest](f: Path => T)(d: Recipe[Path]): TypedPathRecipe[T] = {
+    new TypedPathRecipe[T] {
+      def toPathRecipe = d
       private def pathType = classManifest[T].toString
-      def derivationId = new Identifier(pathType+":"+d.derivationId.s)
+      def recipeId = new Identifier(pathType+":"+d.recipeId.s)
 
       def description = d.description
       override def summary = d.summary
       override def setProvidedSummary(s:String) { d.setProvidedSummary(s) }
 
-      def deriveFuture(implicit upstreamStrategy: FutureDerivationStrategy) : Future[Successful[T]] = {
-        val pf = upstreamStrategy.resolveOne(d)
+      def deriveFuture(implicit upstreamStrategy: CookingStrategy) : Future[Successful[T]] = {
+        val pf = upstreamStrategy.cookOne(d)
         val result = pf.map(p => wrapProvenance(p))
         result onFailure  {
           case t => {
@@ -142,7 +142,7 @@ object DerivationWrapper extends Logging {
           
           // this Artifact must act like an ExternalPathArtifact, though it can't literally be one because TypedFile does not extend Path
           def output = new TypedPathArtifact(p,f)
-          def derivationId = new Identifier[Derivation[T]](d.derivationId.s)
+          def recipeId = new Identifier[Recipe[T]](d.recipeId.s)
 
           def provenanceId = new Identifier(p.provenanceId.s)
         }
