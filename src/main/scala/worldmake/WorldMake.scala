@@ -33,19 +33,26 @@ object WorldMake extends Logging {
 
     val strategy: LifecycleAwareCookingStrategy = WorldMakeConfig.executor match {
       case "local" => {
-        val notifier = new PollingNotifier(Seq(DetectSuccessPollingAction, DetectFailedPollingAction))
-        notifiersForShutdown += notifier
+        val notifierOpt = if (withNotifiers) {
+          val notifier = new PollingNotifier(Seq(DetectSuccessPollingAction, DetectFailedPollingAction))
+          notifiersForShutdown += notifier
+          Some(notifier)
+        } else None
         new LifecycleAwareCookingStrategy {
           lazy val fallback = new ComputeNowCookingStrategy(this, LocalExecutionStrategy)
-          val tracker = new LifecycleTracker(if(withNotifiers) Some(notifier) else None)
+          val tracker = new LifecycleTracker(notifierOpt)
         }
       }
       case "qsub" => {
-        val notifier = new PollingNotifier(Seq(DetectSuccessPollingAction, DetectFailedPollingAction, DetectQsubPollingAction))
-        notifiersForShutdown += notifier
+        val notifierOpt = if (withNotifiers) {
+          val notifier = new PollingNotifier(Seq(DetectSuccessPollingAction, DetectFailedPollingAction, DetectQsubPollingAction))
+          notifiersForShutdown += notifier
+          Some(notifier)
+        } else None
+        
         new LifecycleAwareCookingStrategy {
-          lazy val fallback = new ComputeNowCookingStrategy(this, new QsubExecutionStrategy(notifier))
-          val tracker = new LifecycleTracker(if(withNotifiers) Some(notifier) else None)
+          lazy val fallback = notifierOpt.map(notifier => new ComputeNowCookingStrategy(this, new QsubExecutionStrategy(notifier)).getOrElse(NotAvailableCookingStrategy)
+          val tracker = new LifecycleTracker(notifierOpt)
         }
       }
     }
@@ -170,6 +177,7 @@ object WorldMakeConfig {
 
   // a scratch directory available from all grid nodes
   def qsubGlobalTempDir: String = conf.getString("qsubGlobalTempDir")
+
   def localTempDir: String = conf.getString("localTempDir")
 
   val fileStore = new FileStore(Path.fromString(conf.getString("filestore")))
