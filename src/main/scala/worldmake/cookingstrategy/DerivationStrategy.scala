@@ -38,7 +38,7 @@ trait LocalDerivationStrategy extends DerivationStrategy {
 }
 */
 
-class NotAvailableCookingStrategy extends CookingStrategy {
+object NotAvailableCookingStrategy extends CookingStrategy {
   def cookOne[T](d: Recipe[T]) = throw new CookingException("Recipes cannot be cooked in this configuration")
 
   def systemExecution = throw new CookingException("Recipes cannot be cooked in this configuration")

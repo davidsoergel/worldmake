@@ -51,7 +51,7 @@ object WorldMake extends Logging {
         } else None
         
         new LifecycleAwareCookingStrategy {
-          lazy val fallback = notifierOpt.map(notifier => new ComputeNowCookingStrategy(this, new QsubExecutionStrategy(notifier)).getOrElse(NotAvailableCookingStrategy)
+          lazy val fallback = notifierOpt.map(notifier => new ComputeNowCookingStrategy(this, new QsubExecutionStrategy(notifier))).getOrElse(NotAvailableCookingStrategy)
           val tracker = new LifecycleTracker(notifierOpt)
         }
       }
