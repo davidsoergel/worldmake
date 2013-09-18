@@ -30,6 +30,7 @@ object MongoArtifact {
     dbo("type") match {
       case MongoStringArtifact.typehint => new MongoStringArtifact(dbo).some
       case MongoIntArtifact.typehint => new MongoIntArtifact(dbo).some
+      case MongoBooleanArtifact.typehint => new MongoBooleanArtifact(dbo).some
       case MongoDoubleArtifact.typehint => new MongoDoubleArtifact(dbo).some
       case MongoPathArtifact.typehint => new MongoPathArtifact(dbo).some
       case MongoGenTraversableArtifact.typehint => new MongoGenTraversableArtifact(dbo).some
@@ -40,6 +41,7 @@ object MongoArtifact {
   def artifactToDb(e: Artifact[_]): MongoWrapper = e match {
     case e: StringArtifact => MongoStringArtifact.toDb(e)
     case e: IntArtifact => MongoIntArtifact.toDb(e)
+    case e: BooleanArtifact => MongoBooleanArtifact.toDb(e)
     case e: DoubleArtifact => MongoDoubleArtifact.toDb(e)
     case e: PathArtifact => MongoPathArtifact.toDb(e)
     case e: TypedPathArtifact[_] => MongoPathArtifact.toDb(e.asPathArtifact)  // stored without the typing info.  This will be re-wrapped every time it is loaded.  Careful about redundant verification.
@@ -74,7 +76,17 @@ class MongoIntArtifact(val dbo: MongoDBObject) extends MongoArtifact[Int] with I
   override def value = dbo.as[Int]("value")
 
 }
+object MongoBooleanArtifact extends MongoSerializer[BooleanArtifact, MongoBooleanArtifact]("b", new MongoBooleanArtifact(_)) {
+  def addFields(e: BooleanArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
+    MongoArtifact.addFields(e, builder)
+    builder += "value" -> e.value
+  }
+}
 
+class MongoBooleanArtifact(val dbo: MongoDBObject) extends MongoArtifact[Boolean] with BooleanArtifact with MongoWrapper {
+  override def value = dbo.as[Boolean]("value")
+
+}
 
 object MongoDoubleArtifact extends MongoSerializer[DoubleArtifact, MongoDoubleArtifact]("d", new MongoDoubleArtifact(_)) {
   def addFields(e: DoubleArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
