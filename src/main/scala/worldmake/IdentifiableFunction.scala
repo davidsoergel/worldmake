@@ -44,6 +44,7 @@ trait ContentHashableArtifact[T] extends Artifact[T] {
     case h: Hashable => h.contentHashBytes
     case i: Int => WMHash(i.toString)
     case d: Double => WMHash(d.toString)
+    case d: Boolean => WMHash(d.toString)
     case s: String => WMHash(s)
   }
 }
