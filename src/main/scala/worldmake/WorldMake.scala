@@ -37,7 +37,7 @@ object WorldMake extends Logging {
         notifiersForShutdown += notifier
         new LifecycleAwareCookingStrategy {
           lazy val fallback = new ComputeNowCookingStrategy(this, LocalExecutionStrategy)
-          val tracker = new LifecycleTracker(notifier)
+          val tracker = new LifecycleTracker(if(withNotifiers) Some(notifier) else None)
         }
       }
       case "qsub" => {
@@ -45,7 +45,7 @@ object WorldMake extends Logging {
         notifiersForShutdown += notifier
         new LifecycleAwareCookingStrategy {
           lazy val fallback = new ComputeNowCookingStrategy(this, new QsubExecutionStrategy(notifier))
-          val tracker = new LifecycleTracker(notifier)
+          val tracker = new LifecycleTracker(if(withNotifiers) Some(notifier) else None)
         }
       }
     }

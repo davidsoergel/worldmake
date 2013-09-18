@@ -8,7 +8,6 @@ import scala.collection.immutable.Queue
 import scala.concurrent._
 import com.typesafe.scalalogging.slf4j.Logging
 import worldmake.cookingstrategy.CookingStrategy
-import worldmake.GenTraversableArtifact
 
 //import java.lang.ProcessBuilder.Redirect
 

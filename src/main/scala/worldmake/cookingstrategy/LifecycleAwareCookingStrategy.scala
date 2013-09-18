@@ -36,7 +36,7 @@ trait LifecycleAwareCookingStrategy extends FallbackCookingStrategy {
   }
 }
 
-class LifecycleTracker(notifier: Notifier) extends Logging {
+class LifecycleTracker(notifierOpt: Option[Notifier]) extends Logging {
 
   //def put(id: Identifier[Derivation[_]], f: Future[Successful[_]])
   //def getAs[T](id: Identifier[Derivation[T]]): Option[Future[Successful[T]]]
@@ -54,7 +54,7 @@ class LifecycleTracker(notifier: Notifier) extends Logging {
       if (rr.size > 1) {
         logger.warn(rr.size + " running jobs for Recipe " + id + "!")
       }
-      rr.headOption.map(_ => notifier.request(id))
+      rr.headOption.map(_ => notifierOpt.get.request(id))  // todo get suggests refactor
     }
 
     def getPotentialSuccessesAs: Option[Future[Successful[T]]] = {
@@ -62,7 +62,7 @@ class LifecycleTracker(notifier: Notifier) extends Logging {
       if (rr.size > 1) {
         logger.warn(rr.size + " potentially successful jobs for Recipe " + id + "!")
       }
-      rr.headOption.map(_ => notifier.request(id))
+      rr.headOption.map(_ => notifierOpt.get.request(id))
     }
 
   }
