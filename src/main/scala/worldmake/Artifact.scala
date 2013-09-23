@@ -35,6 +35,8 @@ trait ContentHashableArtifact[T <: Hashable] extends Artifact[T] {
 */
 
 trait Artifact[+T] extends Hashable {
+  def infoBlock: String
+
   //def artifactId: Identifier[Artifact[T]]
   
   //def resultType : String // redundant with type parameter :(
@@ -105,6 +107,8 @@ trait StringArtifact extends Artifact[String] {
 
   override def environmentString: String = value.toString
   //def resultType = "String"
+
+  def infoBlock = s"Value : ${value} \n"
 }
 
 class MemoryStringArtifact(s: String) extends MemoryArtifact[String](s) with StringArtifact with ContentHashableArtifact[String] {
@@ -125,6 +129,8 @@ trait BooleanArtifact extends Artifact[Boolean] {
   override def constantId = Identifier[Artifact[Boolean]](WMHashHex("Boolean(" + value.toString + ")")) //perf
 
   override def environmentString: String = value.toString
+
+  def infoBlock = s"Value : ${value} \n"
 }
 
 class MemoryBooleanArtifact(s: Boolean) extends MemoryArtifact[Boolean](s) with BooleanArtifact with ContentHashableArtifact[Boolean] {
@@ -145,6 +151,7 @@ trait IntArtifact extends Artifact[Int] {
   override def constantId = Identifier[Artifact[Int]](WMHashHex("Int(" + value.toString + ")")) //perf
 
   override def environmentString: String = value.toString
+  def infoBlock = s"Value : ${value} \n"
 }
 
 class MemoryIntArtifact(s: Int) extends MemoryArtifact[Int](s) with IntArtifact with ContentHashableArtifact[Int] {
@@ -163,6 +170,7 @@ trait DoubleArtifact extends Artifact[Double] {
 
   override def constantId = Identifier[Artifact[Double]]("Double(" + value.toString + ")")
   override def environmentString: String = value.toString
+  def infoBlock = s"Value : ${value} \n"
 }
 
 class MemoryDoubleArtifact(s: Double) extends MemoryArtifact[Double](s) with DoubleArtifact with ContentHashableArtifact[Double] {
@@ -193,6 +201,8 @@ trait PathArtifact extends Artifact[Path] {
   // Navigating inside an artifact is a derivation; it shouldn't be possible to do it in the raw sense
   // def /(s: String): ExternalPathArtifact = value / s
   override def environmentString = abspath
+
+  def infoBlock = s"Value : ${abspath} \n"
 }
 
 /*
@@ -310,6 +320,9 @@ trait GenTraversableArtifact[T] extends Artifact[GenTraversable[Artifact[T]]] {
   //lazy val value = artifacts.map(_.value)
 
 
+  // ugly
+  def infoBlock = s"Value : ${value.map(_.infoBlock).mkString("\n")} \n"
+  
   override def environmentString = value.map(_.environmentString).mkString(" ")
 }
 
@@ -317,6 +330,7 @@ class MemoryGenTraversableArtifact[T](val value: GenTraversable[Artifact[T]]) ex
   //def provenanceId = Identifier[Artifact[Traversable[T]]](UUID.randomUUID().toString)
 
   def contentHashBytes = WMHash(value.toSeq.flatMap(_.contentHash).mkString(""))
+
 
   //override def environmentString = value.map(_.environmentString).mkString(" ")
   //def resultType = GenTraversableArtifact.resultType

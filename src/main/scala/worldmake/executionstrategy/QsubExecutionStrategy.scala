@@ -25,7 +25,12 @@ trait QsubRunningInfo extends RunningInfo {
   def workingDir: Path
 
   def outputPath: Path
-  
+
+  def infoBlock : String = s"""
+  |     qsub ID: + ${jobId}"
+  | Working Dir: + ${workingDir}"
+  | Output Path: + ${outputPath}"
+  | """.stripMargin
   //def requestedType: String
 }
 

@@ -19,7 +19,7 @@ trait World extends (String=>Recipe[_]) {
  * @param targets
  */
 class ConcreteWorld (targets: Map[String, Recipe[_]] ) extends World {
-  def apply(name:String) = targets(name)
+  def apply(name:String) = targets(name) //.getOrElse(Storage.pr)
   def get(name:String) = targets.get(name)
 }
 

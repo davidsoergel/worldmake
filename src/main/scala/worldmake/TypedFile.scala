@@ -139,7 +139,7 @@ object RecipeWrapper extends Logging {
       
       private def wrapProvenance(p:Successful[Path]) = {
         new Provenance[T] with Successful[T] {
-          
+          def createdTime = p.createdTime
           // this Artifact must act like an ExternalPathArtifact, though it can't literally be one because TypedFile does not extend Path
           def output = new TypedPathArtifact(p,f)
           def recipeId = new Identifier[Recipe[T]](d.recipeId.s)
@@ -164,6 +164,8 @@ def contentHashBytes = p.output.contentHashBytes
     result.validate()
     result
   }
+
+  override def infoBlock : String = p.infoBlock
 
   //def description = p.output.value.toAbsolute.path
 

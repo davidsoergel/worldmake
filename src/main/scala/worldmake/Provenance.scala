@@ -11,6 +11,10 @@ import com.typesafe.scalalogging.slf4j.Logging
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 trait Provenance[+T] {
+  def createdTime: DateTime
+
+  def modifiedTime: DateTime = createdTime
+  
   def provenanceId: Identifier[Provenance[T]]
 
   def recipeId: Identifier[Recipe[T]]
@@ -28,10 +32,16 @@ trait Provenance[+T] {
   def canEqual(other: Any): Boolean = other.isInstanceOf[Provenance[T]]
 
   override def hashCode: Int = (41 + provenanceId.hashCode)
+  
+  def infoBlock : String = s"""
+  |     ID: ${provenanceId}
+  |Created: ${createdTime}
+  """.stripMargin
 }
 
 trait Successful[+T] extends Provenance[T] {
   def output: Artifact[T]
+  override def infoBlock : String = super.infoBlock + output.infoBlock
 }
 
 
@@ -48,7 +58,7 @@ object ConstantProvenance {
 
 // aka Input
 trait ConstantProvenance[T] extends Successful[T] {
-  def createdTime: DateTime
+  //def createdTime: DateTime
   def recipeId = Identifier[Recipe[T]](provenanceId.s)
 }
 
@@ -63,16 +73,18 @@ sealed trait DerivedProvenance[T] extends Provenance[T]
 // enforce lifecycle state machine with types
 
 trait BlockedProvenance[T] extends DerivedProvenance[T] {
-  def createdTime: DateTime
+  //def createdTime: DateTime
 
   def pending(derivedFromUnnamed: GenSet[Successful[_]],derivedFromNamed: GenMap[String, Successful[_]]): PendingProvenance[T] = MemoryPendingProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime) tap Storage.provenanceStore.put
 }
 
 // aka Enqueued
 trait PendingProvenance[T] extends DerivedProvenance[T] {
-  def createdTime: DateTime
+  //def createdTime: DateTime
 
   def enqueuedTime: DateTime
+
+  override def modifiedTime: DateTime = enqueuedTime
 
   def derivedFromUnnamed: GenSet[Successful[_]]
 
@@ -82,7 +94,7 @@ trait PendingProvenance[T] extends DerivedProvenance[T] {
 }
 
 trait RunningProvenance[T] extends DerivedProvenance[T] {
-  def createdTime: DateTime
+  //def createdTime: DateTime
 
   def enqueuedTime: DateTime
 
@@ -92,7 +104,11 @@ trait RunningProvenance[T] extends DerivedProvenance[T] {
 
   def startTime: DateTime
 
+  override def modifiedTime: DateTime = startTime
+
   def runningInfo: RunningInfo
+
+  override def infoBlock : String = super.infoBlock + runningInfo.infoBlock
 
   def failed(exitCode: Int, log: Option[ReadableStringOrFile], cost: Map[CostType.CostType, Double]): FailedProvenance[T] =
     MemoryFailedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost) tap Storage.provenanceStore.put
@@ -105,7 +121,7 @@ trait RunningProvenance[T] extends DerivedProvenance[T] {
 }
 
 trait PostRunProvenance[T] extends DerivedProvenance[T] {
-  def createdTime: DateTime
+  //def createdTime: DateTime
 
   def enqueuedTime: DateTime
 
@@ -119,6 +135,8 @@ trait PostRunProvenance[T] extends DerivedProvenance[T] {
   
   def endTime: DateTime
 
+  override def modifiedTime: DateTime = endTime
+
   def exitCode: Int
 
   def log: Option[ReadableStringOrFile]
@@ -126,9 +144,16 @@ trait PostRunProvenance[T] extends DerivedProvenance[T] {
   def logString: String = log.map(_.get.fold(x => x, y => y.toString)).getOrElse("")
 
   def cost: Map[CostType.CostType, Double]
+
+  override def infoBlock : String = super.infoBlock + s"""
+  |   Start: ${startTime}
+  |     End: ${ endTime}
+  """.stripMargin + runningInfo.infoBlock
 }
 
-trait FailedProvenance[T] extends PostRunProvenance[T]
+trait FailedProvenance[T] extends PostRunProvenance[T] {
+  override def infoBlock : String = super.infoBlock + "Log:\n----\n" + logString + "----"
+}
 
 trait CancelledProvenance[T] extends PostRunProvenance[T]
 
@@ -356,10 +381,14 @@ case class MemoryCompletedProvenance[T](provenanceId: Identifier[Provenance[T]],
 trait RunningInfo {
   def node: Option[String]
 
+  def infoBlock : String
   //def processId: Int
 }
 
-trait WithinJvmRunningInfo extends RunningInfo
+trait WithinJvmRunningInfo extends RunningInfo {
+
+  def infoBlock : String = "Run within JVM"
+}
 
 class MemoryWithinJvmRunningInfo extends WithinJvmRunningInfo {
   //def node = "ThisJVM"
@@ -369,6 +398,8 @@ class MemoryWithinJvmRunningInfo extends WithinJvmRunningInfo {
 
 trait LocalRunningInfo extends RunningInfo {
   def workingDir:Path
+
+  def infoBlock : String = s"Working Dir: + ${workingDir}"
 }
 
 class MemoryLocalRunningInfo(val workingDir:Path) extends LocalRunningInfo {

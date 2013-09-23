@@ -98,7 +98,7 @@ object WorldMake extends Logging {
           Await.result(result, Duration.Inf)
 
         }
-        case "status" => {
+        case "showtree" => {
           val target = args(1)
           val strategy = getStrategy(withNotifiers = false)
           //val derivationId = symbolTable.getProperty(target) 
@@ -116,6 +116,35 @@ object WorldMake extends Logging {
 
           //logger.info("\n"+derivation.queue.map(x=>strategy.statusLine(x)).mkString("\n")) 
 
+        }
+
+        case "showprovenance" => {
+          // just like showqueue, only more detailed
+          
+          val target = args(1)
+          val strategy = getStrategy(withNotifiers = false)
+          //val derivationId = symbolTable.getProperty(target) 
+          //val derivationArtifact = Storage.artifactStore.get(derivationId)
+          val recipe: Recipe[_] = world(target)
+          logger.info("\n" + recipe.queue.filterNot(_.isInstanceOf[ConstantRecipe[Any]]).map(x => strategy.tracker.provenanceInfoBlock(x)).mkString("\n"))
+
+          //logger.info("\n"+derivation.queue.map(x=>strategy.statusLine(x)).mkString("\n")) 
+
+        }
+        /*case "makeall" => {
+          for(i <- roots) {
+            make(i);
+          }
+        }*/
+          
+
+
+        case "clean" => {
+          // remove anything that is blocked, failed, cancelled, or running
+
+        }
+        case "gc" => {
+        
         }
         //case "import"
         //case "set"

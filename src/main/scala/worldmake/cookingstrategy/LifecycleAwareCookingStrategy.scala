@@ -79,6 +79,22 @@ class LifecycleTracker(notifierOpt: Option[Notifier]) extends Logging {
 
   def statusLine[T](d: Recipe[T]) = f"${d.shortId}%8s [ ${StoredProvenances(d.recipeId).statusString}%22s ] ${d.summary}%40s : ${d.description}%-40s"
 
+  def provenanceInfoBlock[T](d: Recipe[T]) = {
+    val provenances: StoredProvenances[T] = StoredProvenances(d.recipeId)
+    val p = provenances.mostRecent
+    
+    s"""
+    |====================================================================================================
+    | ${d.recipeId}
+    | ${d.summary}
+    | ${d.description}
+    | 
+    | ${provenances.statusString}
+    |
+    | ${p.infoBlock}
+    | """.stripMargin
+  }
+
 
 }
 

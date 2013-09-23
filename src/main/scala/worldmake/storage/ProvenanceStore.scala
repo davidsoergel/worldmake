@@ -156,5 +156,9 @@ class StoredProvenances[T](val recipeId: Identifier[Recipe[T]]) {
     }
     else "no status" // todo print other statuses
   }
+  
+  def mostRecent : Provenance[T] = provenances.toSeq.max(new Ordering[Provenance[T]]{
+    def compare(x: Provenance[T], y: Provenance[T]) = x.modifiedTime.compareTo(y.modifiedTime)
+  })
 
 }
