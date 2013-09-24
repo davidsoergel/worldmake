@@ -126,7 +126,7 @@ object WorldMake extends Logging {
           //val derivationId = symbolTable.getProperty(target) 
           //val derivationArtifact = Storage.artifactStore.get(derivationId)
           val recipe: Recipe[_] = world(target)
-          logger.info("\n" + recipe.queue.filterNot(_.isInstanceOf[ConstantRecipe[Any]]).map(x => strategy.tracker.provenanceInfoBlock(x)).mkString("\n"))
+          logger.info("\n" + recipe.queue.filterNot(_.isInstanceOf[ConstantRecipe[Any]]).par.map(x => strategy.tracker.provenanceInfoBlock(x)).mkString("\n"))
 
           //logger.info("\n"+derivation.queue.map(x=>strategy.statusLine(x)).mkString("\n")) 
 

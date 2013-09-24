@@ -48,7 +48,7 @@ class AssemblyRecipe(namedDependencies: GenMap[String, Recipe[Path]]) extends De
     Identifier[Recipe[Path]](WMHashHex(dependencyInfos.mkString("")))
   }
 
-  def longDescription = "Assembly: " + namedDependencies.toList.map({case (k,v) => s"$k -> $v"}).mkString("\n")
+  def longDescription = "Assembly: " + namedDependencies.toList.map({case (k,v) => s"$k <- ${v.description}"}).mkString("\n             ")
 
   def dependencies = namedDependencies.values.toSet
 

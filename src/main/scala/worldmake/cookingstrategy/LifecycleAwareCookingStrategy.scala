@@ -85,12 +85,12 @@ class LifecycleTracker(notifierOpt: Option[Notifier]) extends Logging {
     
     s"""
     |====================================================================================================
-    |  Recipe ID: ${d.recipeId}
-    |             ${d.summary}
-    |             ${d.description}
-    |     Status: ${provenances.statusString}
+    |   Recipe ID: ${d.recipeId}
+    |              ${d.summary}
+    |              ${d.description}
+    |      Status: ${provenances.statusString}
     |
-    | ${p.infoBlock}
+    | ${p.map(_.infoBlock).getOrElse("")}
     | """.stripMargin
   }
 
