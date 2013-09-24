@@ -118,7 +118,7 @@ object RecipeWrapper extends Logging {
       private def pathType = classManifest[T].toString
       def recipeId = new Identifier(pathType+":"+d.recipeId.s)
 
-      def description = d.description
+      def longDescription = d.longDescription
       override def summary = d.summary
       override def setProvidedSummary(s:String) { d.setProvidedSummary(s) }
 

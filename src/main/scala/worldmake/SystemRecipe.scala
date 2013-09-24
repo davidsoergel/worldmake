@@ -50,7 +50,7 @@ class SystemRecipe(val script: Recipe[String], namedDependencies: GenMap[String,
     Identifier[Recipe[Path]](WMHashHex(script.recipeId.s + dependencyInfos.mkString("")))
   }
 
-  def description = "EXECUTE(" + script.shortId + "): " + script.description
+  def longDescription = "EXECUTE(" + script.shortId + "): " + script.longDescription
 
   val dependencies = namedDependencies.values.toSet + script
 

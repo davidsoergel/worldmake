@@ -108,7 +108,7 @@ trait StringArtifact extends Artifact[String] {
   override def environmentString: String = value.toString
   //def resultType = "String"
 
-  def infoBlock = s"Value : ${value} \n"
+  def infoBlock = s"Value : ${value}\n"
 }
 
 class MemoryStringArtifact(s: String) extends MemoryArtifact[String](s) with StringArtifact with ContentHashableArtifact[String] {
@@ -130,7 +130,7 @@ trait BooleanArtifact extends Artifact[Boolean] {
 
   override def environmentString: String = value.toString
 
-  def infoBlock = s"Value : ${value} \n"
+  def infoBlock = s"Value : ${value}\n"
 }
 
 class MemoryBooleanArtifact(s: Boolean) extends MemoryArtifact[Boolean](s) with BooleanArtifact with ContentHashableArtifact[Boolean] {
@@ -151,7 +151,7 @@ trait IntArtifact extends Artifact[Int] {
   override def constantId = Identifier[Artifact[Int]](WMHashHex("Int(" + value.toString + ")")) //perf
 
   override def environmentString: String = value.toString
-  def infoBlock = s"Value : ${value} \n"
+  def infoBlock = s"Value : ${value}\n"
 }
 
 class MemoryIntArtifact(s: Int) extends MemoryArtifact[Int](s) with IntArtifact with ContentHashableArtifact[Int] {
@@ -170,7 +170,7 @@ trait DoubleArtifact extends Artifact[Double] {
 
   override def constantId = Identifier[Artifact[Double]]("Double(" + value.toString + ")")
   override def environmentString: String = value.toString
-  def infoBlock = s"Value : ${value} \n"
+  def infoBlock = s"Value : ${value}\n"
 }
 
 class MemoryDoubleArtifact(s: Double) extends MemoryArtifact[Double](s) with DoubleArtifact with ContentHashableArtifact[Double] {
@@ -202,7 +202,7 @@ trait PathArtifact extends Artifact[Path] {
   // def /(s: String): ExternalPathArtifact = value / s
   override def environmentString = abspath
 
-  def infoBlock = s"Value : ${abspath} \n"
+  def infoBlock = s"Value : ${abspath}\n"
 }
 
 /*

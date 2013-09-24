@@ -51,12 +51,12 @@ class StringInterpolationRecipe(sc: StringContext, args: Seq[Recipe[Any]]) exten
 
   def recipeId = Identifier[Recipe[String]](WMHashHex(template + args.map(_.recipeId).mkString))
 
-  def description = {
+  def longDescription = {
     val argIds = args.map(x => "${" + x.shortDesc + "}")
 
     // this stripMargin takes effect after interpolation; see https://github.com/scala/scala/pull/1655 for alternative
     val r = sc.s(argIds: _*).stripMargin
-    "Interpolate: " + r.replace("\n", "\\n").limitAtWhitespace(80, "...")
+    "Interpolate: " + r.replace("\n", "\\n") //.limitAtWhitespace(80, "...")
   }
 
   def dependencies = args.toSet

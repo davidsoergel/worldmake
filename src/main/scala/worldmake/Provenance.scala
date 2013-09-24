@@ -34,8 +34,8 @@ trait Provenance[+T] {
   override def hashCode: Int = (41 + provenanceId.hashCode)
   
   def infoBlock : String = s"""
-  |     ID: ${provenanceId}
-  |Created: ${createdTime}
+  | Provenance ID: ${provenanceId}
+  |       Created: ${createdTime}
   """.stripMargin
 }
 
@@ -147,7 +147,7 @@ trait PostRunProvenance[T] extends DerivedProvenance[T] {
 
   override def infoBlock : String = super.infoBlock + s"""
   |   Start: ${startTime}
-  |     End: ${ endTime}
+  |     End: ${endTime}
   """.stripMargin + runningInfo.infoBlock
 }
 
@@ -387,7 +387,7 @@ trait RunningInfo {
 
 trait WithinJvmRunningInfo extends RunningInfo {
 
-  def infoBlock : String = "Run within JVM"
+  def infoBlock : String = "Run within JVM\n"
 }
 
 class MemoryWithinJvmRunningInfo extends WithinJvmRunningInfo {
@@ -399,7 +399,7 @@ class MemoryWithinJvmRunningInfo extends WithinJvmRunningInfo {
 trait LocalRunningInfo extends RunningInfo {
   def workingDir:Path
 
-  def infoBlock : String = s"Working Dir: + ${workingDir}"
+  def infoBlock : String = s"Working Dir: + ${workingDir}\n"
 }
 
 class MemoryLocalRunningInfo(val workingDir:Path) extends LocalRunningInfo {

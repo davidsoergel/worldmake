@@ -30,8 +30,10 @@ trait Recipe[+T] {
   // careful using a hash as an ID, per Valerie Aurora
   def recipeId: Identifier[Recipe[T]]
 
-  def description: String // used only for human-readable debug logs and such
+  def description: String = longDescription.firstLine.limitAtWhitespace(80, "...") // used only for human-readable debug logs and such
 
+  def longDescription : String
+  
   private var providedSummary: String = ""
 
   def setProvidedSummary(s: String) {
@@ -107,8 +109,7 @@ class ConstantRecipe[T](p: ConstantProvenance[T]) extends Recipe[T] with (() => 
 
   private val outputString: String = p.output.value.toString.replace("\n", "\\n")
 
-  def description = outputString.limitAtWhitespace(80, "...")
-
+  def longDescription = outputString
   def apply = p
 
   def deriveFuture(implicit upstreamStrategy: CookingStrategy) = Future.successful(p)
@@ -274,7 +275,7 @@ class TraversableRecipe[T](val xs: GenTraversable[Recipe[T]]) extends DerivableR
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
   def recipeId = Identifier[TraversableRecipe[T]](WMHashHex("traversable" + xs.toSeq.map(_.recipeId).mkString))
 
-  def description = ("Traversable(" + xs.map(_.description) + ")").limitAtWhitespace(80, "...")
+  def longDescription = ("Traversable(" + xs.map(_.description) + ")") //.limitAtWhitespace(80, "...")
 
   def dependencies = xs.toSet
 
