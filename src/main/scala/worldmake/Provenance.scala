@@ -144,7 +144,7 @@ trait PostRunProvenance[T] extends DerivedProvenance[T] {
 
   def cost: Map[CostType.CostType, Double]
 
-  override def infoBlock : String = super.infoBlock + s"""         Start: ${startTime}
+  override def infoBlock : String = super.infoBlock + s"""       Start: ${startTime}
   |           End: ${endTime}
   """.stripMargin + runningInfo.infoBlock
 }
@@ -385,7 +385,7 @@ trait RunningInfo {
 
 trait WithinJvmRunningInfo extends RunningInfo {
 
-  def infoBlock : String = "          Run: within JVM\n"
+  def infoBlock : String = "         Run: within JVM\n"
 }
 
 class MemoryWithinJvmRunningInfo extends WithinJvmRunningInfo {

@@ -83,15 +83,14 @@ class LifecycleTracker(notifierOpt: Option[Notifier]) extends Logging {
     val provenances: StoredProvenances[T] = StoredProvenances(d.recipeId)
     val p = provenances.mostRecent
     
-    s"""
-    |====================================================================================================
+    s"""====================================================================================================
     |   Recipe ID: ${d.recipeId}
     |              ${d.summary}
-    |              ${d.description}
+    |              ${d.longDescription}
     |      Status: ${provenances.statusString}
     |
-    | ${p.map(_.infoBlock).getOrElse("")}
-    | """.stripMargin
+    |${p.map(_.infoBlock).getOrElse("")}
+    |""".stripMargin
   }
 
 
