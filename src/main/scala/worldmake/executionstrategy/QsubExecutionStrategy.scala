@@ -204,7 +204,7 @@ object DetectQsubPollingAction extends PollingAction with Logging {
                 case e: IOException =>  { logger.error("Error collecting exit code", e); None }
               }
 
-              def log = try {
+              def collectLog = try {
                 // copy the log from the qsub file into the database or file store, as needed
                 val logWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
                 val logLines = Resource.fromFile(new File((ri.workingDir / "stderr.log").toAbsolute.path)).lines()
@@ -223,10 +223,10 @@ object DetectQsubPollingAction extends PollingAction with Logging {
                   
                   //notifier.announceDone(p.completed(0, log, Map.empty, TypedPathArtifact(TypedPathMapper.map(ri.requestedType, ri.outputPath))))
 
-                  notifier.announceDone(p.completed(0, log, Map.empty, PathArtifact( ri.outputPath)))
+                  notifier.announceDone(p.completed(0, collectLog, Map.empty, PathArtifact( ri.outputPath)))
                 }
                 else {
-                  notifier.announceFailed(p.failed(exitCode.getOrElse(-1), log, Map.empty))
+                  notifier.announceFailed(p.failed(exitCode.getOrElse(-1), collectLog, Map.empty))
                 }
               }
 
@@ -239,7 +239,7 @@ object DetectQsubPollingAction extends PollingAction with Logging {
                   // todo update runninginfo node
                 }
                 case Some(QstatJobStatus.QCancelled) => {
-                  notifier.announceCancelled(p.cancelled(exitCode.getOrElse(-1), log, Map.empty))
+                  notifier.announceCancelled(p.cancelled(exitCode.getOrElse(-1), collectLog, Map.empty))
                 }
                 case Some(QstatJobStatus.QDone) => notifyByExitCode()
                 case None => notifyByExitCode()
