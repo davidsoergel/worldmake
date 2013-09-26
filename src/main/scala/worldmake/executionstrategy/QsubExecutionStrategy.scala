@@ -245,6 +245,10 @@ object DetectQsubPollingAction extends PollingAction with Logging {
                 case None => notifyByExitCode()
               }
             }
+
+            case ((p: RunningProvenance[Any], ri: RunningInfo)) => {
+              // ignore running jobs that are not qsub jobs
+            }
           }
         }
       }
