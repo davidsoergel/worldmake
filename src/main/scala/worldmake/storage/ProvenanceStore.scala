@@ -28,6 +28,7 @@ trait ProvenanceStore {
  */
 
 case class Identifier[+T](s: String) {
+  require(!s.startsWith("Nothing"))
 
   // see also FileStore.dirStructure
   val shortM = """(...)(.....)(.*)""".r
