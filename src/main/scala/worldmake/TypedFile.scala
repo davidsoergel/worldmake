@@ -117,7 +117,7 @@ object RecipeWrapper extends Logging {
       def toPathRecipe = d
       private val pathType = classManifest[T].toString
       require(!pathType.equals("Nothing"))
-      lazy val recipeId = new Identifier(pathType+":"+d.recipeId.s)
+      lazy val recipeId = new Identifier(d.recipeId.s + "(" + pathType + ")")
 
       lazy val longDescription = d.longDescription
       override lazy val summary = d.summary
