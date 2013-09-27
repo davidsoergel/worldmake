@@ -31,7 +31,7 @@ trait Provenance[+T] {
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[Provenance[T]]
 
-  override def hashCode: Int = (41 + provenanceId.hashCode)
+  override lazy val hashCode: Int = (41 + provenanceId.hashCode)
   
   def infoBlock : String = s"""| Provenance ID: ${provenanceId}
   |       Created: ${createdTime}
@@ -40,7 +40,7 @@ trait Provenance[+T] {
 
 trait Successful[+T] extends Provenance[T] {
   def output: Artifact[T]
-  override def infoBlock : String = super.infoBlock + output.infoBlock
+  override lazy val infoBlock : String = super.infoBlock + output.infoBlock
 }
 
 
@@ -58,12 +58,12 @@ object ConstantProvenance {
 // aka Input
 trait ConstantProvenance[T] extends Successful[T] {
   //def createdTime: DateTime
-  def recipeId = Identifier[Recipe[T]](provenanceId.s)
+  lazy val recipeId = Identifier[Recipe[T]](provenanceId.s)
 }
 
 private class MemoryConstantProvenance[T](val output: Artifact[T]) extends ConstantProvenance[T] {
-  def createdTime = DateTime.now
-  def provenanceId = Identifier[Provenance[T]](output.constantId.s)
+  val createdTime = DateTime.now
+  lazy val provenanceId = Identifier[Provenance[T]](output.constantId.s)
 }
 
 
@@ -385,7 +385,7 @@ trait RunningInfo {
 
 trait WithinJvmRunningInfo extends RunningInfo {
 
-  def infoBlock : String = "         Run: within JVM\n"
+  lazy val infoBlock : String = "         Run: within JVM\n"
 }
 
 class MemoryWithinJvmRunningInfo extends WithinJvmRunningInfo {
@@ -397,7 +397,7 @@ class MemoryWithinJvmRunningInfo extends WithinJvmRunningInfo {
 trait LocalRunningInfo extends RunningInfo {
   def workingDir:Path
 
-  def infoBlock : String = s"  Working Dir: + ${workingDir}\n"
+  lazy val infoBlock : String = s"  Working Dir: + ${workingDir}\n"
 }
 
 class MemoryLocalRunningInfo(val workingDir:Path) extends LocalRunningInfo {

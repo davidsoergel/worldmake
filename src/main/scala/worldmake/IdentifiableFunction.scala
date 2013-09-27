@@ -10,6 +10,7 @@ import scala.concurrent._
 import ExecutionContext.Implicits.global
 import com.typesafe.scalalogging.slf4j.Logging
 import worldmake.cookingstrategy.CookingStrategy
+import scala.collection.GenSet
 
 object NamedFunction {
   def apply[R](n: String)(f: Function0[R]) = new IdentifiableFunction0[R](n, f)
@@ -23,7 +24,7 @@ object NamedFunction {
 trait Hashable {
   def contentHashBytes: Array[Byte]
 
-  def contentHash = Hash.toHex(contentHashBytes)
+  lazy val contentHash = Hash.toHex(contentHashBytes)
 }
 
 /*
@@ -40,7 +41,7 @@ trait StreamHashable {
 
 
 trait ContentHashableArtifact[T] extends Artifact[T] {
-  def contentHashBytes: Array[Byte] = value match {
+  lazy val contentHashBytes: Array[Byte] = value match {
     case h: Hashable => h.contentHashBytes
     case i: Int => WMHash(i.toString)
     case d: Double => WMHash(d.toString)
@@ -62,7 +63,7 @@ class IdentifiableFunction0[R](val id: String, f: Function0[R]) {
 
 
 class Recipe0[R](f: IdentifiableFunction0[R]) extends DerivableRecipe[R] with Logging {
-  def dependencies = Set.empty
+  lazy val dependencies : GenSet[Recipe[_]]= Set.empty
 
   def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
     val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), recipeId)
@@ -95,9 +96,9 @@ class Recipe0[R](f: IdentifiableFunction0[R]) extends DerivableRecipe[R] with Lo
     }
   }
 
-  def recipeId = Identifier[Recipe[R]](Hash.toHex(WMHash(f.id)))
+  lazy val  recipeId = Identifier[Recipe[R]](Hash.toHex(WMHash(f.id)))
 
-  def longDescription = f.id + "()"
+  lazy val  longDescription = f.id + "()"
 }
 
 
@@ -132,11 +133,11 @@ class Recipe1[T1, R](f: IdentifiableFunction1[T1, R], a: Recipe[T1]) extends Der
     }
   }
 
-  def recipeId = Identifier[Recipe[R]](WMHashHex(f.id + a.recipeId))
+  lazy val  recipeId = Identifier[Recipe[R]](WMHashHex(f.id + a.recipeId))
 
-  def longDescription = s"""${f.id}(${a.shortDesc})"""
+  lazy val  longDescription = s"""${f.id}(${a.shortDesc})"""
 
-  def dependencies = Set(a)
+  lazy val  dependencies : GenSet[Recipe[_]] = Set(a)
 
   // override def shortDesc =  s"""${f.id}(${a.shortDesc})"""
 }
@@ -179,10 +180,10 @@ class Recipe2[T1, T2, R](f: IdentifiableFunction2[T1, T2, R], a: Recipe[T1], b: 
     }
   }
 
-  def recipeId = Identifier[Recipe[R]](WMHashHex(f.id + a.recipeId + b.recipeId))
+  lazy val  recipeId = Identifier[Recipe[R]](WMHashHex(f.id + a.recipeId + b.recipeId))
 
-  def longDescription = s"""${f.id}(${a.shortDesc},${b.shortDesc})"""
+  lazy val  longDescription = s"""${f.id}(${a.shortDesc},${b.shortDesc})"""
 
-  def dependencies = Set(a, b)
+  lazy val  dependencies = Set(a, b)
 }
 

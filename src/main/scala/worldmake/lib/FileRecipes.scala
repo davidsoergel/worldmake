@@ -42,7 +42,7 @@ object FileRecipes extends Logging {
 class AssemblyRecipe(namedDependencies: GenMap[String, Recipe[Path]]) extends DerivableRecipe[Path] with Logging {
 
   lazy val recipeId = {
-    val dependencyInfos: Seq[String] = namedDependencies.map({
+    val dependencyInfos: Seq[String] = namedDependencies.par.map({
       case (k, v) => k.toString + v.recipeId.s
     }).toSeq.seq.sorted
     Identifier[Recipe[Path]](WMHashHex(dependencyInfos.mkString("")))

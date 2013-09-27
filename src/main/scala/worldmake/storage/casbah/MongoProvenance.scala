@@ -28,7 +28,7 @@ abstract class MongoSerializer[E, D](val typehint: String, constructor: MongoDBO
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 trait MongoProvenance[T] extends Provenance[T] with MongoWrapper {
-  override def provenanceId = Identifier[Provenance[T]](dbo.as[String]("_id"))
+  override lazy val provenanceId = Identifier[Provenance[T]](dbo.as[String]("_id"))
 }
 
 object MongoProvenance {
@@ -73,7 +73,7 @@ class MongoConstantProvenance[T](val dbo: MongoDBObject) extends MongoSuccessful
 
 
 trait MongoDerivedProvenance[T] extends MongoProvenance[T] with MongoWrapper {
-  override def recipeId = Identifier[Recipe[T]](dbo.as[String]("recipeId"))
+  override lazy val recipeId = Identifier[Recipe[T]](dbo.as[String]("recipeId"))
 }
 
 object MongoDerivedProvenance {

@@ -38,21 +38,21 @@ object SystemRecipe {
 
 class SystemRecipe(val script: Recipe[String], namedDependencies: GenMap[String, Recipe[_]]) extends DerivableRecipe[Path] with Logging {
 
-  override def queue: Queue[Recipe[_]] = {
+  override lazy val queue: Queue[Recipe[_]] = {
     val deps = dependencies.seq.toSeq.flatMap(_.queue)
     Queue[Recipe[_]](deps: _*).distinct.enqueue(this)
   }
 
-  lazy val recipeId = {
-    val dependencyInfos: Seq[String] = namedDependencies.map({
+  lazy val  recipeId = {
+    val dependencyInfos: Seq[String] = namedDependencies.par.map({
       case (k, v) => k.toString + v.recipeId.s
     }).toSeq.seq.sorted
     Identifier[Recipe[Path]](WMHashHex(script.recipeId.s + dependencyInfos.mkString("")))
   }
 
-  def longDescription = "EXECUTE(" + script.shortId + "): " + script.longDescription
+  lazy val   longDescription = "EXECUTE(" + script.shortId + "): " + script.longDescription
 
-  val dependencies = namedDependencies.values.toSet + script
+  lazy val  dependencies = namedDependencies.values.toSet + script
 
   def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
     val pr = BlockedProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString), recipeId)

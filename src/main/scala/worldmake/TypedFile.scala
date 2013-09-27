@@ -20,15 +20,15 @@ abstract class TypedPath(val path: Path) {
   // def pathType : String
   def validate(): Unit = {} // throws TypedFileValidationException
 
-  def abspath = path.toAbsolute.path
+  lazy val abspath = path.toAbsolute.path
 
-  def basename = path.name
+  lazy val basename = path.name
   
   //def toURL = path.toURL
-  def exists = path.exists
-  def nonExistent = path.nonExistent
-  def isFile = path.isFile
-  def fileOption = path.fileOption
+  lazy val exists = path.exists
+  lazy val nonExistent = path.nonExistent
+  lazy val isFile = path.isFile
+  lazy val fileOption = path.fileOption
   def children[U >: Path, F]() = path.children()
 }
 
@@ -58,7 +58,7 @@ object BasicTextFile extends TypedPathCompanion{
 
   def mapper = (p:Path) => new BasicTextFile(p)
 
-  implicit def wrapRecipe(d: Recipe[Path]): TypedPathRecipe[BasicTextFile] = super.wrapRecipe(d)
+  implicit def wrapRecipe(d: Recipe[Path]): TypedPathRecipe[BasicTextFile] = super.wrapRecipe[BasicTextFile](d)
 }
 
 class BasicTextFile(path: Path) extends TextFile(path) with Logging {
@@ -115,11 +115,12 @@ object RecipeWrapper extends Logging {
   def wrapRecipe[T <: TypedPath:ClassManifest](f: Path => T)(d: Recipe[Path]): TypedPathRecipe[T] = {
     new TypedPathRecipe[T] {
       def toPathRecipe = d
-      private def pathType = classManifest[T].toString
-      def recipeId = new Identifier(pathType+":"+d.recipeId.s)
+      private val pathType = classManifest[T].toString
+      require(!pathType.equals("Nothing"))
+      lazy val recipeId = new Identifier(pathType+":"+d.recipeId.s)
 
-      def longDescription = d.longDescription
-      override def summary = d.summary
+      lazy val longDescription = d.longDescription
+      override lazy val summary = d.summary
       override def setProvidedSummary(s:String) { d.setProvidedSummary(s) }
 
       def deriveFuture(implicit upstreamStrategy: CookingStrategy) : Future[Successful[T]] = {
@@ -135,16 +136,16 @@ object RecipeWrapper extends Logging {
 
       //def resolveOne = wrapProvenance(d.resolveOne)
         
-      override val queue = d.queue
+      override lazy val queue = d.queue
       
       private def wrapProvenance(p:Successful[Path]) = {
         new Provenance[T] with Successful[T] {
           def createdTime = p.createdTime
           // this Artifact must act like an ExternalPathArtifact, though it can't literally be one because TypedFile does not extend Path
           def output = new TypedPathArtifact(p,f)
-          def recipeId = new Identifier[Recipe[T]](d.recipeId.s)
+          lazy val recipeId = new Identifier[Recipe[T]](d.recipeId.s)
 
-          def provenanceId = new Identifier(p.provenanceId.s)
+          lazy val provenanceId = new Identifier(p.provenanceId.s)
         }
       }
 
@@ -158,26 +159,26 @@ def contentHashBytes = p.output.contentHashBytes
 
   val pathValue = p.output.value
   val asPathArtifact : PathArtifact = PathArtifact(pathValue)
-  
-  def value : T = {
+
+  lazy val value : T = {
     val result = f(pathValue)
     result.validate()
     result
   }
 
-  override def infoBlock : String = p.infoBlock
+  override lazy val infoBlock : String = p.infoBlock
 
   //def description = p.output.value.toAbsolute.path
 
-  def abspath = p.output.value.toAbsolute.path
+  lazy val abspath = p.output.value.toAbsolute.path
 
   //def basename = p.output.value.name
 
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
-  override def constantId = Identifier[Artifact[T]]("TypedPath(" + abspath + ")")
+  override lazy val constantId = Identifier[Artifact[T]]("TypedPath(" + abspath + ")")
 
 
   // Navigating inside an artifact is a derivation; it shouldn't be possible to do it in the raw sense
   // def /(s: String): ExternalPathArtifact = value / s
-  override def environmentString = abspath
+  override lazy val environmentString = abspath
 }

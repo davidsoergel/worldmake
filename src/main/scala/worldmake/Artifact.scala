@@ -50,7 +50,7 @@ trait Artifact[+T] extends Hashable {
 
   // An Artifact may be wrapped in a ConstantProvenance, so it's helpful for it to provide an ID up front
   // that is: this is the ID that should be used when the artifact is stored as a constant.  If it is stored as a derivation, then this zhourd be ignored.
-  def constantId : Identifier[Artifact[T]] = Identifier[Artifact[T]](contentHash)
+  lazy val constantId : Identifier[Artifact[T]] = Identifier[Artifact[T]](contentHash)
 }
 
 
@@ -103,18 +103,18 @@ object StringArtifact {
 }
 
 trait StringArtifact extends Artifact[String] {
-  def description = value.replace("\n","\\n").limitAtWhitespace(80, "...")
+  lazy val description = value.replace("\n","\\n").limitAtWhitespace(80, "...")
 
-  override def environmentString: String = value.toString
+  override lazy val environmentString: String = value.toString
   //def resultType = "String"
 
-  def infoBlock = s"         Value: ${value}\n"
+  lazy val infoBlock = s"         Value: ${value}\n"
 }
 
 class MemoryStringArtifact(s: String) extends MemoryArtifact[String](s) with StringArtifact with ContentHashableArtifact[String] {
   //def contentHashBytes = WMHash(s)
 
-  def output: Option[Artifact[String]] = Some(this)
+  lazy val output: Option[Artifact[String]] = Some(this)
 }
 
 
@@ -123,19 +123,19 @@ object BooleanArtifact {
 }
 
 trait BooleanArtifact extends Artifact[Boolean] {
-  def description = value.toString
+  lazy val description = value.toString
 
   //def resultType = "Int"
-  override def constantId = Identifier[Artifact[Boolean]](WMHashHex("Boolean(" + value.toString + ")")) //perf
+  override lazy val constantId = Identifier[Artifact[Boolean]](WMHashHex("Boolean(" + value.toString + ")")) //perf
 
-  override def environmentString: String = value.toString
+  override lazy val environmentString: String = value.toString
 
-  def infoBlock = s"         Value: ${value}\n"
+  lazy val infoBlock = s"         Value: ${value}\n"
 }
 
 class MemoryBooleanArtifact(s: Boolean) extends MemoryArtifact[Boolean](s) with BooleanArtifact with ContentHashableArtifact[Boolean] {
   //def contentHashBytes = WMHash(s.toString)
-  def output: Option[Artifact[Boolean]] = Some(this)
+  lazy val output: Option[Artifact[Boolean]] = Some(this)
 }
 
 
@@ -145,18 +145,18 @@ object IntArtifact {
 }
 
 trait IntArtifact extends Artifact[Int] {
-  def description = value.toString
+  lazy val description = value.toString
 
   //def resultType = "Int"
-  override def constantId = Identifier[Artifact[Int]](WMHashHex("Int(" + value.toString + ")")) //perf
+  override lazy val constantId = Identifier[Artifact[Int]](WMHashHex("Int(" + value.toString + ")")) //perf
 
-  override def environmentString: String = value.toString
-  def infoBlock = s"         Value: ${value}\n"
+  override lazy val environmentString: String = value.toString
+  lazy val infoBlock = s"         Value: ${value}\n"
 }
 
 class MemoryIntArtifact(s: Int) extends MemoryArtifact[Int](s) with IntArtifact with ContentHashableArtifact[Int] {
   //def contentHashBytes = WMHash(s.toString)
-  def output: Option[Artifact[Int]] = Some(this)
+  lazy val output: Option[Artifact[Int]] = Some(this)
 }
 
 
@@ -165,17 +165,17 @@ object DoubleArtifact {
 }
 
 trait DoubleArtifact extends Artifact[Double] {
-  def description = value.toString
+  lazy val description = value.toString
   //def resultType = "Double"
 
-  override def constantId = Identifier[Artifact[Double]]("Double(" + value.toString + ")")
-  override def environmentString: String = value.toString
-  def infoBlock = s"         Value: ${value}\n"
+  override lazy val constantId = Identifier[Artifact[Double]]("Double(" + value.toString + ")")
+  override lazy val environmentString: String = value.toString
+  lazy val infoBlock = s"         Value: ${value}\n"
 }
 
 class MemoryDoubleArtifact(s: Double) extends MemoryArtifact[Double](s) with DoubleArtifact with ContentHashableArtifact[Double] {
   //def contentHashBytes = WMHash(s.toString)
-  def output: Option[Artifact[Double]] = Some(this)
+  lazy val output: Option[Artifact[Double]] = Some(this)
 
 }
 
@@ -188,21 +188,21 @@ object PathArtifact {
 trait PathArtifact extends Artifact[Path] {
   // def description //= value.abspath
 
-  def abspath = value.toAbsolute.path
+  lazy val abspath = value.toAbsolute.path
 
-  def basename = value.name
+  lazy val basename = value.name
 
   //def pathType : String //= value.pathType
 
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
-  override def constantId = Identifier[Artifact[Path]]("Path(" + abspath + ")")
+  override lazy val constantId = Identifier[Artifact[Path]]("Path(" + abspath + ")")
 
 
   // Navigating inside an artifact is a derivation; it shouldn't be possible to do it in the raw sense
   // def /(s: String): ExternalPathArtifact = value / s
-  override def environmentString = abspath
+  override lazy val environmentString = abspath
 
-  def infoBlock = s"         Value: ${abspath}\n"
+  lazy val infoBlock = s"         Value: ${abspath}\n"
 }
 
 /*
@@ -257,7 +257,7 @@ class MemoryPathArtifact(path: Path) extends MemoryArtifact[Path](path) with Pat
   override def /(s: String): ExternalPathArtifact = new MemoryExternalPathArtifact(path / s)
  */
 
-  def output: Option[PathArtifact] = Some(this)
+  lazy val output: Option[PathArtifact] = Some(this)
 
   //def pathType = classManifest[T].toString
 }
@@ -321,15 +321,15 @@ trait GenTraversableArtifact[T] extends Artifact[GenTraversable[Artifact[T]]] {
 
 
   // ugly
-  def infoBlock = s"Value : ${value.map(_.infoBlock).mkString("\n")} \n"
+  lazy val infoBlock = s"Value : ${value.map(_.infoBlock).mkString("\n")} \n"
   
-  override def environmentString = value.map(_.environmentString).mkString(" ")
+  override lazy val environmentString = value.map(_.environmentString).mkString(" ")
 }
 
 class MemoryGenTraversableArtifact[T](val value: GenTraversable[Artifact[T]]) extends GenTraversableArtifact[T] {
   //def provenanceId = Identifier[Artifact[Traversable[T]]](UUID.randomUUID().toString)
 
-  def contentHashBytes = WMHash(value.toSeq.flatMap(_.contentHash).mkString(""))
+  lazy val contentHashBytes = WMHash(value.toSeq.flatMap(_.contentHash).mkString(""))
 
 
   //override def environmentString = value.map(_.environmentString).mkString(" ")

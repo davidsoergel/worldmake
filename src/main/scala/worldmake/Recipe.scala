@@ -3,7 +3,7 @@ package worldmake
 
 import java.util.UUID
 import worldmake.storage.Identifier
-import scala.collection.{GenTraversable, GenSet}
+import scala.collection.{GenSet, GenTraversable}
 import scala.collection.immutable.Queue
 import scala.concurrent._
 import com.typesafe.scalalogging.slf4j.Logging
@@ -30,7 +30,7 @@ trait Recipe[+T] {
   // careful using a hash as an ID, per Valerie Aurora
   def recipeId: Identifier[Recipe[T]]
 
-  def description: String = longDescription.firstLine.limitAtWhitespace(80, "...") // used only for human-readable debug logs and such
+  lazy val description: String = longDescription.firstLine.limitAtWhitespace(80, "...") // used only for human-readable debug logs and such
 
   def longDescription : String
   
@@ -42,13 +42,13 @@ trait Recipe[+T] {
 
   def summary = providedSummary
 
-  def shortId = recipeId.short
+  lazy val shortId = recipeId.short
 
-  def shortDesc = shortId
+  lazy val shortDesc = shortId
 
-  def queue: Queue[Recipe[_]] = Queue(this)
+  lazy val queue: Queue[Recipe[_]] = Queue(this)
 
-  def isGloballyDeterministic: Boolean = true
+  lazy val isGloballyDeterministic: Boolean = true
 
   override def equals(other: Any): Boolean = other match {
     case that: Recipe[T] => (that canEqual this) && recipeId == that.recipeId
@@ -105,11 +105,11 @@ object ConstantRecipe {
 }
 
 class ConstantRecipe[T](p: ConstantProvenance[T]) extends Recipe[T] with (() => ConstantProvenance[T]) {
-  def recipeId = Identifier[Recipe[T]](p.provenanceId.s)
+  lazy val recipeId = Identifier[Recipe[T]](p.provenanceId.s)
 
-  private val outputString: String = p.output.value.toString.replace("\n", "\\n")
+  private lazy val outputString: String = p.output.value.toString.replace("\n", "\\n")
 
-  def longDescription = outputString
+  lazy val longDescription = outputString
   def apply = p
 
   def deriveFuture(implicit upstreamStrategy: CookingStrategy) = Future.successful(p)
@@ -121,9 +121,9 @@ class ConstantRecipe[T](p: ConstantProvenance[T]) extends Recipe[T] with (() => 
 
   //  def statusString: String = ProvenanceStatus.Constant.toString
 
-  override def shortId = "         "
+  override lazy val shortId = "         "
 
-  override def shortDesc = if (outputString.matches("[\\s]")) outputString.limitAtWhitespace(30, "...") else outputString
+  override lazy val shortDesc = if (outputString.matches("[\\s]")) outputString.limitAtWhitespace(30, "...") else outputString
 }
 
 
@@ -132,7 +132,7 @@ trait DerivableRecipe[T] extends Recipe[T] {
   //def dependencies : A
   def dependencies: GenSet[Recipe[_]]
 
-  override def queue: Queue[Recipe[_]] = {
+  override lazy val queue: Queue[Recipe[_]] = {
     val deps = dependencies.seq.toSeq.flatMap(_.queue)
     Queue[Recipe[_]](deps: _*).distinct.enqueue(this)
   }
@@ -140,7 +140,7 @@ trait DerivableRecipe[T] extends Recipe[T] {
 
 
 trait LocallyDeterministic[T] extends DerivableRecipe[T] {
-  override def isGloballyDeterministic: Boolean = !dependencies.exists(!_.isGloballyDeterministic)
+  override lazy val isGloballyDeterministic: Boolean = !dependencies.exists(!_.isGloballyDeterministic)
 }
 
 trait LocallyNondeterministic[T] extends DerivableRecipe[T] {
@@ -148,7 +148,7 @@ trait LocallyNondeterministic[T] extends DerivableRecipe[T] {
 
   //def resolveNew: Option[Provenance[T]]
 
-  override def isGloballyDeterministic = false
+  override lazy val isGloballyDeterministic = false
 }
 
 
@@ -273,11 +273,11 @@ class TraversableRecipe[T](val xs: GenTraversable[Recipe[T]]) extends DerivableR
   }*/
 
   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
-  def recipeId = Identifier[TraversableRecipe[T]](WMHashHex("traversable" + xs.toSeq.map(_.recipeId).mkString))
+  lazy val recipeId = Identifier[TraversableRecipe[T]](WMHashHex("traversable" + xs.toSeq.par.map(_.recipeId).mkString))
 
-  def longDescription = ("Traversable(" + xs.map(_.description) + ")") //.limitAtWhitespace(80, "...")
+  lazy val longDescription = ("Traversable(" + xs.map(_.description) + ")") //.limitAtWhitespace(80, "...")
 
-  def dependencies = xs.toSet
+  lazy val dependencies : GenSet[Recipe[_]] = xs.toSet
 
   /*  def apply(args: ArgumentsSet[AA]) = {
       val argValues = args.resolved.values

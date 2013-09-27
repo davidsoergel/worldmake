@@ -13,9 +13,9 @@ import edu.umass.cs.iesl.scalacommons.util.Hash
 trait MongoArtifact[T] extends Artifact[T] with MongoWrapper {
   //override def artifactId = dbo.as[String]("id")
 
-  override def contentHash = dbo.as[String]("contentHash")
+  override lazy val contentHash = dbo.as[String]("contentHash")
 
-  override def contentHashBytes = Hash.fromHex(contentHash)
+  override lazy val contentHashBytes = Hash.fromHex(contentHash)
 }
 
 

@@ -49,7 +49,7 @@ class StringInterpolationRecipe(sc: StringContext, args: Seq[Recipe[Any]]) exten
 
   private val template: String = sc.parts.mkString("???").stripMargin.maskNewlines
 
-  def recipeId = Identifier[Recipe[String]](WMHashHex(template + args.map(_.recipeId).mkString))
+  lazy val recipeId = Identifier[Recipe[String]](WMHashHex(template + args.par.map(_.recipeId).mkString))
 
   def longDescription = {
     val argIds = args.map(x => "${" + x.shortDesc + "}")
