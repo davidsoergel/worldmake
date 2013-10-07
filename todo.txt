@@ -19,6 +19,8 @@ Underway
 
 * Commandline UI: cleanup, showlog, lastfailure, archive closure
 * detailed provenance for debugging
+* explain from symlink
+* invalidate recipe, provenance, or artifact...
 
 
 
