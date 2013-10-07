@@ -49,7 +49,7 @@ trait Artifact[+T] extends Hashable {
 
 
   // An Artifact may be wrapped in a ConstantProvenance, so it's helpful for it to provide an ID up front
-  // that is: this is the ID that should be used when the artifact is stored as a constant.  If it is stored as a derivation, then this zhourd be ignored.
+  // that is: this is the ID that should be used when the artifact is stored as a constant.  If it is stored as a derivation, then this should be ignored.
   lazy val constantId : Identifier[Artifact[T]] = Identifier[Artifact[T]](contentHash)
 }
 
