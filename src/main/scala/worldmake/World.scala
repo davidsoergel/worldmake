@@ -8,7 +8,7 @@ import scalax.file.Path
 
 
 /**
- * A World is a Derivation factory.
+ * A World is a Recipe factory.
  */
 trait World extends (String=>Recipe[_]) {
   def as[T](s:String) : Recipe[T] = apply(s).asInstanceOf[Recipe[T]]

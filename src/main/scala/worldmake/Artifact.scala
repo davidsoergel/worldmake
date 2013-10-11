@@ -243,6 +243,9 @@ class MemoryPathArtifact(path: Path) extends MemoryArtifact[Path](path) with Pat
   else {
     path.children()
   }*/
+  
+  // todo just pass in the child hashes for an assembly
+  
   override lazy val contentHashBytes: Array[Byte] = if (path.isFile) WMHash(path.fileOption.get)
   else {
     // this doesn't take into account the filenames directly, but does concatenate the child hashes in filename-sorted order. 

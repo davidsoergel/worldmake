@@ -36,6 +36,7 @@ Immediate
 =========
 
 * Artifact[TypedFile] needs to be in the DB to distinguish it from Artifact[DefaultPath] (??)
+* Yikes: dependencies are tracked as Sets in various places, so provenances may lose track of important order information e.g. for StringInterpolationDerivations.
 
 Medium
 ======
