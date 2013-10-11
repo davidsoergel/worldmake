@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <title>Worldmake by davidsoergel</title>
+  </head>
+
+  <body>
+    <div id="container">
+      <div class="inner">
+
+        <header>
+          <h1>Worldmake</h1>
+          <h2>Distributed, Lazy, Pure Functional Build Tool for Reproducible Research</h2>
+        </header>
+
+        <section id="downloads" class="clearfix">
+          <a href="https://github.com/davidsoergel/worldmake/zipball/master" id="download-zip" class="button"><span>Download .zip</span></a>
+          <a href="https://github.com/davidsoergel/worldmake/tarball/master" id="download-tar-gz" class="button"><span>Download .tar.gz</span></a>
+          <a href="https://github.com/davidsoergel/worldmake" id="view-on-github" class="button"><span>View on GitHub</span></a>
+        </section>
+
+        <hr>
+
+        <section id="main_content">
+          <p>WorldMake is a system for executing computational workflows, tracking provenance, and keeping derived results up to date.  It can be used for any situation involving a network of computations that depend on one another, such as:</p>
+
+<ul>
+<li>software compilation</li>
+<li>software package management</li>
+<li>continuous integration and testing</li>
+<li>reproducible research</li>
+</ul><p><em>WorldMake is presently alpha-level research software.  Consequently some of the below are "forward looking statements" describing features which are not yet fully fleshed out.  We are however confident in the model and the basic functionality.</em></p>
+
+<p>Like the venerable <code>make</code> tool, WorldMake guarantees that a collection of derived results are up-to-date and internally consistent, while avoiding redundant computation.  But it provides much more:</p>
+
+<ul>
+<li>Recipes (i.e., steps of a workflow) are easily <strong>shareable</strong> through distributed version control (e.g., GitHub).</li>
+<li>Recipes can be <strong>easily composed</strong> from other recipes obtained from different repositories.</li>
+<li><p>Consequently, workflow specifications can be <strong>distributed among collaborators</strong>-- i.e., if my collaborator updates an input file, I can automatically recompute dependent results.</p></li>
+<li><p>The stateless, pure functional nature of workflows guarantees <strong>reproducibility</strong> of results.</p></li>
+<li><p>SHA-256 hashing throughout provides for automatic <strong>integrity verification</strong> of results.</p></li>
+<li><p>Rigorous <strong>provenance tracking</strong>, including timing information and log outputs.</p></li>
+<li><p>Storage of <strong>historical results</strong>, for easy comparison with the latest version of a given output <em>(subject to a garbage collection policy, to keep storage requirements in check)</em>.</p></li>
+<li><p><strong>Archival</strong> of the complete provenance of any artifact, including all prerequisite inputs, intermediate results, and derivation programs.</p></li>
+<li><p>Automatic <strong>concurrent execution</strong> of independent computations, both on single <strong>multicore machines</strong> and on <strong>SGE clusters</strong>.</p></li>
+<li><p>Workflows are specified in <strong>Scala</strong>, providing all the flexibility of a <strong>real programming language</strong> (as opposed to highly constrained and frankly wonky dependency languages such as Make).  Aside from the syntactic improvement, this means that workflows can be structured like any other program, enjoying all the benefits of object orientation, inheritance, packaging, information hiding, and so forth.</p></li>
+<li><p>It is trivial to specify <strong>parameter sweeps</strong>, as well as to gather and filter sweep results for plotting or downstream analysis.</p></li>
+<li><p>Workflow computations are <strong>strongly typed</strong>, facilitating both compile-time and runtime checking that the output of one recipe is a valid input for the next.  In fact, authoring workflows in a Scala-type-aware IDE such as IntelliJ IDEA provides instantaneous feedback on type compatibility.</p></li>
+</ul><h1>
+<a name="meaning-of-the-name-worldmake" class="anchor" href="#meaning-of-the-name-worldmake"><span class="octicon octicon-link"></span></a>Meaning of the name "WorldMake"</h1>
+
+<ol>
+<li> While not technically related to <code>make</code> in any way, WorldMake is in some ways its conceptual descendant, and provides a superset of its functionality.</li>
+<li> WorldMake recipes, inputs, intermediate results, and outputs can be publicly shared and composed with full tracking of provenance.  This means that if someone has already done the computation that you want to do and is sharing the result, you can just download that output with full confidence that it is the same result you would have computed.  Thus, in a sense, all users are participating in a single worldwide build system.</li>
+<li> All outputs of a workflow ultimately derive from a set of concrete, non-derived inputs such as raw data files and source code (both of the workflow components and of the workflow itself).  These inputs are axioms, and together they define a World of potential derivations--which must of course be internally consistent.  So, the name is meant to evoke this concept of a consistent container.  If you disagree with someone about an axiom, then you are living in a different World, so naturally your results may not agree with theirs. </li>
+</ol><h1>
+<a name="prerequisites" class="anchor" href="#prerequisites"><span class="octicon octicon-link"></span></a>Prerequisites</h1>
+
+<ul>
+<li>MongoDB</li>
+<li>JDK 1.7</li>
+</ul><p>For cluster usage: </p>
+
+<ul>
+<li>SGE (i.e., "qsub"), with a filesystem shared among the head and compute nodes.  <em>(Support for operation without a shared filesystem is planned for a future version).</em>
+</li>
+</ul><h1>
+<a name="installation-and-configuration" class="anchor" href="#installation-and-configuration"><span class="octicon octicon-link"></span></a>Installation and configuration</h1>
+
+<p>WorldMake is distributed as a single jar file, together with an executable shell script "wm" for setting default command-line parameters.  Just put these in some convenient place, accessible in your path.</p>
+
+<p>Next create the file ~/.worldmake/application.conf, and populate it with configuration options as follows:</p>
+
+<h2>
+<a name="storage-configuration" class="anchor" href="#storage-configuration"><span class="octicon octicon-link"></span></a>Storage configuration</h2>
+
+<p>WorldMake tracks workflow inputs, intermediate results, and outputs in two forms: metadata and small artifacts are stored in a Mongo database, and larger files are stored in a managed directory tree in the filesystem.  Log files are similarly stored either in the database or in the filesystem, depending on size.</p>
+
+<p>Various filesystem paths below are independently configurable, but it's probably easiest to puth tem all together in some convenient place, e.g. <code>~/worldmake</code> for personal usage or <code>/somewhere/worldmake</code> for shared usage.  Just be sure that there's a lot of space available at that location!</p>
+
+<pre><code># MongoDB connection information
+mongoHost = mongoserver.mydomain.com
+mongoDbName = worldmake
+
+# Filesystem locations for primary artifact storage and log storage
+filestore = /somewhere/worldmake/file
+logstore = /somewhere/worldmake/log
+</code></pre>
+
+<p>Derivations are performed in a temporary working directory, where they may write ephemeral files which are not considered part of the output.</p>
+
+<pre><code># location for working directories
+localTempDir = /tmp/worldmake
+</code></pre>
+
+<h2>
+<a name="vcs-integration" class="anchor" href="#vcs-integration"><span class="octicon octicon-link"></span></a>VCS integration</h2>
+
+<pre><code># the root path of a remote Git server containing your repos
+gitremote = "file:///Git_Repos/worldmake/"
+
+# A local path where Git clones can be kept
+gitlocal = /somewhere/worldmake/gitlocal/
+
+# the root path of a remote Mercurial server containing your repos
+hgremote = "file:///somewhere/worldmake/hgcanonical/"
+
+# A local path where Mercurial clones can be kept
+hglocal = /somewhere/worldmake/hglocal/
+</code></pre>
+
+<h2>
+<a name="sge-options" class="anchor" href="#sge-options"><span class="octicon octicon-link"></span></a>SGE options</h2>
+
+<p>At present, SGE usage requires the <code>filestore</code> and <code>logstore</code> options above to be on a shared filesystem.</p>
+
+<pre><code>qsub = /opt/sge-6.2u5/bin/lx24-amd64/qsub
+qstat = /opt/sge-6.2u5/bin/lx24-amd64/qstat
+
+# this directory must be on a shared filesystem.
+qsubGlobalTempDir = /emerge/umass/worldmake/qsubTmp
+</code></pre>
+
+<h2>
+<a name="execution-options" class="anchor" href="#execution-options"><span class="octicon octicon-link"></span></a>Execution options</h2>
+
+<pre><code># working directories are deleted by default when a provenance succeeds; however it may be useful to retain them for debugging.
+# working directories of failed provenances are retained, regardless, until the provenance itself is garbage-collected.
+debugWorkingDirectories = true
+
+# this PATH will be available within system derivations.  (This constitutes a leak in purity and so is distasteful, but it's expedient for now).
+globalpath = "/sw/bin:/sw/sbin:/Developer/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/bin:/bin:/opt/X11/bin:/opt/local/bin:/opt/git-1.7.4.1-x86_64/bin:/usr/java/jdk1.7.0_21/bin"
+
+# When computing the hash of a Path artifact, ignore these filenames.  Include anything here that is ephemeral and/or meaningless as far as the derivation is concerned, so that irrelevant changes don't break artifact identity.
+ignoreFilenames = [ ".hg", ".git", ".svn" ]
+
+# Keep trying to compute failed derivations.  It's probably best to leave this false, so that you can fix the cause of the failure.  A value fo true only makes sense if your derivations may exhibit transient errors that you prefer to ignore.
+retryFailures = false 
+
+# Method of executing system derivations (i.e., snippets of shell script).
+# Options: "local", "qsub"
+executor = qsub
+</code></pre>
+        </section>
+
+        <footer>
+          Worldmake is maintained by <a href="https://github.com/davidsoergel">davidsoergel</a><br>
+          This page was generated by <a href="http://pages.github.com">GitHub Pages</a>. Tactile theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.
+        </footer>
+
+        
+      </div>
+    </div>
+  </body>
+</html>
