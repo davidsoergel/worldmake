@@ -26,6 +26,11 @@ object FileRecipes extends Logging {
     (a: Path, b: String) => a / b
   })
 
+  val children = new IdentifiableFunction1[Path, Seq[Path]]("fsChildren", {
+    (a: Path) => a.children().toSeq
+  })
+
+
   val countLines = new IdentifiableFunction1[TextFile, Int]("countLines", (tf: TextFile) => {
     logger.debug("Counting lines in " + tf.path.fileOption.get.toString)
     val lines: Seq[String] = Source.fromFile(tf.path.fileOption.get)(scala.io.Codec.UTF8).getLines().toSeq
