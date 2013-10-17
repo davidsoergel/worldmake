@@ -3,7 +3,7 @@ package worldmake
 
 import java.util.UUID
 import worldmake.storage.Identifier
-import scala.collection.{GenSet, GenTraversable}
+import scala.collection.{GenTraversable, GenSet}
 import scala.collection.immutable.Queue
 import scala.concurrent._
 import com.typesafe.scalalogging.slf4j.Logging
@@ -242,6 +242,15 @@ class TraversableProvenance[T](val provenances: Traversable[Provenance[T]]) exte
 */ 
 object TraversableRecipe {
   implicit def wrapTraversable[T](xs:GenTraversable[Recipe[T]]) = new TraversableRecipe(xs)
+  //implicit def unwrapTraversable[T](t:Recipe[GenTraversable[Artifact[T]]]) : GenTraversable[Recipe[T]] = 
+  
+    
+  // how to unwrap  
+  def seqGet[T] = new IdentifiableFunction2[Seq[T], Int, T]("seqGet", {
+      (a: Seq[T], b: Int) => a(b)
+    })
+
+  
 }
 
 class TraversableRecipe[T](val xs: GenTraversable[Recipe[T]]) extends DerivableRecipe[GenTraversable[Artifact[T]]] with Logging {
