@@ -92,6 +92,7 @@ object Artifact {
     case i:Int => IntArtifact(i)
     case d:Double => DoubleArtifact(d)
     case p:Path => PathArtifact(p)
+    case t:GenTraversable[T] => new MemoryGenTraversableArtifact[T](t.map(Artifact(_)))
     case _ => throw new IllegalArtifactException(v.toString)
   }).asInstanceOf[Artifact[T]]
 }
