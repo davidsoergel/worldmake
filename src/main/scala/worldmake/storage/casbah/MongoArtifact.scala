@@ -6,6 +6,7 @@ import com.mongodb.casbah.commons.Imports
 import com.mongodb.casbah.Imports._
 import scalax.file.Path
 import edu.umass.cs.iesl.scalacommons.util.Hash
+import worldmake.storage.{ManagedPathArtifact, ExternalPathArtifact, Identifier}
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -32,7 +33,8 @@ object MongoArtifact {
       case MongoIntArtifact.typehint => new MongoIntArtifact(dbo).some
       case MongoBooleanArtifact.typehint => new MongoBooleanArtifact(dbo).some
       case MongoDoubleArtifact.typehint => new MongoDoubleArtifact(dbo).some
-      case MongoPathArtifact.typehint => new MongoPathArtifact(dbo).some
+      case MongoExternalPathArtifact.typehint => new MongoExternalPathArtifact(dbo).some
+      case MongoManagedPathArtifact.typehint => new MongoManagedPathArtifact(dbo).some
       case MongoGenTraversableArtifact.typehint => new MongoGenTraversableArtifact(dbo).some
       case _ => None
     }
@@ -43,8 +45,10 @@ object MongoArtifact {
     case e: IntArtifact => MongoIntArtifact.toDb(e)
     case e: BooleanArtifact => MongoBooleanArtifact.toDb(e)
     case e: DoubleArtifact => MongoDoubleArtifact.toDb(e)
-    case e: PathArtifact => MongoPathArtifact.toDb(e)
-    case e: TypedPathArtifact[_] => MongoPathArtifact.toDb(e.asPathArtifact)  // stored without the typing info.  This will be re-wrapped every time it is loaded.  Careful about redundant verification.
+    case e: ExternalPathArtifact => MongoExternalPathArtifact.toDb(e)
+    case e: ManagedPathArtifact => MongoManagedPathArtifact.toDb(e)
+    case e: TypedExternalPathArtifact[_] => MongoExternalPathArtifact.toDb(e.asPathArtifact)  // stored without the typing info.  This will be re-wrapped every time it is loaded.  Careful about redundant verification.
+    case e: TypedManagedPathArtifact[_] => MongoManagedPathArtifact.toDb(e.asPathArtifact)
     case e: GenTraversableArtifact[_] => MongoGenTraversableArtifact.toDb(e)
     /*case e: Artifact => e.value match {
       case f: String => MongoStringArtifact.toDb(e)
@@ -99,7 +103,6 @@ class MongoDoubleArtifact(val dbo: MongoDBObject) extends MongoArtifact[Double] 
   override def value = dbo.as[Double]("value")
 }
 
-
 object MongoStringArtifact extends MongoSerializer[StringArtifact, MongoStringArtifact]("s", new MongoStringArtifact(_)) {
   def addFields(e: StringArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoArtifact.addFields(e, builder)
@@ -111,9 +114,8 @@ class MongoStringArtifact(val dbo: MongoDBObject) extends MongoArtifact[String] 
   override def value = dbo.as[String]("value")
 }
 
-
-object MongoPathArtifact extends MongoSerializer[PathArtifact, MongoPathArtifact]("p", new MongoPathArtifact(_)) {
-  def addFields(e: PathArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
+object MongoExternalPathArtifact extends MongoSerializer[ExternalPathArtifact, MongoExternalPathArtifact]("ep", new MongoExternalPathArtifact(_)) {
+  def addFields(e: ExternalPathArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoArtifact.addFields(e, builder)
     //builder += "value" -> e.value.toURL
     builder += "value" -> e.abspath
@@ -121,14 +123,34 @@ object MongoPathArtifact extends MongoSerializer[PathArtifact, MongoPathArtifact
   }
 }
 
-class MongoPathArtifact(val dbo: MongoDBObject) extends MongoArtifact[Path] with PathArtifact with MongoWrapper {
+class MongoExternalPathArtifact(val dbo: MongoDBObject) extends MongoArtifact[ExternalPath] with ExternalPathArtifact with MongoWrapper {
 
   //def pathType = dbo.as[String]("pathType")
   //override def value = TypedPathMapper.map( pathType, Path.fromString(dbo.as[URL]("value").toExternalForm))
   //override def value = Path.fromString(dbo.as[URL]("value").toExternalForm)
-  override def value = Path.fromString(dbo.as[String]("value"))
+  override def value = ExternalPath(Path.fromString(dbo.as[String]("value")))
 
 }
+
+
+object MongoManagedPathArtifact extends MongoSerializer[ManagedPathArtifact, MongoManagedPathArtifact]("mp", new MongoManagedPathArtifact(_)) {
+  def addFields(e: ManagedPathArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
+    MongoArtifact.addFields(e, builder)
+    //builder += "value" -> e.value.toURL
+    builder += "value" -> e.value.id
+    //builder += "pathType" -> e.pathType
+  }
+}
+
+class MongoManagedPathArtifact(val dbo: MongoDBObject) extends MongoArtifact[ManagedPath] with ManagedPathArtifact with MongoWrapper {
+
+  //def pathType = dbo.as[String]("pathType")
+  //override def value = TypedPathMapper.map( pathType, Path.fromString(dbo.as[URL]("value").toExternalForm))
+  //override def value = Path.fromString(dbo.as[URL]("value").toExternalForm)
+  override def value = ManagedPath(Identifier[ManagedPath](dbo.as[String]("value")))
+
+}
+
 
 object MongoGenTraversableArtifact extends MongoSerializer[GenTraversableArtifact[_], MongoGenTraversableArtifact[_]]("t", new MongoGenTraversableArtifact(_)) {
   def addFields(e: GenTraversableArtifact[_], builder: mutable.Builder[(String, Any), Imports.DBObject]) {

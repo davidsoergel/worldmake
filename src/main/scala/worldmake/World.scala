@@ -11,7 +11,11 @@ import scalax.file.Path
  * A World is a Recipe factory.
  */
 trait World extends (String=>Recipe[_]) {
+  
+  // todo use reflection to automacitally resolve recipes, even with dot notation, to avoid having to make the map explicit
+  
   def as[T](s:String) : Recipe[T] = apply(s).asInstanceOf[Recipe[T]]
+  def get(name:String) : Option[Recipe[_]]
 }
 
 /**
@@ -29,7 +33,7 @@ class ConcreteWorld (targets: Map[String, Recipe[_]] ) extends World {
  */
 class ConstantWorld (ts: Map[String, ConstantRecipe[_]] ) extends ConcreteWorld(ts)
 
-class PathWorld (ts: Map[String, Recipe[Path]] ) extends ConcreteWorld(ts) {
+class PathWorld (ts: Map[String, Recipe[ManagedPath]] ) extends ConcreteWorld(ts) {
   override def apply(name:String) = ts(name)
   override def get(name:String) = ts.get(name)
 }

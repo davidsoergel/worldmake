@@ -13,6 +13,8 @@ object Storage extends StorageContext {
 
  // def artifactStore: ArtifactStore = _storage.artifactStore
   def provenanceStore: ProvenanceStore = _storage.provenanceStore
+  def fileStore: FilesystemManagedFileStore = _storage.fileStore
+  def logStore: FilesystemManagedFileStore = _storage.logStore
 
 }
 
@@ -20,6 +22,8 @@ object Storage extends StorageContext {
 trait StorageContext {
   //def artifactStore: ArtifactStore
   def provenanceStore : ProvenanceStore
+  def fileStore : FilesystemManagedFileStore
+  def logStore : FilesystemManagedFileStore
 }
 
 

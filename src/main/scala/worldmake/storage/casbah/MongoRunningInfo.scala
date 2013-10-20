@@ -7,6 +7,7 @@ import scala.collection.mutable
 import com.mongodb.casbah.commons.Imports
 import worldmake.executionstrategy.QsubRunningInfo
 import scalax.file.Path
+import worldmake.storage.Identifier
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -75,7 +76,7 @@ object MongoQsubRunningInfo extends MongoSerializer[QsubRunningInfo, MongoQsubRu
     MongoRunningInfo.addFields(e, builder)
     builder += "jobId" -> e.jobId
     builder += "workingDir" -> e.workingDir.toAbsolute.path
-    builder += "outputPath" -> e.outputPath.toAbsolute.path
+    builder += "outputPathId" -> e.outputPath.id
 //    builder += "requestedType" -> e.requestedType
   }
 }
@@ -83,7 +84,7 @@ object MongoQsubRunningInfo extends MongoSerializer[QsubRunningInfo, MongoQsubRu
 class MongoQsubRunningInfo(val dbo: MongoDBObject) extends MongoRunningInfo with QsubRunningInfo with MongoWrapper{
   def jobId = dbo.as[Int]("jobId")
   def workingDir = Path.fromString(dbo.as[String]("workingDir"))
-  def outputPath = Path.fromString(dbo.as[String]("outputPath"))
+  def outputPath = ManagedPath(Identifier[ManagedPath]((dbo.as[String]("outputPathId"))))
 //  def requestedType = dbo.as[String]("requestedType")
 }
 

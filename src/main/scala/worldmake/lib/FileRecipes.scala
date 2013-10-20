@@ -5,8 +5,7 @@ import scalax.file.Path
 import scala.io.Source
 import com.typesafe.scalalogging.slf4j.Logging
 import scala.collection.GenMap
-import worldmake.WorldMakeConfig._
-import worldmake.storage.Identifier
+import worldmake.storage._
 import java.util.UUID
 import java.nio.file.{FileSystems, Files}
 import java.nio.file
@@ -15,23 +14,24 @@ import ExecutionContext.Implicits.global
 import worldmake.cookingstrategy.CookingStrategy
 
 import StringInterpolationRecipe._
+import WorldMakeConfig.WMHashHex
+import worldmake.storage.Identifier
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 object FileRecipes extends Logging {
 
-  val fsTraverse = new IdentifiableFunction2[Path, String, Path]("fsTraverse", {
-    (a: Path, b: String) => a / b
+/*  val fsTraverse = new IdentifiableFunction2[PathArtifact[PathReference], String, PathArtifact]("fsTraverse", {
+    (a: PathArtifact[PathReference], b: String) => new PathArtifact(new PathReference() {val path = a.path / b} )
   })
 
-  val children = new IdentifiableFunction1[Path, Seq[Path]]("fsChildren", {
-    (a: Path) => {
-      val result: Seq[Path] = a.children().toSeq
+  val children = new IdentifiableFunction1[PathArtifact[PathReference], Seq[PathArtifact]]("fsChildren", {
+    (a: PathArtifact[PathReference]) => {
+      val result: Seq[PathArtifact] = a.children.toSeq
       result
     }
-  })
-
+  })*/
 
   val countLines = new IdentifiableFunction1[TextFile, Int]("countLines", (tf: TextFile) => {
     logger.debug("Counting lines in " + tf.path.fileOption.get.toString)
@@ -47,13 +47,13 @@ object FileRecipes extends Logging {
 
 }
 
-class AssemblyRecipe(namedDependencies: GenMap[String, Recipe[Path]]) extends DerivableRecipe[Path] with Logging {
+class AssemblyRecipe(namedDependencies: GenMap[String, Recipe[PathReference]]) extends DerivableRecipe[ManagedPath] with Logging {
 
   lazy val recipeId = {
     val dependencyInfos: Seq[String] = namedDependencies.par.map({
       case (k, v) => k.toString + v.recipeId.s
     }).toSeq.seq.sorted
-    Identifier[Recipe[Path]](WMHashHex(dependencyInfos.mkString("")))
+    Identifier[Recipe[ManagedPath]](WMHashHex(dependencyInfos.mkString("")))
   }
 
   def longDescription = "Assembly: " + namedDependencies.toList.map({
@@ -69,7 +69,7 @@ class AssemblyRecipe(namedDependencies: GenMap[String, Recipe[Path]]) extends De
 
 
   def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
-    val pr = BlockedProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString), recipeId)
+    val pr = BlockedProvenance(Identifier[Provenance[ManagedPath]](UUID.randomUUID().toString), recipeId)
     val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k => FutureUtils.futurePair(upstreamStrategy, (k, namedDependencies(k))))
     val result = for (reifiedDependencies <- reifiedDependenciesF
     ) yield deriveWithArgs(pr.pending(Set.empty, reifiedDependencies.toMap), reifiedDependencies.toMap)
@@ -78,22 +78,23 @@ class AssemblyRecipe(namedDependencies: GenMap[String, Recipe[Path]]) extends De
 
   }
 
-  private def deriveWithArgs(pr: PendingProvenance[Path], reifiedDependencies: GenMap[String, Successful[Path]]): CompletedProvenance[Path] = synchronized {
+  private def deriveWithArgs(pr: PendingProvenance[ManagedPath], reifiedDependencies: GenMap[String, Successful[PathReference]]): CompletedProvenance[ManagedPath] = synchronized {
     val prs = pr.running(new MemoryWithinJvmRunningInfo)
 
     try {
-      val outputPath: Path = fileStore.newPath
+      val outputId: Identifier[ManagedPath] = Storage.fileStore.newId
+      val outputPath: Path = Storage.fileStore.getOrCreate(outputId)
       outputPath.createDirectory(createParents = true, failIfExists = true)
       reifiedDependencies.map({
         case (n, v) => {
-          val target = FileSystems.getDefault.getPath(v.output.value.toAbsolute.path)
+          val target = FileSystems.getDefault.getPath(v.output.value.abspath)
           val link: file.Path = FileSystems.getDefault.getPath((outputPath / n).path)
           Files.createSymbolicLink(link, target)
         }
       })
 
       //val result : Artifact[TypedPath] = TypedPathArtifact(TypedPathMapper.map("assembly", outputPath))
-      prs.completed(0, None, Map.empty, PathArtifact(outputPath))
+      prs.completed(0, None, Map.empty, ManagedPathArtifact(ManagedPath(outputId)))
     }
     catch {
       case t: Throwable => {

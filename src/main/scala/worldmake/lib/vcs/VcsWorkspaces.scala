@@ -1,6 +1,6 @@
 package worldmake.lib.vcs
 
-import worldmake.{TypedPath, Recipe, WorldMakeConfig}
+import worldmake.{ManagedPath, TypedPathReference, Recipe, WorldMakeConfig}
 import scalax.file.Path
 import scala.sys.process.{Process, ProcessLogger}
 import com.typesafe.scalalogging.slf4j.Logging
@@ -13,7 +13,7 @@ trait VcsWorkspaces extends Logging {
   
   def toUrl(id: String): String
 
-  def toLocalRepo(id: String): Path
+  //def toLocalRepo(id: String): Path
 
   /**
    * A Derivation that extracts the requested version from the VCS repository to the output path.
@@ -21,7 +21,7 @@ trait VcsWorkspaces extends Logging {
    * @param requestVersion
    * @return
    */
-  def get(id: String, requestVersion: String = "latest"): Recipe[Path]
+  def get(id: String, requestVersion: String = "latest"): Recipe[ManagedPath]
 
   def getLatestVersions(id: String): Map[String, String]
 

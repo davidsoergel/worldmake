@@ -17,7 +17,7 @@ class Example {
 // todo update
 
 object ConcatenateFiles {
-  def apply(xs: Traversable[Recipe[File]]) : Recipe[Path] = {
+  def apply(xs: Traversable[Recipe[File]]) : Recipe[ManagedPath] = {
     val script : Recipe[String] =
       """
         |#!/bin/sh

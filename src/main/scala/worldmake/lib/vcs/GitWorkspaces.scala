@@ -16,7 +16,9 @@ object GitWorkspaces extends VcsWorkspaces with Logging {
   
    def toUrl(id: String): String = WorldMakeConfig.gitRemoteRoot + (id + ".git")  // add .git because the remote should be bare
  
-   def toLocalRepo(id: String): Path = {
+   def toLocalRepo = new IdentifiableFunction1[String,Path]("Git fetch", toLocalRepoRaw)
+  
+  private def toLocalRepoRaw(id: String): Path = {
      val p: Path = WorldMakeConfig.gitLocalRoot / (id + ".git")  // add .git because we clone bare
      if (p.isDirectory) {
        logger.debug("Pulling changes to " + id)
@@ -28,13 +30,13 @@ object GitWorkspaces extends VcsWorkspaces with Logging {
      p
    }
  
-   def get(id: String, requestVersion: String = "latest"): Recipe[Path] = {
+   def get(id: String, requestVersion: String = "latest"): Recipe[ManagedPath] = {
      val version = requestVersion match {
        case "latest" => getLatestVersions(id)("master")
        case v => v
      }
      val args = Map[String, Recipe[_]](
-       "localrepo" -> toLocalRepo(id),
+       "localrepo" -> new Recipe1(toLocalRepo, id),
        "version" -> version)
  
      // note git archive can access remote repos, so we could skip the "local" repo, but we do it anyway because
@@ -48,7 +50,7 @@ object GitWorkspaces extends VcsWorkspaces with Logging {
    private val gitBranchesToChangesetNumber = """^[ \*] (\S+) (\S+) (.*)$""".r
  
    def getLatestVersions(id: String): Map[String, String] = {
-     val localrepo = toLocalRepo(id)
+     val localrepo = toLocalRepoRaw(id)
  
      logger.debug("Finding latest versions in " + localrepo.toAbsolute.path)
      val pb = Process(Seq("git", "branch", "-v"), localrepo.fileOption) //, environment.toArray: _*)

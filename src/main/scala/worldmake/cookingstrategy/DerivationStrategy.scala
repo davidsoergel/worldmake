@@ -12,6 +12,8 @@ import worldmake.storage.Identifier
  */
 
 trait CookingStrategy extends Logging {
+
+  //def stageOne[T](d: Recipe[T]): Provenance[T]
   def cookOne[T](d: Recipe[T]): Future[Successful[T]]
 
   def systemExecution: SystemExecutionStrategy
@@ -39,6 +41,7 @@ trait LocalDerivationStrategy extends DerivationStrategy {
 */
 
 object NotAvailableCookingStrategy extends CookingStrategy {
+  //def stageOne[T](d: Recipe[T]) = throw new CookingException("Recipes cannot be staged in this configuration")
   def cookOne[T](d: Recipe[T]) = throw new CookingException("Recipes cannot be cooked in this configuration")
 
   def systemExecution = throw new CookingException("Recipes cannot be cooked in this configuration")
@@ -55,8 +58,11 @@ trait FallbackCookingStrategy extends CookingStrategy {
 
 
 class ComputeNowCookingStrategy(upstreamStrategy: CookingStrategy, val systemExecution: SystemExecutionStrategy) extends CookingStrategy {
+  
+  //@throws(classOf[FailedRecipeException])
+  //def stageOne[T](d: Recipe[T]): Provenance[T] = d.stage(upstreamStrategy)
+  
   @throws(classOf[FailedRecipeException])
   def cookOne[T](d: Recipe[T]): Future[Successful[T]] = d.deriveFuture(upstreamStrategy)
-
 }
 

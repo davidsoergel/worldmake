@@ -2,9 +2,31 @@ package worldmake.storage
 
 import scala.collection.GenSet
 import worldmake._
+import scalax.file.Path
+
+case class ProvenanceStoreStatus(blocked:Int,pending:Int,successful:Int,failed:Int,cancelled:Int) {
+  def +(other:ProvenanceStoreStatus) = ProvenanceStoreStatus(blocked + other.blocked, pending+other.pending,successful+other.successful,failed+other.failed,cancelled+other.cancelled) 
+}
 
 trait ProvenanceStore {
+  def removeUnused : Boolean
+
+  def removeDead
+
+  def removeZombie
+
   def get[T](id: Identifier[Provenance[T]]): Option[Provenance[T]]
+
+  //def getWithRecipeId(s: String): Option[Provenance[_]]
+
+  def findWithLogFileById(s: Identifier[ManagedPath]): Set[Provenance[_]]
+  def findWithArtifactFileById(s: Identifier[ManagedPath]): Set[Provenance[_]]
+  def findWithArtifactFileByIdFragment(s: String): Set[Provenance[_]]
+  def findWithArtifactByValue(s: String): Set[Provenance[_]]
+
+
+  def status : ProvenanceStoreStatus
+
   def getSuccessful[T](id: Identifier[Successful[T]]): Option[Successful[T]]
 
   //def getForArtifact[T](id: Identifier[Artifact[T]]): Option[Provenance[T]]
@@ -18,7 +40,7 @@ trait ProvenanceStore {
     })
   }
 
-  def put[T](provenance: Provenance[T]): Provenance[T]
+  def put[T](provenance: Provenance[T]) //: Provenance[T]
 
   //def putConstant[T](artifact: ConstantArtifact[T]): Provenance[T]
 }
@@ -85,55 +107,71 @@ class AggregateProvenanceStore(primaryStore: ProvenanceStore, otherStores: GenSe
 
   def getContentHash[T](id: Identifier[Provenance[T]]) = primaryStore.getContentHash(id).orElse(otherStores.flatMap(_.getContentHash(id)).headOption) // perf
 
-  def put[T](provenance: Provenance[T]): Provenance[T] = {
+  def put[T](provenance: Provenance[T]) { //: Provenance[T] = {
     primaryStore.put(provenance)
   }
+
+  def findWithArtifactByValue(s: String) = primaryStore.findWithArtifactByValue(s) ++ otherStores.flatMap(_.findWithArtifactByValue(s))
+
+  def findWithArtifactFileById(s: Identifier[ManagedPath]) = primaryStore.findWithArtifactFileById(s) ++ otherStores.flatMap(_.findWithArtifactFileById(s))
+
+  def findWithArtifactFileByIdFragment(s: String) = primaryStore.findWithArtifactFileByIdFragment(s) ++ otherStores.flatMap(_.findWithArtifactFileByIdFragment(s))
+
+  def findWithLogFileById(s: Identifier[ManagedPath]) = primaryStore.findWithLogFileById(s) ++ otherStores.flatMap(_.findWithLogFileById(s))
+
+  def removeDead = { primaryStore.removeDead; otherStores.map(_.removeDead) }
+
+  def removeUnused = otherStores.map(_.removeUnused).fold(primaryStore.removeUnused)((a,b)=>a|b)  // non-short-circuit
+
+  def removeZombie =  { primaryStore.removeZombie; otherStores.map(_.removeZombie) }
+
+  def status = otherStores.map(_.status).fold(primaryStore.status)((a,b)=>a+b)
 }
 
 
-object StoredProvenances {
-  def apply[T](id: Identifier[Recipe[T]]) = new StoredProvenances(id)
+object StoredProvenancesForRecipe {
+  def apply[T](id: Identifier[Recipe[T]]) = new StoredProvenancesForRecipe(id)
 }
 
-class StoredProvenances[T](val recipeId: Identifier[Recipe[T]]) {
+class StoredProvenancesForRecipe[T](val recipeId: Identifier[Recipe[T]]) {
 
-  private val provenances: GenSet[Provenance[T]] = Storage.provenanceStore.getDerivedFrom(recipeId)
+  val all: GenSet[Provenance[T]] = Storage.provenanceStore.getDerivedFrom(recipeId)
 
-  val successes: GenSet[Successful[T]] =
-    provenances.collect({
+  lazy val successes: GenSet[Successful[T]] =
+    all.collect({
       case x: Successful[T] => x
     })
 
-  val blocked: GenSet[BlockedProvenance[T]] =
-    provenances.collect({
+  lazy val blocked: GenSet[BlockedProvenance[T]] =
+    all.collect({
       case x: BlockedProvenance[T] => x
     })
 
-  val pending: GenSet[PendingProvenance[T]] =
-    provenances.collect({
+  lazy val pending: GenSet[PendingProvenance[T]] =
+    all.collect({
       case x: PendingProvenance[T] => x
     })
 
-  val running: GenSet[RunningProvenance[T]] =
-    provenances.collect({
+  lazy val running: GenSet[RunningProvenance[T]] =
+    all.collect({
       case x: RunningProvenance[T] => x
     })
 
-  val potentialSuccesses: GenSet[DerivedProvenance[T]] =
-    provenances.collect({
+  lazy val potentialSuccesses: GenSet[DerivedProvenance[T]] =
+    all.collect({
       case x: BlockedProvenance[T] => x
       case x: PendingProvenance[T] => x
       case x: RunningProvenance[T] => x
     })
 
 
-  val failures: GenSet[FailedProvenance[T]] =
-    provenances.collect({
+  lazy val failures: GenSet[FailedProvenance[T]] =
+    all.collect({
       case x: FailedProvenance[T] => x
     })
 
-  val cancelled: GenSet[CancelledProvenance[T]] =
-    provenances.collect({
+  lazy val cancelled: GenSet[CancelledProvenance[T]] =
+    all.collect({
       case x: CancelledProvenance[T] => x
     })
 
@@ -141,7 +179,7 @@ class StoredProvenances[T](val recipeId: Identifier[Recipe[T]]) {
   /** Just report the most interesting result, not all of them
     *
     */
-  val statusString: String = {
+  lazy val statusString: String = {
     if (successes.size > 0) {
       "Success (" + successes.size + ")"
     } else if (running.size > 0) {
@@ -158,7 +196,7 @@ class StoredProvenances[T](val recipeId: Identifier[Recipe[T]]) {
     else "no status" // todo print other statuses
   }
   
-  def mostRecent : Option[Provenance[T]] = if(provenances.isEmpty) None else Some(provenances.toSeq.max(new Ordering[Provenance[T]]{
+  def mostRecent : Option[Provenance[T]] = if(all.isEmpty) None else Some(all.toSeq.max(new Ordering[Provenance[T]]{
     def compare(x: Provenance[T], y: Provenance[T]) = x.modifiedTime.compareTo(y.modifiedTime)
   }))
 

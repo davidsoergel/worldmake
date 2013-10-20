@@ -15,8 +15,10 @@ object MercurialWorkspaces extends VcsWorkspaces with Logging {
   def defaultBranchName = "default"
   
   def toUrl(id: String): String = WorldMakeConfig.mercurialRemoteRoot + id
+  
+  def toLocalRepo = new IdentifiableFunction1[String,Path]("hg fetch", toLocalRepoRaw)
 
-  def toLocalRepo(id: String): Path = {
+  private def toLocalRepoRaw(id: String): Path = {
     val p: Path = WorldMakeConfig.mercurialLocalRoot / id
     if (p.isDirectory) {
       logger.debug("Pulling change to " + id)
@@ -28,7 +30,7 @@ object MercurialWorkspaces extends VcsWorkspaces with Logging {
     p
   }
 
-  def get(id: String, requestVersion: String = "latest"): Recipe[Path] = {
+  def get(id: String, requestVersion: String = "latest"): Recipe[ManagedPath] = {
     val version = requestVersion match {
       case "latest" => getLatestVersions(id)("default")
       case v => v
@@ -45,7 +47,7 @@ object MercurialWorkspaces extends VcsWorkspaces with Logging {
   private val hgBranchesToChangesetNumber = """(\S+)\s*(\d+):(\S*)( \(.*\))?""".r
 
   def getLatestVersions(id: String): Map[String, String] = {
-    val localrepo = toLocalRepo(id)
+    val localrepo = toLocalRepoRaw(id)
 
     logger.debug("Finding latest versions in " + localrepo.toAbsolute.path)
     val pb = Process(Seq("hg", "branches"), localrepo.fileOption) //, environment.toArray: _*)

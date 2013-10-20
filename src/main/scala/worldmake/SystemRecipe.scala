@@ -36,7 +36,7 @@ object SystemRecipe {
 
 }
 
-class SystemRecipe(val script: Recipe[String], namedDependencies: GenMap[String, Recipe[_]]) extends DerivableRecipe[Path] with Logging {
+class SystemRecipe(val script: Recipe[String], namedDependencies: GenMap[String, Recipe[_]]) extends DerivableRecipe[ManagedPath] with Logging {
 
   override lazy val queue: Queue[Recipe[_]] = {
     val deps = dependencies.seq.toSeq.flatMap(_.queue)
@@ -47,7 +47,7 @@ class SystemRecipe(val script: Recipe[String], namedDependencies: GenMap[String,
     val dependencyInfos: Seq[String] = namedDependencies.par.map({
       case (k, v) => k.toString + v.recipeId.s
     }).toSeq.seq.sorted
-    Identifier[Recipe[Path]](WMHashHex(script.recipeId.s + dependencyInfos.mkString("")))
+    Identifier[Recipe[ManagedPath]](WMHashHex(script.recipeId.s + dependencyInfos.mkString("")))
   }
 
   lazy val   longDescription = "EXECUTE(" + script.shortId + "): " + script.longDescription
@@ -55,7 +55,7 @@ class SystemRecipe(val script: Recipe[String], namedDependencies: GenMap[String,
   lazy val  dependencies = namedDependencies.values.toSet + script
 
   def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
-    val pr = BlockedProvenance(Identifier[Provenance[Path]](UUID.randomUUID().toString), recipeId)
+    val pr = BlockedProvenance(Identifier[Provenance[ManagedPath]](UUID.randomUUID().toString), recipeId)
     val reifiedScriptF = upstreamStrategy.cookOne(script)
     val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k => FutureUtils.futurePair(upstreamStrategy,(k, namedDependencies(k))))
     val result = upstreamStrategy.systemExecution(pr, reifiedScriptF, reifiedDependenciesF)

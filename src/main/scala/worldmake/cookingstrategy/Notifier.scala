@@ -3,7 +3,7 @@ package worldmake.cookingstrategy
 import worldmake._
 import scala.concurrent._
 import scala.collection.mutable
-import worldmake.storage.StoredProvenances
+import worldmake.storage.StoredProvenancesForRecipe
 import scala.concurrent.duration.Duration
 import java.util.concurrent.TimeUnit
 import akka.actor.ActorSystem
@@ -46,7 +46,7 @@ class BasicCallbackNotifier extends CallbackNotifier with Logging {
 
     // one provenance may have failed, but the downstream provenances could just use a different one
     // see if there are any other successes...
-    val sp = StoredProvenances(id)
+    val sp = StoredProvenancesForRecipe(id)
     if (sp.successes.isEmpty && sp.potentialSuccesses.isEmpty) {
       val t = FailedRecipeException("Failure detected: no potential success for recipe: " + id, id)
       for (p <- waitingFor.get(id)) {
@@ -77,7 +77,7 @@ class PollingNotifier(pollingActions: Seq[PollingAction]) extends BasicCallbackN
     def run() {
       // figure out which derivations we're looking for, and see what provenances exist for those
 
-      val sps = waitingFor.keys.map(StoredProvenances[Any])
+      val sps = waitingFor.keys.map(StoredProvenancesForRecipe[Any])
 
       for (a <- pollingActions) {
         a(sps, PollingNotifier.this)
@@ -99,11 +99,11 @@ class PollingNotifier(pollingActions: Seq[PollingAction]) extends BasicCallbackN
 
 
 trait PollingAction {
-  def apply(sps: Iterable[StoredProvenances[_]], notifier: CallbackNotifier)
+  def apply(sps: Iterable[StoredProvenancesForRecipe[_]], notifier: CallbackNotifier)
 }
 
 object DetectSuccessPollingAction extends PollingAction {
-  def apply(sps: Iterable[StoredProvenances[_]], notifier: CallbackNotifier) {
+  def apply(sps: Iterable[StoredProvenancesForRecipe[_]], notifier: CallbackNotifier) {
     for (sp <- sps)
       sp.successes.toSeq.headOption.map(pr => notifier.announceDone(pr))
   }
@@ -111,7 +111,7 @@ object DetectSuccessPollingAction extends PollingAction {
 
 
 object DetectFailedPollingAction extends PollingAction {
-  def apply(sps: Iterable[StoredProvenances[_]], notifier: CallbackNotifier) {
+  def apply(sps: Iterable[StoredProvenancesForRecipe[_]], notifier: CallbackNotifier) {
     for (sp <- sps) {
       if (sp.successes.isEmpty && sp.potentialSuccesses.isEmpty)
         notifier.announceFailed(sp.failures.head) // just pick one, it doesn't matter...

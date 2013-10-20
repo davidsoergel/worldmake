@@ -12,6 +12,7 @@ import scala.Some
 import scala.sys.process.{ProcessLogger, Process}
 import ExecutionContext.Implicits.global
 import scala.reflect.runtime.universe._
+import worldmake.storage.{Identifier, ManagedPathArtifact, Storage}
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -19,7 +20,7 @@ import scala.reflect.runtime.universe._
 
 object LocalExecutionStrategy extends SystemExecutionStrategy with Logging {
   
-  def apply(pr: BlockedProvenance[Path], reifiedScriptF: Future[Successful[String]], reifiedDependenciesF: Future[Iterable[(String, Successful[Any])]]): Future[Successful[Path]] = {
+  def apply(pr: BlockedProvenance[ManagedPath], reifiedScriptF: Future[Successful[String]], reifiedDependenciesF: Future[Iterable[(String, Successful[Any])]]): Future[Successful[ManagedPath]] = {
     for (reifiedScript <- reifiedScriptF;
          reifiedDependencies <- reifiedDependenciesF
     ) yield {
@@ -28,17 +29,18 @@ object LocalExecutionStrategy extends SystemExecutionStrategy with Logging {
     }
   }
 
-  private def systemExecuteWithArgs(pp: PendingProvenance[Path], reifiedScript: Successful[String], reifiedDependencies: GenMap[String, Successful[_]]): Successful[Path] = {
+  private def systemExecuteWithArgs(pp: PendingProvenance[ManagedPath], reifiedScript: Successful[String], reifiedDependencies: GenMap[String, Successful[_]]): Successful[ManagedPath] = {
 
     // this path does not yet exist.
     // the derivation may write a single file to it, or create a directory there.
-    val outputPath: Path = fileStore.newPath
+    val outputId: Identifier[ManagedPath] = Storage.fileStore.newId
+    val outputPath: Path = Storage.fileStore.getOrCreate(outputId)
 
     val workingDir = Path.createTempDirectory(dir = WorldMakeConfig.localTempDir, deleteOnExit = !WorldMakeConfig.debugWorkingDirectories)
     //val log: File = (outputPath / "worldmake.log").fileOption.getOrElse(throw new Error("can't create log: " + outputPath / "worldmake.log"))
     //val logWriter = Resource.fromFile(log)
 
-    val logWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
+    val logWriter = new LocalWriteableStringOrManagedFile(Storage.logStore)
 
     val dependenciesEnvironment: GenMap[String, String] = reifiedDependencies.mapValues(_.output.environmentString)
 
@@ -73,7 +75,7 @@ object LocalExecutionStrategy extends SystemExecutionStrategy with Logging {
     }
     val result = TypedPathArtifact[T](TypedPathMapper.map(requestedType, outputPath)) //TypedPathArtifact(outputPath)
 */
-    val result = PathArtifact(outputPath)
+    val result = ManagedPathArtifact(ManagedPath(outputId))
     
     if (exitCode != 0) {
       logger.warn("Deleting output: " + outputPath)

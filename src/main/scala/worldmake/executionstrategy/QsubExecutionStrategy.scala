@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.slf4j.Logging
 import worldmake.WorldMakeConfig._
 import scalax.io.Resource
 import java.io.{IOException, File}
-import worldmake.storage.StoredProvenances
+import worldmake.storage.{Identifier, ManagedPathArtifact, Storage, StoredProvenancesForRecipe}
 import scala.Some
 import scala.sys.process.{ProcessLogger, Process}
 import worldmake.cookingstrategy.{CallbackNotifier, PollingAction, Notifier}
@@ -24,33 +24,34 @@ trait QsubRunningInfo extends RunningInfo {
 
   def workingDir: Path
 
-  def outputPath: Path
+  def outputPath: ManagedPath
 
   def infoBlock : String = s"""
   |       qsub ID: ${jobId}
   |   Working Dir: ${workingDir.toAbsolute.path}
-  |   Output Path: ${outputPath.toAbsolute.path}
+  |   Output Path: ${outputPath.abspath}
   | """.stripMargin
   //def requestedType: String
 }
 
-case class MemoryQsubRunningInfo(jobId: Int, workingDir: Path, outputPath: Path, node: Option[String]) extends QsubRunningInfo  //, requestedType:String
+case class MemoryQsubRunningInfo(jobId: Int, workingDir: Path, outputPath: ManagedPath, node: Option[String]) extends QsubRunningInfo  //, requestedType:String
 
 class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy with Logging {
 
-  def apply(pr: BlockedProvenance[Path], reifiedScriptF: Future[Successful[String]], reifiedDependenciesF: Future[Iterable[(String, Successful[Any])]]): Future[Successful[Path]] = {
+  def apply(pr: BlockedProvenance[ManagedPath], reifiedScriptF: Future[Successful[String]], reifiedDependenciesF: Future[Iterable[(String, Successful[Any])]]): Future[Successful[ManagedPath]] = {
     for (reifiedScript <- reifiedScriptF;
          reifiedDependencies <- reifiedDependenciesF;
          x <- systemExecuteWithArgs(pr.pending(Set(reifiedScript), reifiedDependencies.toMap), reifiedScript, reifiedDependencies.toMap)
     ) yield x
   }
 
-  private def systemExecuteWithArgs(pp: PendingProvenance[Path], reifiedScript: Successful[String], reifiedDependencies: GenMap[String, Successful[_]]): Future[Successful[Path]] = {
+  private def systemExecuteWithArgs(pp: PendingProvenance[ManagedPath], reifiedScript: Successful[String], reifiedDependencies: GenMap[String, Successful[_]]): Future[Successful[ManagedPath]] = {
 
 
     // this path does not yet exist.
     // the derivation may write a single file to it, or create a directory there.
-    val outputPath: Path = fileStore.newPath
+    val outputId: Identifier[ManagedPath] = Storage.fileStore.newId
+    val outputPath: Path = Storage.fileStore.getOrCreate(outputId)
     //val log: File = (outputPath / "worldmake.log").fileOption.getOrElse(throw new Error("can't create log: " + outputPath / "worldmake.log"))
     //val logWriter = Resource.fromFile(log)
 
@@ -92,7 +93,7 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
      |
      |""".stripMargin)
 
-    val qsubLogWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
+    val qsubLogWriter = new LocalWriteableStringOrManagedFile(Storage.logStore)
 
     val qsubPb = Process(Seq(WorldMakeConfig.qsub, "-C", "#PBS", "./worldmake.qsub"), workingDir.jfile)
 
@@ -112,7 +113,7 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
       logger.warn("Deleting output: " + outputPath)
       outputPath.deleteRecursively()
       logger.warn("Retaining working directory: " + workingDir)
-      val prsx = pp.running(new MemoryQsubRunningInfo(0, workingDir, outputPath, None)) //,requestedType))
+      val prsx = pp.running(new MemoryQsubRunningInfo(0, workingDir, ManagedPath(outputId), None)) //,requestedType))
       val f = prsx.failed(qsubPbExitCode, Some(qsubLogWriter), Map.empty)
 
       throw FailedRecipeException(qsubOutput, f)
@@ -121,9 +122,9 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
     val jobIdRE(jobId) = qsubOutput
 
 
-    val prs = pp.running(new MemoryQsubRunningInfo(jobId.toInt, workingDir, outputPath, None)) //,requestedType))
+    val prs = pp.running(new MemoryQsubRunningInfo(jobId.toInt, workingDir, ManagedPath(outputId), None)) //,requestedType))
 
-    notifier.request[Path](prs.recipeId)
+    notifier.request[ManagedPath](prs.recipeId)
   }
 
   /*
@@ -185,7 +186,7 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
 
 
 object DetectQsubPollingAction extends PollingAction with Logging {
-  def apply(sps: Iterable[StoredProvenances[_]], notifier: CallbackNotifier) {
+  def apply(sps: Iterable[StoredProvenancesForRecipe[_]], notifier: CallbackNotifier) {
     try {
       val qstat = new Qstat()
       for (sp <- sps) {
@@ -206,7 +207,7 @@ object DetectQsubPollingAction extends PollingAction with Logging {
 
               def collectLog = try {
                 // copy the log from the qsub file into the database or file store, as needed
-                val logWriter = new LocalWriteableStringOrFile(WorldMakeConfig.logStore)
+                val logWriter = new LocalWriteableStringOrManagedFile(Storage.logStore)
                 val logLines = Resource.fromFile(new File((ri.workingDir / "stderr.log").toAbsolute.path)).lines()
                 logger.debug(s"Found ${logLines.size} log lines.")
                 for(s <- logLines) { logWriter.write(s+"\n") }
@@ -223,7 +224,7 @@ object DetectQsubPollingAction extends PollingAction with Logging {
                   
                   //notifier.announceDone(p.completed(0, log, Map.empty, TypedPathArtifact(TypedPathMapper.map(ri.requestedType, ri.outputPath))))
 
-                  notifier.announceDone(p.completed(0, collectLog, Map.empty, PathArtifact( ri.outputPath)))
+                  notifier.announceDone(p.completed(0, collectLog, Map.empty, ManagedPathArtifact( ri.outputPath)))
                 }
                 else {
                   notifier.announceFailed(p.failed(exitCode.getOrElse(-1), collectLog, Map.empty))

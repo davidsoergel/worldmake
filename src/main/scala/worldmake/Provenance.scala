@@ -4,13 +4,19 @@ import org.joda.time.DateTime
 import edu.umass.cs.iesl.scalacommons.Tap._
 import scalax.file.Path
 import worldmake.storage.{Storage, Identifier}
-import scala.collection.{GenSet, GenMap}
+import scala.collection.{mutable, GenSet, GenMap}
 import com.typesafe.scalalogging.slf4j.Logging
+import java.io.PrintStream
+import edu.umass.cs.iesl.scalacommons.IOUtils
+import scalax.io.{Output, Resource}
+import scala.io.Source
+import edu.umass.cs.iesl.scalacommons.collections.FiniteMutableQueue
+import scala.collection.immutable.Queue
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
-trait Provenance[+T] {
+trait Provenance[+T] extends WorldmakeEntity {
   def createdTime: DateTime
 
   def modifiedTime: DateTime = createdTime
@@ -32,15 +38,24 @@ trait Provenance[+T] {
   def canEqual(other: Any): Boolean = other.isInstanceOf[Provenance[T]]
 
   override lazy val hashCode: Int = (41 + provenanceId.hashCode)
+
+  lazy val queue: Queue[Provenance[_]] = Queue(this)
   
-  def infoBlock : String = s"""| Provenance ID: ${provenanceId}
-  |       Created: ${createdTime}
-  """.stripMargin
+  def status : String
+  def statusPairs : Seq[(String, Any)] = Seq("Provenance" -> provenanceId, "Created" -> createdTime)
+  
+  def statusBlock = statusPairs.map({case (k,v) => f"$k%16s: $v%64s"}).mkString("\n")
+  
+  def statusLine : String = f"${provenanceId.short}%10s $status%10s ${modifiedTime}%10s ${recipeId.short}%10s "
+  
+  
 }
 
 trait Successful[+T] extends Provenance[T] {
   def output: Artifact[T]
-  override lazy val infoBlock : String = super.infoBlock + output.infoBlock
+  override lazy val statusPairs = super.statusPairs :+ ("Value"->output)
+  override def statusLine : String = super.statusLine + f" ${output}%10s"
+  
 }
 
 
@@ -59,6 +74,7 @@ object ConstantProvenance {
 trait ConstantProvenance[T] extends Successful[T] {
   //def createdTime: DateTime
   lazy val recipeId = Identifier[Recipe[T]](provenanceId.s)
+  val status = "Constant"
 }
 
 private class MemoryConstantProvenance[T](val output: Artifact[T]) extends ConstantProvenance[T] {
@@ -73,33 +89,44 @@ sealed trait DerivedProvenance[T] extends Provenance[T]
 
 trait BlockedProvenance[T] extends DerivedProvenance[T] {
   //def createdTime: DateTime
+  val status = "Blocked"
 
   def pending(derivedFromUnnamed: GenSet[Successful[_]],derivedFromNamed: GenMap[String, Successful[_]]): PendingProvenance[T] = MemoryPendingProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime) tap Storage.provenanceStore.put
 }
 
+sealed trait DependenciesBoundProvenance[T] extends DerivedProvenance[T] {
+
+  def derivedFromUnnamed: GenSet[Successful[_]]
+
+  def derivedFromNamed: GenMap[String, Successful[_]]
+
+  def derivedFromAll = derivedFromUnnamed ++ derivedFromNamed.values
+  
+  override lazy val queue: Queue[Provenance[_]] = {
+    val deps = derivedFromAll.seq.toSeq.flatMap(_.queue)
+    Queue[Provenance[_]](deps: _*).distinct.enqueue(this)
+  }
+
+}
+
 // aka Enqueued
-trait PendingProvenance[T] extends DerivedProvenance[T] {
+trait PendingProvenance[T] extends DependenciesBoundProvenance[T]  {
   //def createdTime: DateTime
 
+  val status = "Pending"
   def enqueuedTime: DateTime
 
   override def modifiedTime: DateTime = enqueuedTime
 
-  def derivedFromUnnamed: GenSet[Successful[_]]
-
-  def derivedFromNamed: GenMap[String, Successful[_]]
 
   def running(runningInfo: RunningInfo): RunningProvenance[T] = MemoryRunningProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, DateTime.now(), runningInfo) tap Storage.provenanceStore.put
 }
 
-trait RunningProvenance[T] extends DerivedProvenance[T] {
+trait RunningProvenance[T] extends DependenciesBoundProvenance[T]  {
   //def createdTime: DateTime
 
+  val status = "Running"
   def enqueuedTime: DateTime
-
-  def derivedFromUnnamed: GenSet[Successful[_]]
-
-  def derivedFromNamed: GenMap[String, Successful[_]]
 
   def startTime: DateTime
 
@@ -107,26 +134,23 @@ trait RunningProvenance[T] extends DerivedProvenance[T] {
 
   def runningInfo: RunningInfo
 
-  override def infoBlock : String = super.infoBlock + runningInfo.infoBlock
+  override def statusPairs = super.statusPairs ++ runningInfo.statusPairs
 
-  def failed(exitCode: Int, log: Option[ReadableStringOrFile], cost: Map[CostType.CostType, Double]): FailedProvenance[T] =
+  def failed(exitCode: Int, log: Option[ReadableStringOrManagedFile], cost: Map[CostType.CostType, Double]): FailedProvenance[T] =
     MemoryFailedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost) tap Storage.provenanceStore.put
 
-  def cancelled(exitCode: Int, log: Option[ReadableStringOrFile], cost: Map[CostType.CostType, Double]): CancelledProvenance[T] =
+  def cancelled(exitCode: Int, log: Option[ReadableStringOrManagedFile], cost: Map[CostType.CostType, Double]): CancelledProvenance[T] =
     MemoryCancelledProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost) tap Storage.provenanceStore.put
 
-  def completed(exitCode: Int, log: Option[ReadableStringOrFile], cost: Map[CostType.CostType, Double], output: Artifact[T]): CompletedProvenance[T] =
+  def completed(exitCode: Int, log: Option[ReadableStringOrManagedFile], cost: Map[CostType.CostType, Double], output: Artifact[T]): CompletedProvenance[T] =
     MemoryCompletedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost, output) tap Storage.provenanceStore.put
 }
 
-trait PostRunProvenance[T] extends DerivedProvenance[T] {
+trait PostRunProvenance[T] extends DependenciesBoundProvenance[T]  {
   //def createdTime: DateTime
+  
 
   def enqueuedTime: DateTime
-
-  def derivedFromUnnamed: GenSet[Successful[_]]
-
-  def derivedFromNamed: GenMap[String, Successful[_]]
   
   def startTime: DateTime
   
@@ -138,25 +162,66 @@ trait PostRunProvenance[T] extends DerivedProvenance[T] {
 
   def exitCode: Int
 
-  def log: Option[ReadableStringOrFile]
+  def log: Option[ReadableStringOrManagedFile]
 
   def logString: String = log.map(_.get.fold(x => x, y => y.toString)).getOrElse("")
+  
+  def printLog(os:Output) = log.map(_.get.fold(s=>os.write(s),p=>p.path.copyDataTo(os)))
+  
+  import FiniteMutableQueue._
+  private def headTail(lines:Iterator[String], h:Int,t:Int) : String = {
+    //val lines = s.getLines
+    val hLines = lines.take(h)
+    val tLines = {
+      val q = mutable.Queue[String]()
+      q.enqueueFinite[String](lines,t)
+      q.toIterator
+    }
+    hLines.mkString("\n") + s"\n\n[...\nskipped middle\n...]\n\n" + tLines.mkString("\n")
+    
+  }
+  def printLogHeadTail(os:Output) = log.map(_.get.fold(s=>os.write(headTail(s.split("\n").toIterator,100,100)),p=>os.write(headTail(Source.fromFile(p.path.fileOption.get).getLines(),100,100))))
 
   def cost: Map[CostType.CostType, Double]
 
-  override def infoBlock : String = super.infoBlock + s"""       Start: ${startTime}
-  |           End: ${endTime}
-  """.stripMargin + runningInfo.infoBlock
+  override def statusPairs = (super.statusPairs :+ "Start"->startTime :+ "End" -> endTime) ++ runningInfo.statusPairs
+ 
 }
 
 trait FailedProvenance[T] extends PostRunProvenance[T] {
-  override def infoBlock : String = super.infoBlock + "Log:\n----\n" + logString + "----"
+  override def statusPairs = super.statusPairs :+ "Log"->logString
+
+  val status = "Failed"
 }
 
-trait CancelledProvenance[T] extends PostRunProvenance[T]
+trait CancelledProvenance[T] extends PostRunProvenance[T] {
 
-trait CompletedProvenance[T] extends PostRunProvenance[T] with Successful[T]
+  val status = "Cancelled"
+}
 
+trait CompletedProvenance[T] extends PostRunProvenance[T] with Successful[T] {
+
+  val status = "Success"
+}
+
+object InstantCompletedProvenance {
+  def apply[T](provenanceId: Identifier[Provenance[T]],
+             recipeId: Identifier[Recipe[T]],
+             derivedFromUnnamed: GenSet[Successful[_]],
+             derivedFromNamed: GenMap[String, Successful[_]],
+             createdTime: DateTime,
+             enqueuedTime: DateTime,
+             startTime: DateTime,
+             runningInfo: RunningInfo,
+             endTime: DateTime,
+             exitCode: Int,
+             log: Option[ReadableStringOrManagedFile],
+             cost: Map[CostType.CostType, Double],
+             output: Artifact[T]
+    ) : CompletedProvenance[T] =  {
+    new MemoryCompletedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost, output) tap Storage.provenanceStore.put
+  }
+}
 
 object BlockedProvenance {
   // calling this repeatedly with the same ID just overwrites the DB record
@@ -263,12 +328,59 @@ object CostType extends Enumeration {
 }
 
 
-trait FilenameGenerator {
-  def newPath: Path
+trait PathReference {
+  def path: Path
+  def abspath = path.toAbsolute.path
 }
 
-trait ReadableStringOrFile {
-  def get: Either[String, Path]
+object ExternalPath {
+  def apply(_path:Path) : ExternalPath = new ExternalPath {
+    val path = _path
+  }
+}
+
+trait ExternalPath extends PathReference {
+
+  //todo throw informative errors when underlying files are missing
+  // for now just assume the files always resolve
+  // def get: Option[Path] = Storage.fileStore.get(id)
+
+  def path: Path
+  //def get: Path = path
+}
+
+
+object ManagedPath {
+  def apply(_id: Identifier[ManagedPath], rel:Path = emptyPath) : ManagedPath = new ManagedPath {
+    val id = _id
+    override val relative = rel
+  }
+  val emptyPath = Path.fromString("")
+}
+
+trait ManagedPath extends PathReference {
+import ManagedPath.emptyPath
+  
+  //todo throw informative errors when underlying files are missing
+  // for now just assume the files always resolve
+  // def get: Option[Path] = Storage.fileStore.get(id)
+  
+  def id: Identifier[ManagedPath]
+  def relative: Path = emptyPath
+  def path: Path = Storage.fileStore.get(id).get / relative
+  def pathLog: Path = Storage.logStore.get(id).get / relative
+  def abspathLog = pathLog.toAbsolute.path
+}
+
+trait ManagedFileStore {
+  def newId: Identifier[ManagedPath]
+  def exists(id: Identifier[ManagedPath]):Boolean
+  def get(id: Identifier[ManagedPath]): Option[Path]
+  def getOrCreate(id: Identifier[ManagedPath]): Path
+}
+
+trait ReadableStringOrManagedFile {
+  def get: Either[String, ManagedPath]
 }
 
 /**
@@ -277,9 +389,9 @@ trait ReadableStringOrFile {
  * @param maxStringLength
  */
 
-class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1000) extends ReadableStringOrFile with Logging {
+class LocalWriteableStringOrManagedFile(fg: ManagedFileStore, maxStringLength: Int = 1000) extends ReadableStringOrManagedFile with Logging {
   implicit val codec = scalax.io.Codec.UTF8
-  var current: Either[StringBuffer, Path] = Left(new StringBuffer())
+  var current: Either[StringBuffer, ManagedPath] = Left(new StringBuffer())
   var count = 0
 
   def write(s: String) = synchronized {
@@ -289,20 +401,21 @@ class LocalWriteableStringOrFile(fg: FilenameGenerator, maxStringLength: Int = 1
         sb.append(s)
         logger.trace(s)
         if (sb.length() > maxStringLength) {
-          val p = fg.newPath
+          val logId = fg.newId
+          val p = fg.getOrCreate(logId)
           logger.trace("Switching to file store: " + p)
           p.append(sb.toString)
-          current = Right(p)
+          current = Right(ManagedPath(logId))
         }
       },
       p => {
         logger.trace("Appending to Path: " + p)
-        p.write(s)
+        p.path.write(s)
       })
     count += s.length
   }
 
-  def get: Either[String, Path] = current.fold(sb => Left(sb.toString), p => Right(p))
+  def get: Either[String, ManagedPath] = current.fold(sb => Left(sb.toString), p => Right(p))
 
   //override def toString : String = current.fold(sb=>sb.toString,p=>p.toAbsolute.path)
   def getString: String = current.fold(sb => sb.toString, y => y.toString)
@@ -342,7 +455,7 @@ case class MemoryFailedProvenance[T](provenanceId: Identifier[Provenance[T]],
                                      runningInfo: RunningInfo,
                                      endTime: DateTime,
                                      exitCode: Int,
-                                     log: Option[ReadableStringOrFile],
+                                     log: Option[ReadableStringOrManagedFile],
                                      cost: Map[CostType.CostType, Double]
                                       ) extends FailedProvenance[T]
 
@@ -356,7 +469,7 @@ case class MemoryCancelledProvenance[T](provenanceId: Identifier[Provenance[T]],
                                         runningInfo: RunningInfo,
                                         endTime: DateTime,
                                         exitCode: Int,
-                                        log: Option[ReadableStringOrFile],
+                                        log: Option[ReadableStringOrManagedFile],
                                         cost: Map[CostType.CostType, Double]
                                          ) extends CancelledProvenance[T]
 
@@ -371,7 +484,7 @@ case class MemoryCompletedProvenance[T](provenanceId: Identifier[Provenance[T]],
                                         runningInfo: RunningInfo,
                                         endTime: DateTime,
                                         exitCode: Int,
-                                        log: Option[ReadableStringOrFile],
+                                        log: Option[ReadableStringOrManagedFile],
                                         cost: Map[CostType.CostType, Double],
                                         output: Artifact[T]
                                          ) extends CompletedProvenance[T]
@@ -379,13 +492,13 @@ case class MemoryCompletedProvenance[T](provenanceId: Identifier[Provenance[T]],
 trait RunningInfo {
   def node: Option[String]
 
-  def infoBlock : String
+  def statusPairs : Seq[(String, Any)] = Seq("Node"->node.getOrElse(""))
   //def processId: Int
 }
 
 trait WithinJvmRunningInfo extends RunningInfo {
 
-  lazy val infoBlock : String = "         Run: within JVM\n"
+  override def statusPairs = super.statusPairs :+  "Run"->"within JVM"
 }
 
 class MemoryWithinJvmRunningInfo extends WithinJvmRunningInfo {
@@ -397,7 +510,8 @@ class MemoryWithinJvmRunningInfo extends WithinJvmRunningInfo {
 trait LocalRunningInfo extends RunningInfo {
   def workingDir:Path
 
-  lazy val infoBlock : String = s"  Working Dir: + ${workingDir}\n"
+
+  override def statusPairs = super.statusPairs :+  "Working Dir"->workingDir
 }
 
 class MemoryLocalRunningInfo(val workingDir:Path) extends LocalRunningInfo {

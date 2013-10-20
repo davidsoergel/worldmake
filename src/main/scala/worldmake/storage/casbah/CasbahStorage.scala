@@ -8,7 +8,7 @@ import worldmake._
 import edu.umass.cs.iesl.scalacommons.util.Hash
 import scalax.file.Path
 import org.joda.time.DateTime
-import worldmake.storage.{StorageContext, ProvenanceStore}
+import worldmake.storage.{FilesystemManagedFileStore, StorageContext, ProvenanceStore}
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -17,7 +17,9 @@ import worldmake.storage.{StorageContext, ProvenanceStore}
 
 class CasbahStorage(
                      conn: MongoConnection,
-                     dbname: String
+                     dbname: String,
+                     override val fileStore:FilesystemManagedFileStore,
+                     override val logStore:FilesystemManagedFileStore
 
                      ) extends StorageContext with Logging {
 

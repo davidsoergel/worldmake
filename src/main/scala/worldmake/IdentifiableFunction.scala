@@ -39,7 +39,7 @@ trait StreamHashable {
 }
 */
 
-
+/*
 trait ContentHashableArtifact[T] extends Artifact[T] {
   lazy val contentHashBytes: Array[Byte] = value match {
     case h: Hashable => h.contentHashBytes
@@ -49,7 +49,7 @@ trait ContentHashableArtifact[T] extends Artifact[T] {
     case s: String => WMHash(s)
   }
 }
-
+*/
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>

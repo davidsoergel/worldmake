@@ -70,7 +70,7 @@ object StringInterpolationRecipe {
     def ds(args: Recipe[_]*): Recipe[String] = new StringInterpolationRecipe(sc, args)
 
     // this builds the script as a String derivation first, and then runs it-- as opposed to the raw SystemDerivation where dependencies are passed as environment variables.
-    def sys(args: Recipe[_]*): Recipe[Path] = new SystemRecipe(new StringInterpolationRecipe(sc, args), Map.empty)
+    def sys(args: Recipe[_]*): Recipe[ManagedPath] = new SystemRecipe(new StringInterpolationRecipe(sc, args), Map.empty)
   }
 
 }

@@ -9,16 +9,14 @@ import com.mongodb.casbah.MongoConnection
 import worldmake.storage.casbah.CasbahStorage
 import edu.umass.cs.iesl.scalacommons.util.Hash
 import java.io.{File, InputStream}
-import worldmake.storage.{FileStore, StorageSetter}
+import worldmake.storage.{Storage, FilesystemManagedFileStore, StorageSetter}
 
-import scala.concurrent.{Await, ExecutionContext}
-import ExecutionContext.Implicits.global
 import worldmake.cookingstrategy._
 import worldmake.executionstrategy.{LocalExecutionStrategy, DetectQsubPollingAction, QsubExecutionStrategy}
-import scala.util.Failure
-import scala.util.Success
-import scala.concurrent.duration.Duration
 import scala.collection.mutable
+import commands._
+import scalax.io.{Resource, Output}
+import scala.Some
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -49,7 +47,7 @@ object WorldMake extends Logging {
           notifiersForShutdown += notifier
           Some(notifier)
         } else None
-        
+
         new LifecycleAwareCookingStrategy {
           lazy val fallback = notifierOpt.map(notifier => new ComputeNowCookingStrategy(this, new QsubExecutionStrategy(notifier))).getOrElse(NotAvailableCookingStrategy)
           val tracker = new LifecycleTracker(notifierOpt)
@@ -60,103 +58,146 @@ object WorldMake extends Logging {
     strategy
   }
 
+  def recipeCommand(r: Recipe[_], command: String, world: World, out: Output) = {
+    val strategy = getStrategy(withNotifiers = true)
+
+    val c = new RecipeCommands(world, strategy, out, r)
+    import c._
+    command match {
+      case "show" => showRecipe()
+      case "value" => makeRecipe()
+      case "deps" => showRecipeDeps()
+      case "queue" => showRecipeQueue()
+      case "tree" => showRecipeTree()
+    }
+  }
+
+
+  def provenanceCommand(target: String, command: String, world: World, out: Output) = {
+    val provenances = ProvenanceFinder(world, target)
+
+    //val strategy = getStrategy(withNotifiers = true)
+
+    if (provenances.isEmpty) {
+      System.err.println(s"No provenances found for id: $target")
+    }
+    else {
+
+      val multi = new MultiProvenanceCommands[Any](out, provenances)
+      import multi._
+
+      val single = new SingleProvenanceCommands[Any](out, provenances.head)
+      import single._
+
+
+      def singleOnly(c: String, function: () => Unit) {
+        if (provenances.size > 1) {
+          out.write(s"Command '$c' can only operate on a single Provenance.  Choose one: ")
+          showProvenances()
+        }
+        else function()
+      }
+
+      command match {
+        case "show" => showProvenances()
+        case "showfull" => showProvenanceQueueDetailed()
+        case "queue" => singleOnly(command, showProvenanceQueue)
+        case "deps" => showProvenanceDeps()
+        //case "tree" => singleOnly(command, showProvenanceTree) //ShowTree(world, args(1), getStrategy(withNotifiers = true))
+        case "provenance" => singleOnly(command, showProvenanceQueueDetailed)
+        case "log" => singleOnly(command, showProvenanceLog)
+        case "logfull" => singleOnly(command, showProvenanceFullLog)
+        case "blame" => singleOnly(command, showProvenanceBlame) // like showqueue, filtered for failures
+        case c => {
+          logger.error("Unknown command: " + c)
+          ""
+
+        }
+      }
+    }
+  }
+
+  /**
+   *
+   * @param command
+   * @return true if a global command was found
+   */
+  def globalCommand(command: String, out: Output): Boolean = {
+    command match {
+
+      case "clean" => {
+        // remove anything that is blocked, pending, failed, cancelled, or running
+        Storage.provenanceStore.removeDead
+        Storage.provenanceStore.removeZombie
+        out.write("Cleaned metadata cache of unsuccessful jobs.")
+        true
+      }
+      case "gc" => {
+        val gcdb = Cleanup.gcdb()
+        val gcfiles = Cleanup.gcfiles()
+        val gclogs = Cleanup.gclogs()
+
+        out.write(s"Garbage-collected metadata, file, and log caches.\n$gcdb\n$gcfiles\n$gclogs\n")
+        true
+      }
+
+      case "gcdb" => {
+        val gcdb = Cleanup.gcdb()
+        out.write(s"Garbage-collected metadata cache.\n$gcdb\n")
+        true
+      }
+
+      case "gcfiles" => {
+        val gcfiles = Cleanup.gcfiles()
+        out.write(s"Garbage-collected file cache.\n$gcfiles\n")
+        true
+      }
+      case "gclogs" => {
+        val gclogs = Cleanup.gclogs()
+        out.write(s"Garbage-collected log cache.\n$gclogs\n")
+        true
+      }
+      /*case "makeall" => {
+       for(i <- roots) {
+         make(i);
+       }
+     }*/
+      //case "import"
+      //case "set"
+
+
+      // some required derivations have errors.  Are you sure?
+      // 1) examine errors
+      // 2) compute everything else
+      // 3) try again including the errored derivations
+      case _ => false
+
+    }
+  }
+
   def main(worldF: WorldFactory, args: Array[String]) {
 
-    //val dbname = args(0)
-    StorageSetter(new CasbahStorage(MongoConnection(WorldMakeConfig.mongoHost), WorldMakeConfig.mongoDbName)) //MongoConnection("localhost"), dbname))
+    StorageSetter(new CasbahStorage(MongoConnection(WorldMakeConfig.mongoHost), WorldMakeConfig.mongoDbName, new FilesystemManagedFileStore(Path.fromString(WorldMakeConfig.fileStoreName)), new FilesystemManagedFileStore(Path.fromString(WorldMakeConfig.logStoreName))))
     val world = worldF.get
-
-
-    // temp hack
-    // val targets:Map[String,Derivation[_]] = Map("chpat"->EmergeWorld.allChinesePatentsTokenized)
-
 
     val exitcode: Int = try {
 
-      val command = args(0)
-      command match {
-        case "make" => {
-          val target = args(1)
+      val target = args(0)
 
-          val strategy = getStrategy(withNotifiers = true)
+      val namedRecipe = world.get(target)
 
-          //val derivationId = symbolTable.getProperty(target) 
-          //val derivationArtifact = Storage.artifactStore.get(derivationId)
-          val recipe: Recipe[_] = world(target)
-          val result = strategy.cookOne(recipe)
-          result onComplete {
-            case Success(x) => {
-              logger.info("Done: " + x.provenanceId)
-              logger.info(x.output.value.toString)
-            }
-            case Failure(t) => {
-              logger.error("Error", t)
-              throw t
-            }
-          }
+      val command = if (args.length == 1) "show" else args(1)
 
-          Await.result(result, Duration.Inf)
+      // if the first arg is a global command, ignore any superfluous arguments.
+      // else if the target names a recipe, apply the command to it
+      // else interpret the target as a provenance and apply the command to it
 
-        }
-        case "showtree" => {
-          val target = args(1)
-          val strategy = getStrategy(withNotifiers = false)
-          //val derivationId = symbolTable.getProperty(target) 
-          //val derivationArtifact = Storage.artifactStore.get(derivationId)
-          val recipe: Recipe[_] = world(target)
-          logger.info(strategy.tracker.printTree(recipe, ""))
-        }
-        case "showqueue" => {
-          val target = args(1)
-          val strategy = getStrategy(withNotifiers = false)
-          //val derivationId = symbolTable.getProperty(target) 
-          //val derivationArtifact = Storage.artifactStore.get(derivationId)
-          val recipe: Recipe[_] = world(target)
-          logger.info("\n" + recipe.queue.filterNot(_.isInstanceOf[ConstantRecipe[Any]]).map(x => strategy.tracker.statusLine(x)).mkString("\n"))
+      val out = Resource.fromOutputStream(System.out)
 
-          //logger.info("\n"+derivation.queue.map(x=>strategy.statusLine(x)).mkString("\n")) 
-
-        }
-
-        case "showprovenance" => {
-          // just like showqueue, only more detailed
-          
-          val target = args(1)
-          val strategy = getStrategy(withNotifiers = false)
-          //val derivationId = symbolTable.getProperty(target) 
-          //val derivationArtifact = Storage.artifactStore.get(derivationId)
-          val recipe: Recipe[_] = world(target)
-          logger.info("\n" + recipe.queue.filterNot(_.isInstanceOf[ConstantRecipe[Any]]).par.map(x => strategy.tracker.provenanceInfoBlock(x)).mkString("\n"))
-
-          //logger.info("\n"+derivation.queue.map(x=>strategy.statusLine(x)).mkString("\n")) 
-
-        }
-        /*case "makeall" => {
-          for(i <- roots) {
-            make(i);
-          }
-        }*/
-          
-
-
-        case "clean" => {
-          // remove anything that is blocked, failed, cancelled, or running
-
-        }
-        case "gc" => {
-        
-        }
-        //case "import"
-        //case "set"
-
-
-        // some required derivations have errors.  Are you sure?
-        // 1) examine errors
-        // 2) compute everything else
-        // 3) try again including the errored derivations
-
-
+      if (!globalCommand(target, out)) {
+        namedRecipe.map(recipeCommand(_, command, world, out)).getOrElse(provenanceCommand(target, command, world, out))
       }
+
       0
     }
     catch {
@@ -209,9 +250,13 @@ object WorldMakeConfig {
 
   def localTempDir: String = conf.getString("localTempDir")
 
-  val fileStore = new FileStore(Path.fromString(conf.getString("filestore")))
+  def fileStoreName = conf.getString("filestore")
 
-  val logStore = new FileStore(Path.fromString(conf.getString("logstore")))
+  //private val fileStore = new FileStore(Path.fromString(conf.getString("filestore")))
+
+  def logStoreName = conf.getString("logstore")
+
+  //private val logStore = new FileStore(Path.fromString(conf.getString("logstore")))
   //val artifactStore = new ArtifactStore(conf.getString("artifactstore"))
   //val symbolTable = new Properties("worldmake.symbols")
 
@@ -238,3 +283,6 @@ object WorldMakeConfig {
   def WMHashHex(s: File) = Hash.toHex(WMHash(s))
 
 }
+
+// just a marker, really
+trait WorldmakeEntity
