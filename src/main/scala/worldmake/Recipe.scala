@@ -389,10 +389,11 @@ class ManagedPathRecipe(underlying: Recipe[ManagedPath]) extends Recipe[ManagedP
 
   def recipeId = underlying.recipeId
 
-  def /(s: String): ManagedPathRecipe = new ManagedPathRecipe(new Recipe[ManagedPath] {
+  def /(s: String): ManagedPathRecipe = new ManagedPathRecipe(new DerivableRecipe[ManagedPath] {
     //def deriveFuture(implicit upstreamStrategy: CookingStrategy) = ManagedPathRecipe.this.deriveFuture.map(s=>new MemoryCompletedProvenance[ManagedPath]())
 
-
+    def dependencies = Set(underlying)
+    
     def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[ManagedPath]] = {
       //val pr = BlockedProvenance(Identifier[Provenance[ManagedPath]](UUID.randomUUID().toString), recipeId)
       val pf = upstreamStrategy.cookOne(ManagedPathRecipe.this)
@@ -470,10 +471,11 @@ class ExternalPathRecipe(underlying: Recipe[ExternalPath]) extends Recipe[Extern
 
   def recipeId = underlying.recipeId
 
-  def /(s: String): ExternalPathRecipe = new ExternalPathRecipe(new Recipe[ExternalPath] {
+  def /(s: String): ExternalPathRecipe = new ExternalPathRecipe(new DerivableRecipe[ExternalPath] {
     //def deriveFuture(implicit upstreamStrategy: CookingStrategy) = ExternalPathRecipe.this.deriveFuture.map(s=>new MemoryCompletedProvenance[ExternalPath]())
 
-
+    def dependencies = Set(underlying)
+    
     def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[ExternalPath]] = {
       //val pr = BlockedProvenance(Identifier[Provenance[ExternalPath]](UUID.randomUUID().toString), recipeId)
       val pf = upstreamStrategy.cookOne(ExternalPathRecipe.this)
