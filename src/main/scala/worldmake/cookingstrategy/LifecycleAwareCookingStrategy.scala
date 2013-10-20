@@ -20,6 +20,7 @@ trait LifecycleAwareCookingStrategy extends FallbackCookingStrategy {
     logger.info("Tracking recipe: " + tracker.recipeStatusLine(d))
     val id = d.recipeId
     val track = tracker.track(id)
+    logger.info(s"   prepared tracker: ${d.recipeId}")
     track.getSuccessAs.map(x => {
       Future.successful(x)}).getOrElse(
       track.getPotentialSuccessesAs

@@ -5,6 +5,7 @@ import worldmake._
 import worldmake.storage.{ProvenanceStoreStatus, Identifier, ProvenanceStore}
 
 import com.mongodb.casbah.query.Imports.IntOk
+import com.typesafe.scalalogging.slf4j.Logging
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -12,7 +13,7 @@ import com.mongodb.casbah.query.Imports.IntOk
 class CasbahProvenanceStore(conn: MongoConnection,
                           dbname: String,
                           collname: String
-                           ) extends ProvenanceStore {
+                           ) extends ProvenanceStore with Logging {
 
   import CasbahProvenanceStore._
 
@@ -121,8 +122,11 @@ class CasbahProvenanceStore(conn: MongoConnection,
   def getSuccessful[T](id: Identifier[Successful[T]]) = get(id).map(_.asInstanceOf[MongoSuccessful[T]])
 
   override def getDerivedFrom[T](id: Identifier[Recipe[T]]): Set[Provenance[T]] = {
+    logger.info(s"Looking for provenances derived from recipe ${id.s}" )
     val r = mongoColl.find(MongoDBObject("recipeId" -> id.s))
-    r.map(provenanceFromDb[T](_)).toSet
+    val result = r.map(provenanceFromDb[T](_)).toSet
+    logger.info(s"Found ${result.size} provenances for recipe ${id.s}")
+    result
   }
 
   def getContentHash[T](id: Identifier[Provenance[T]]): Option[String] = get(id).map({
