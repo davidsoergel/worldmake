@@ -1,6 +1,6 @@
 package worldmake.cookingstrategy
 
-import worldmake.storage.{StoredProvenancesForRecipe, Identifier}
+import worldmake.storage.{Storage, StoredProvenancesForRecipe, Identifier}
 import worldmake._
 import scala.concurrent.Future
 import com.typesafe.scalalogging.slf4j.Logging
@@ -17,9 +17,11 @@ trait LifecycleAwareCookingStrategy extends FallbackCookingStrategy {
   // perf multiple calls to tracker produce new DB queries every time
 
   def cookOne[T](d: Recipe[T]): Future[Successful[T]] = synchronized {
+    logger.info("Tracking recipe: " + tracker.recipeStatusLine(d))
     val id = d.recipeId
     val track = tracker.track(id)
-    track.getSuccessAs.map(x => Future.successful(x)).getOrElse(
+    track.getSuccessAs.map(x => {
+      Future.successful(x)}).getOrElse(
       track.getPotentialSuccessesAs
         .getOrElse({
         if (track.hasFailure && !WorldMakeConfig.retryFailures) {
@@ -67,12 +69,17 @@ class LifecycleTracker(notifierOpt: Option[Notifier]) extends Logging {
 
     def hasFailure: Boolean = sp.failures.nonEmpty
 
-    def getSuccessAs: Option[Successful[T]] = sp.successes.toSeq.headOption
+    def getSuccessAs: Option[Successful[T]] = {
+      val result = sp.successes.toSeq.headOption
+      if(result.isDefined)
+        logger.info(s"Requested recipe already done: $id")
+      result
+    }
 
     def getRunningAs: Option[Future[Successful[T]]] = {
       val rr = sp.running.toSeq
       if (rr.size > 1) {
-        logger.warn(rr.size + " running jobs for Recipe " + id + "!")
+        logger.info(rr.size + " running jobs for Recipe " + id + "!")
       }
       rr.headOption.map(_ => notifierOpt.get.request(id))  // todo get suggests refactor
     }
@@ -80,7 +87,7 @@ class LifecycleTracker(notifierOpt: Option[Notifier]) extends Logging {
     def getPotentialSuccessesAs: Option[Future[Successful[T]]] = {
       val rr = StoredProvenancesForRecipe(id).potentialSuccesses.toSeq
       if (rr.size > 1) {
-        logger.warn(rr.size + " potentially successful jobs for Recipe " + id + "!")
+        logger.info(rr.size + " potentially successful jobs for Recipe " + id + "!")
       }
       rr.headOption.map(_ => notifierOpt.get.request(id))
     }
@@ -88,7 +95,7 @@ class LifecycleTracker(notifierOpt: Option[Notifier]) extends Logging {
     def getOneStagedAs: Option[Provenance[T]] = {
       val rr = StoredProvenancesForRecipe(id).potentialSuccesses.toSeq
       if (rr.size > 1) {
-        logger.warn(rr.size + " potentially successful jobs for Recipe " + id + "!")
+        logger.info(rr.size + " potentially successful jobs for Recipe " + id + "!")
       }
       rr.headOption
     }
@@ -106,7 +113,8 @@ class LifecycleTracker(notifierOpt: Option[Notifier]) extends Logging {
   }
 
   def recipeStatusLine[T](d: Recipe[T]) = f"${d.shortId}%8s [ ${StoredProvenancesForRecipe(d.recipeId).statusString}%22s ] ${d.summary}%40s : ${d.description}%-40s"
-
+  
+  def verifyRecipeInputs[T](d: Recipe[T]) = d.queue.collect({case x: ConstantRecipe[_] => x}).map(x=>{ StoredProvenancesForRecipe(x.recipeId).successes.map(p=>Storage.provenanceStore.verifyContentHash(p.provenanceId))})
   /*
   def provenanceInfoBlock[T](d: Recipe[T]) = {
     val provenances: StoredProvenancesForRecipe[T] = StoredProvenancesForRecipe(d.recipeId)

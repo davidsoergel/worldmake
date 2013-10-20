@@ -63,6 +63,9 @@ class ComputeNowCookingStrategy(upstreamStrategy: CookingStrategy, val systemExe
   //def stageOne[T](d: Recipe[T]): Provenance[T] = d.stage(upstreamStrategy)
   
   @throws(classOf[FailedRecipeException])
-  def cookOne[T](d: Recipe[T]): Future[Successful[T]] = d.deriveFuture(upstreamStrategy)
+  def cookOne[T](d: Recipe[T]): Future[Successful[T]] = {
+    logger.info("Cooking recipe: " + d.recipeId)
+    d.deriveFuture(upstreamStrategy)
+  }
 }
 

@@ -56,6 +56,13 @@ class SingleProvenanceCommands[T](out: Output, p: Provenance[T]) {
     p.queue.map((x: Provenance[_]) => out.write(x.statusBlock + "\n"))
   }
 
+  def verifyProvenanceInputs() {
+    p.queue.collect({case x : ConstantProvenance[Any] => x }).map(x => {
+      Storage.provenanceStore.verifyContentHash(x.provenanceId)
+      out.write(s"Input hash verified for provenance ${x.provenanceId}\n")
+    })
+  }
+
   def showProvenanceBlame() {
     val ff = p.queue.collect({
       case x: FailedProvenance[_] => x

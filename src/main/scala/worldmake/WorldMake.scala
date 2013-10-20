@@ -69,6 +69,7 @@ object WorldMake extends Logging {
       case "deps" => showRecipeDeps()
       case "queue" => showRecipeQueue()
       case "tree" => showRecipeTree()
+      case "verify" => verifyRecipeInputs()
     }
   }
 
@@ -101,6 +102,7 @@ object WorldMake extends Logging {
       command match {
         case "show" => showProvenances()
         case "showfull" => showProvenanceQueueDetailed()
+        case "verify" => verifyProvenanceInputs()
         case "queue" => singleOnly(command, showProvenanceQueue)
         case "deps" => showProvenanceDeps()
         //case "tree" => singleOnly(command, showProvenanceTree) //ShowTree(world, args(1), getStrategy(withNotifiers = true))

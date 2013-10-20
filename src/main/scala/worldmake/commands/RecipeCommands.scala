@@ -24,6 +24,10 @@ class RecipeCommands[T](world: World, strategy: LifecycleAwareCookingStrategy, o
   def showRecipeQueue() = {
     recipe.queue.filterNot(_.isInstanceOf[ConstantRecipe[Any]]).map(x => out.write(strategy.tracker.recipeStatusLine(x) + "\n"))
   }
+  
+  def verifyRecipeInputs() = {
+    recipe.queue.filter(_.isInstanceOf[ConstantRecipe[Any]]).map(x => out.write(strategy.tracker.verifyRecipeInputs(x) + "\n"))
+  }
 
   def showRecipeDeps() = {
     recipe match {
