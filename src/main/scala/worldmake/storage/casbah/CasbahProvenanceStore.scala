@@ -118,7 +118,6 @@ class CasbahProvenanceStore(conn: MongoConnection,
     mongoColl.findAndRemove(MongoDBObject("type" -> MongoBlockedProvenance.typehint))
   }
 
-
   def getSuccessful[T](id: Identifier[Successful[T]]) = get(id).map(_.asInstanceOf[MongoSuccessful[T]])
 
   override def getDerivedFrom[T](id: Identifier[Recipe[T]]): Set[Provenance[T]] = {

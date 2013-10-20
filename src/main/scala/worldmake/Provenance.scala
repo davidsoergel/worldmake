@@ -83,7 +83,16 @@ private class MemoryConstantProvenance[T](val output: Artifact[T]) extends Const
 }
 
 
-sealed trait DerivedProvenance[T] extends Provenance[T]
+sealed trait DerivedProvenance[T] extends Provenance[T] {
+
+  // Set is not covariant?!?  OK, just use Seq instead for now
+  //def derivedFromAll : Seq[Provenance[_]]
+/*
+  override lazy val queue: Queue[Provenance[_]] = {
+    val deps = derivedFromAll.flatMap(_.queue)
+    Queue[Provenance[_]](deps: _*).distinct.enqueue(this)
+  }*/
+}
 
 // enforce lifecycle state machine with types
 
@@ -91,21 +100,22 @@ trait BlockedProvenance[T] extends DerivedProvenance[T] {
   //def createdTime: DateTime
   val status = "Blocked"
 
+  //def derivedFromUnnamed: GenSet[Provenance[_]]
+
+  //def derivedFromNamed: GenMap[String, Provenance[_]]
+  //override def derivedFromAll : Seq[Provenance[_]] = (derivedFromUnnamed ++ derivedFromNamed.values).seq.toSeq
+
   def pending(derivedFromUnnamed: GenSet[Successful[_]],derivedFromNamed: GenMap[String, Successful[_]]): PendingProvenance[T] = MemoryPendingProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime) tap Storage.provenanceStore.put
 }
 
 sealed trait DependenciesBoundProvenance[T] extends DerivedProvenance[T] {
+   def derivedFromUnnamed: GenSet[Successful[_]]
 
-  def derivedFromUnnamed: GenSet[Successful[_]]
+   def derivedFromNamed: GenMap[String, Successful[_]]
 
-  def derivedFromNamed: GenMap[String, Successful[_]]
+  //override 
+  def derivedFromAll : Seq[Provenance[_]] = (derivedFromUnnamed ++ derivedFromNamed.values).seq.toSeq
 
-  def derivedFromAll = derivedFromUnnamed ++ derivedFromNamed.values
-  
-  override lazy val queue: Queue[Provenance[_]] = {
-    val deps = derivedFromAll.seq.toSeq.flatMap(_.queue)
-    Queue[Provenance[_]](deps: _*).distinct.enqueue(this)
-  }
 
 }
 
@@ -227,9 +237,12 @@ object BlockedProvenance {
   // calling this repeatedly with the same ID just overwrites the DB record
   def apply[T](provenanceId: Identifier[Provenance[T]],
                recipeId: Identifier[Recipe[T]],
+               //derivedFromUnnamed: GenSet[Provenance[_]],
+               //derivedFromNamed: GenMap[String, Provenance[_]],
                enqueueTime: DateTime = DateTime.now()
                 ): BlockedProvenance[T] = {
-    new MemoryBlockedProvenance[T](provenanceId, recipeId, enqueueTime) tap Storage.provenanceStore.put
+    new MemoryBlockedProvenance[T](provenanceId, recipeId, //derivedFromUnnamed, derivedFromNamed,
+      enqueueTime) tap Storage.provenanceStore.put
   }
 }
 
@@ -424,6 +437,8 @@ class LocalWriteableStringOrManagedFile(fg: ManagedFileStore, maxStringLength: I
 
 case class MemoryBlockedProvenance[T](provenanceId: Identifier[Provenance[T]],
                                       recipeId: Identifier[Recipe[T]],
+                                      //derivedFromUnnamed: GenSet[Provenance[_]],
+                                      //derivedFromNamed: GenMap[String, Provenance[_]],
                                       createdTime: DateTime = DateTime.now()
                                        ) extends BlockedProvenance[T]
 

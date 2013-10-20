@@ -126,7 +126,6 @@ class MongoBlockedProvenance[T](val dbo: MongoDBObject) extends MongoDerivedProv
   override def createdTime: DateTime = dbo.as[DateTime]("createdTime")
 }
 
-
 object MongoPendingProvenance {
   val typehint = "PendingProvenance"
 

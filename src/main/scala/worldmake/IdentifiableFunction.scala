@@ -66,7 +66,7 @@ class Recipe0[R](f: IdentifiableFunction0[R]) extends DerivableRecipe[R] with Lo
   lazy val dependencies : GenSet[Recipe[_]]= Set.empty
 
   def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
-    val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), recipeId)
+    val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), recipeId) //,Set.empty,Map.empty)
     val result = future {
       derive(pr.pending(Set.empty,Map.empty))
     }
@@ -112,8 +112,9 @@ class IdentifiableFunction1[T1, R](val id: String, f: Function1[T1, R]) {
 class Recipe1[T1, R](f: IdentifiableFunction1[T1, R], a: Recipe[T1]) extends DerivableRecipe[R] with Logging {
 
   def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[R]] = {
-    val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), recipeId)
+
     val pf = upstreamStrategy.cookOne(a)
+    val pr = BlockedProvenance(Identifier[Provenance[R]](UUID.randomUUID().toString), recipeId) //, Set(pf), Map.empty)
     val result = pf.map(a1 => deriveWithArg(pr.pending(Set(a1),Map.empty), a1))
     result
   }
