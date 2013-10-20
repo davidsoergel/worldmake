@@ -423,7 +423,10 @@ class ManagedPathRecipe(underlying: Recipe[ManagedPath]) extends Recipe[ManagedP
   })
 
 
- def children(): Recipe[GenTraversable[Artifact[ManagedPath]]] = new Recipe[GenTraversable[Artifact[ManagedPath]]] {
+ def children(): Recipe[GenTraversable[Artifact[ManagedPath]]] = new DerivableRecipe[GenTraversable[Artifact[ManagedPath]]] {
+
+   def dependencies = Set(underlying)
+   
    def deriveFuture(implicit upstreamStrategy: CookingStrategy) : Future[Successful[GenTraversable[Artifact[ManagedPath]]]] = ManagedPathRecipe.this.deriveFuture.map((r:Successful[ManagedPath])=> {
      val m = r.output.value
      val cpaths = m.path.children().toSet.map((c:Path) => ManagedPath(m.id, m.relative / c.path))
@@ -505,10 +508,13 @@ class ExternalPathRecipe(underlying: Recipe[ExternalPath]) extends Recipe[Extern
   })
 
 
-  def children(): Recipe[GenTraversable[Artifact[ExternalPath]]] = new Recipe[GenTraversable[Artifact[ExternalPath]]] {
+  def children(): Recipe[GenTraversable[Artifact[ExternalPath]]] = new DerivableRecipe[GenTraversable[Artifact[ExternalPath]]] {
+
+    def dependencies = Set(underlying)
+    
     def deriveFuture(implicit upstreamStrategy: CookingStrategy) : Future[Successful[GenTraversable[Artifact[ExternalPath]]]] = ExternalPathRecipe.this.deriveFuture.map((r:Successful[ExternalPath])=> {
       val m = r.output.value
-      val cpaths = m.path.children().toSet.map((c:Path) => ExternalPath(m.path / c.path))
+      val cpaths = m.path.children().toSet.map((c:Path) => ExternalPath(m.path / c))
       val now = new DateTime()
       val cpathartifacts : GenTraversable[Artifact[ExternalPath]] = cpaths.map(ExternalPathArtifact(_))
 
