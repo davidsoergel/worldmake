@@ -38,11 +38,6 @@ object SystemRecipe {
 
 class SystemRecipe(val script: Recipe[String], namedDependencies: GenMap[String, Recipe[_]]) extends DerivableRecipe[ManagedPath] with Logging {
 
-  override lazy val queue: Queue[Recipe[_]] = {
-    val deps = dependencies.seq.toSeq.flatMap(_.queue)
-    Queue[Recipe[_]](deps: _*).distinct.enqueue(this)
-  }
-
   lazy val  recipeId = {
     val dependencyInfos: Seq[String] = namedDependencies.par.map({
       case (k, v) => k.toString + v.recipeId.s

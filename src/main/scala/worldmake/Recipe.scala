@@ -146,6 +146,7 @@ trait DerivableRecipe[T] extends Recipe[T] {
     val deps = dependencies.seq.toSeq.flatMap(_.queue)
     Queue[Recipe[_]](deps: _*).distinct.enqueue(this)
   }
+
 }
 
 
