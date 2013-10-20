@@ -87,7 +87,7 @@ class LifecycleTracker(notifierOpt: Option[Notifier]) extends Logging {
     }
 
     def getPotentialSuccessesAs: Option[Future[Successful[T]]] = {
-      val rr = StoredProvenancesForRecipe(id).potentialSuccesses.toSeq
+      val rr = sp.potentialSuccesses.toSeq
       if (rr.size > 1) {
         logger.info(rr.size + " potentially successful jobs for Recipe " + id + "!")
       }
@@ -95,7 +95,7 @@ class LifecycleTracker(notifierOpt: Option[Notifier]) extends Logging {
     }
 
     def getOneStagedAs: Option[Provenance[T]] = {
-      val rr = StoredProvenancesForRecipe(id).potentialSuccesses.toSeq
+      val rr = sp.potentialSuccesses.toSeq
       if (rr.size > 1) {
         logger.info(rr.size + " potentially successful jobs for Recipe " + id + "!")
       }
