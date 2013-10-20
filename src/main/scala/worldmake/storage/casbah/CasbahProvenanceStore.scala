@@ -30,8 +30,10 @@ class CasbahProvenanceStore(conn: MongoConnection,
         case x: MongoDependenciesBoundProvenance[_] => { }
         case y => {
           // dependencies were not already bound, so increment their ref counts
-          provenance match { case d: MongoDependenciesBoundProvenance[_] => ( d.derivedFromUnnamed ++ d.derivedFromNamed.values).map(x=>incrementRefCount(x.provenanceId)) }
-
+          provenance match {
+            case d: MongoDependenciesBoundProvenance[_] => ( d.derivedFromUnnamed ++ d.derivedFromNamed.values).map(x=>incrementRefCount(x.provenanceId))
+            case _ => 
+          }
         }
       }
      
