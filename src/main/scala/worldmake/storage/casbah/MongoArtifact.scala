@@ -64,7 +64,10 @@ object MongoArtifact {
     // must do this is each concrete class, since we don't know how the value is to be serialized.
     // or, add serializers for each type to the casbah mapping...
     //builder += "value" -> e.value
-    builder += "contentHash" -> e.contentHash
+    
+    // todo: content hashes temporarily disabled; reenable!
+    
+    // builder += "contentHash" -> e.contentHash
   }
 }
 

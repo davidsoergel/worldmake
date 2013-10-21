@@ -40,6 +40,8 @@ object ExternalPathArtifact {
 }
 
 trait ExternalPathArtifact extends PathArtifact[ExternalPath] { //} with ContentHashableArtifact[ExternalPath] {
+  
+  // todo think about preemptive hashing!
   override lazy val constantId = Identifier[Artifact[ExternalPath]]("Path(" + abspath + ")")
   override def toString = abspath.toString
 
@@ -55,6 +57,7 @@ object ManagedPathArtifact {
 }
 
 trait ManagedPathArtifact extends PathArtifact[ManagedPath] {
+  // todo think about preemptive hashing!
   override lazy val constantId = Identifier[Artifact[ManagedPath]]("ManagedPath(" + value + ")")
   override def toString = value.id.toString
 
