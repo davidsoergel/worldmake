@@ -11,7 +11,6 @@ import worldmake.cookingstrategy.CookingStrategy
 import scala.Some
 import org.joda.time.DateTime
 import scalax.file.Path
-import akka.dispatch.Futures
 
 //import java.lang.ProcessBuilder.Redirect
 
@@ -394,7 +393,7 @@ class ManagedPathRecipe(underlying: Recipe[ManagedPath]) extends Recipe[ManagedP
     //def deriveFuture(implicit upstreamStrategy: CookingStrategy) = ManagedPathRecipe.this.deriveFuture.map(s=>new MemoryCompletedProvenance[ManagedPath]())
 
     def dependencies = Set(underlying)
-    
+
     def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[ManagedPath]] = {
       //val pr = BlockedProvenance(Identifier[Provenance[ManagedPath]](UUID.randomUUID().toString), recipeId)
       val pf = upstreamStrategy.cookOne(ManagedPathRecipe.this)
@@ -424,44 +423,43 @@ class ManagedPathRecipe(underlying: Recipe[ManagedPath]) extends Recipe[ManagedP
   })
 
 
- def children(): Recipe[GenTraversable[Artifact[ManagedPath]]] = new DerivableRecipe[GenTraversable[Artifact[ManagedPath]]] {
+  def children(): Recipe[GenTraversable[Artifact[ManagedPath]]] = new DerivableRecipe[GenTraversable[Artifact[ManagedPath]]] {
 
-   def dependencies = Set(underlying)
-   
-   def deriveFuture(implicit upstreamStrategy: CookingStrategy) : Future[Successful[GenTraversable[Artifact[ManagedPath]]]] = ManagedPathRecipe.this.deriveFuture.map((r:Successful[ManagedPath])=> {
-     val m = r.output.value
-     val cpaths = m.path.children().toSet.map((c:Path) => ManagedPath(m.id, m.relative / c.path))
-     val now = new DateTime()
-     val cpathartifacts : GenTraversable[Artifact[ManagedPath]] = cpaths.map(ManagedPathArtifact(_))
-     
-     InstantCompletedProvenance[GenTraversable[Artifact[ManagedPath]]](
-       Identifier[Provenance[GenTraversable[Artifact[ManagedPath]]]](UUID.randomUUID().toString),
-       recipeId,
-       Set(r),
-       Map.empty,
-       now,
-       now,
-       now,
-       new MemoryWithinJvmRunningInfo,
-       now,
-       0,
-       None,
-       Map.empty,
-       new MemoryGenTraversableArtifact[ManagedPath](cpathartifacts))
-     
-     
-   })
+    def dependencies = Set(underlying)
 
-   def longDescription = ManagedPathRecipe.this.longDescription + "/*"
+    def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[GenTraversable[Artifact[ManagedPath]]]] = ManagedPathRecipe.this.deriveFuture.map((r: Successful[ManagedPath]) => {
+      val m = r.output.value
+      val cpaths = m.path.children().toSet.map((c: Path) => ManagedPath(m.id, m.relative / c.path))
+      val now = new DateTime()
+      val cpathartifacts: GenTraversable[Artifact[ManagedPath]] = cpaths.map(ManagedPathArtifact(_))
 
-   // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
-   def recipeId = Identifier[Recipe[GenTraversable[Artifact[ManagedPath]]]](WMHashHex(ManagedPathRecipe.this.recipeId.s + "/*"))
- }
+      InstantCompletedProvenance[GenTraversable[Artifact[ManagedPath]]](
+        Identifier[Provenance[GenTraversable[Artifact[ManagedPath]]]](UUID.randomUUID().toString),
+        recipeId,
+        Set(r),
+        Map.empty,
+        now,
+        now,
+        now,
+        new MemoryWithinJvmRunningInfo,
+        now,
+        0,
+        None,
+        Map.empty,
+        new MemoryGenTraversableArtifact[ManagedPath](cpathartifacts))
 
- 
-//}
+
+    })
+
+    def longDescription = ManagedPathRecipe.this.longDescription + "/*"
+
+    // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
+    def recipeId = Identifier[Recipe[GenTraversable[Artifact[ManagedPath]]]](WMHashHex(ManagedPathRecipe.this.recipeId.s + "/*"))
+  }
+
+
+  //}
 }
-
 
 
 object ExternalPathRecipe {
@@ -479,16 +477,18 @@ class ExternalPathRecipe(underlying: Recipe[ExternalPath]) extends Recipe[Extern
     //def deriveFuture(implicit upstreamStrategy: CookingStrategy) = ExternalPathRecipe.this.deriveFuture.map(s=>new MemoryCompletedProvenance[ExternalPath]())
 
     def dependencies = Set(underlying)
-    
-    def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[ExternalPath]] = {
-      //val pr = BlockedProvenance(Identifier[Provenance[ExternalPath]](UUID.randomUUID().toString), recipeId)
-      val pf = upstreamStrategy.cookOne(ExternalPathRecipe.this)
+
+    def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[ExternalPath]] = ExternalPathRecipe.this.deriveFuture.map((r: Successful[ExternalPath]) => {
+
       val now = new DateTime()
-      val result: Future[Successful[ExternalPath]] = pf.map((a1: Successful[ExternalPath]) =>
+
+      try {
+        val now = new DateTime()
+
         InstantCompletedProvenance[ExternalPath](
           Identifier[Provenance[ExternalPath]](UUID.randomUUID().toString),
           recipeId,
-          Set(a1),
+          Set(r),
           Map.empty,
           now,
           now,
@@ -498,9 +498,28 @@ class ExternalPathRecipe(underlying: Recipe[ExternalPath]) extends Recipe[Extern
           0,
           None,
           Map.empty,
-          ExternalPathArtifact(ExternalPath( a1.output.value.path / s))))
-      result
-    }
+          ExternalPathArtifact(ExternalPath(r.output.value.path / s)))
+
+      } catch {
+        case t: Throwable => {
+          val prf = InstantFailedProvenance[ExternalPath](
+            Identifier[Provenance[ExternalPath]](UUID.randomUUID().toString),
+            recipeId,
+            Set(r),
+            Map.empty,
+            now,
+            now,
+            now,
+            new MemoryWithinJvmRunningInfo,
+            now,
+            0,
+            None,
+            Map.empty)
+          logger.debug("Error in ExternalPathRecipe.children: ", t) // todo better log message
+          throw FailedRecipeException("Failed ExternalPathRecipe.children", prf, t)
+        }
+      }
+    })
 
     def longDescription = ExternalPathRecipe.this.longDescription + "/" + s
 
@@ -512,34 +531,58 @@ class ExternalPathRecipe(underlying: Recipe[ExternalPath]) extends Recipe[Extern
   def children(): Recipe[GenTraversable[Artifact[ExternalPath]]] = new DerivableRecipe[GenTraversable[Artifact[ExternalPath]]] {
 
     def dependencies = Set(underlying)
-    
-    def deriveFuture(implicit upstreamStrategy: CookingStrategy) : Future[Successful[GenTraversable[Artifact[ExternalPath]]]] = ExternalPathRecipe.this.deriveFuture.map((r:Successful[ExternalPath])=> {
-      val m = r.output.value
-      val cpaths = try {
-        val ch: Set[Path] = m.path.children().toSet
-        val exch = ch.map((c:Path) => ExternalPath(c))
-        exch
-      }
-      
+
+    def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[GenTraversable[Artifact[ExternalPath]]]] = ExternalPathRecipe.this.deriveFuture.map((r: Successful[ExternalPath]) => {
+
       val now = new DateTime()
-      val cpathartifacts : GenTraversable[Artifact[ExternalPath]] = cpaths.map(ExternalPathArtifact(_))
 
-      InstantCompletedProvenance[GenTraversable[Artifact[ExternalPath]]](
-        Identifier[Provenance[GenTraversable[Artifact[ExternalPath]]]](UUID.randomUUID().toString),
-        recipeId,
-        Set(r),
-        Map.empty,
-        now,
-        now,
-        now,
-        new MemoryWithinJvmRunningInfo,
-        now,
-        0,
-        None,
-        Map.empty,
-        new MemoryGenTraversableArtifact[ExternalPath](cpathartifacts))
+      try {
+        val m = r.output.value
+
+        val cpaths = {
+          val ch: Set[Path] = m.path.children().toSet
+          val exch = ch.map((c: Path) => ExternalPath(c))
+          exch
+        }
+
+        val cpathartifacts: GenTraversable[Artifact[ExternalPath]] = cpaths.map(ExternalPathArtifact(_))
+
+        InstantCompletedProvenance[GenTraversable[Artifact[ExternalPath]]](
+          Identifier[Provenance[GenTraversable[Artifact[ExternalPath]]]](UUID.randomUUID().toString),
+          recipeId,
+          Set(r),
+          Map.empty,
+          now,
+          now,
+          now,
+          new MemoryWithinJvmRunningInfo,
+          now,
+          0,
+          None,
+          Map.empty,
+          new MemoryGenTraversableArtifact[ExternalPath](cpathartifacts))
 
 
+      }
+      catch {
+        case t: Throwable => {
+          val prf = InstantFailedProvenance[GenTraversable[Artifact[ExternalPath]]](
+            Identifier[Provenance[GenTraversable[Artifact[ExternalPath]]]](UUID.randomUUID().toString),
+            recipeId,
+            Set(r),
+            Map.empty,
+            now,
+            now,
+            now,
+            new MemoryWithinJvmRunningInfo,
+            now,
+            0,
+            None,
+            Map.empty)
+          logger.debug("Error in ExternalPathRecipe.children: ", t) // todo better log message
+          throw FailedRecipeException("Failed ExternalPathRecipe.children", prf, t)
+        }
+      }
     })
 
     def longDescription = ExternalPathRecipe.this.longDescription + "/*"

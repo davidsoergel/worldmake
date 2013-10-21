@@ -229,7 +229,25 @@ object InstantCompletedProvenance {
              cost: Map[CostType.CostType, Double],
              output: Artifact[T]
     ) : CompletedProvenance[T] =  {
-    new MemoryCompletedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost, output) tap Storage.provenanceStore.put
+    new MemoryCompletedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost,output) tap Storage.provenanceStore.put
+  }
+}
+
+object InstantFailedProvenance {
+  def apply[T](provenanceId: Identifier[Provenance[T]],
+               recipeId: Identifier[Recipe[T]],
+               derivedFromUnnamed: GenSet[Successful[_]],
+               derivedFromNamed: GenMap[String, Successful[_]],
+               createdTime: DateTime,
+               enqueuedTime: DateTime,
+               startTime: DateTime,
+               runningInfo: RunningInfo,
+               endTime: DateTime,
+               exitCode: Int,
+               log: Option[ReadableStringOrManagedFile],
+               cost: Map[CostType.CostType, Double]
+                ) : FailedProvenance[T] =  {
+    new MemoryFailedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost) tap Storage.provenanceStore.put
   }
 }
 
