@@ -70,9 +70,13 @@ class AssemblyRecipe(namedDependencies: GenMap[String, Recipe[PathReference]]) e
 
   def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
     val pr = BlockedProvenance(Identifier[Provenance[ManagedPath]](UUID.randomUUID().toString), recipeId)
-    val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k => FutureUtils.futurePair(upstreamStrategy, (k, namedDependencies(k))))
+    val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k => {
+      FutureUtils.futurePair(upstreamStrategy, (k, namedDependencies(k)))
+    })
     val result = for (reifiedDependencies <- reifiedDependenciesF
-    ) yield deriveWithArgs(pr.pending(Set.empty, reifiedDependencies.toMap), reifiedDependencies.toMap)
+    ) yield {
+      deriveWithArgs(pr.pending(Set.empty, reifiedDependencies.toMap), reifiedDependencies.toMap)
+    }
 
     result
 

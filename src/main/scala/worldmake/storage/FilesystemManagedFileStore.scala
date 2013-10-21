@@ -9,6 +9,7 @@ import worldmake.{ManagedPath, ManagedFileStore}
  */
 class FilesystemManagedFileStore(val rootPath: Path) extends ManagedFileStore {
 
+
   rootPath.createDirectory(createParents = true, failIfExists = false)
 
   val dirStructure = """(...)(......)(.*)""".r
@@ -19,7 +20,7 @@ class FilesystemManagedFileStore(val rootPath: Path) extends ManagedFileStore {
   }
 
   def all: Iterator[(Identifier[ManagedPath], Path)] = {
-    for (a <- rootPath.children().toIterator;
+    for (a <- rootPath.children().toIterator if a.isDirectory;
          b <- a.children().toIterator;
          c <- b.children().toIterator) yield {
       val fileId = new Identifier[ManagedPath](a.name + b.name + c.name)
@@ -46,6 +47,20 @@ class FilesystemManagedFileStore(val rootPath: Path) extends ManagedFileStore {
     p.exists
   }
 
+
+  def cleanup() = {
+    for (a <- rootPath.children().toIterator if a.isDirectory;
+         b <- a.children().toIterator) {
+      if (b.children().isEmpty) {
+        b.delete()
+      }
+    }
+    for (a <- rootPath.children().toIterator if a.isDirectory) {
+      if (a.children().isEmpty) {
+        a.delete()
+      }
+    }
+  }
 
   /*
   def newDirectory: Path = {

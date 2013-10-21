@@ -468,7 +468,7 @@ object ExternalPathRecipe {
   implicit def toExternalPathRecipe(r: Recipe[ExternalPath]) = new ExternalPathRecipe(r)
 }
 
-class ExternalPathRecipe(underlying: Recipe[ExternalPath]) extends Recipe[ExternalPath] {
+class ExternalPathRecipe(underlying: Recipe[ExternalPath]) extends Recipe[ExternalPath] with Logging {
   def deriveFuture(implicit upstreamStrategy: CookingStrategy) = underlying.deriveFuture
 
   def longDescription = underlying.longDescription
@@ -515,7 +515,12 @@ class ExternalPathRecipe(underlying: Recipe[ExternalPath]) extends Recipe[Extern
     
     def deriveFuture(implicit upstreamStrategy: CookingStrategy) : Future[Successful[GenTraversable[Artifact[ExternalPath]]]] = ExternalPathRecipe.this.deriveFuture.map((r:Successful[ExternalPath])=> {
       val m = r.output.value
-      val cpaths = m.path.children().toSet.map((c:Path) => ExternalPath(m.path / c))
+      val cpaths = try {
+        val ch: Set[Path] = m.path.children().toSet
+        val exch = ch.map((c:Path) => ExternalPath(c))
+        exch
+      }
+      
       val now = new DateTime()
       val cpathartifacts : GenTraversable[Artifact[ExternalPath]] = cpaths.map(ExternalPathArtifact(_))
 

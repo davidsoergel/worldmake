@@ -16,8 +16,9 @@ object Cleanup {
     val provs = Storage.provenanceStore
     // perf
     for((id, p) <- Storage.fileStore.all) {
-      if(provs.findWithArtifactFileById(id).isEmpty) p.delete()
+      if(provs.findWithArtifactFileById(id).isEmpty) if(p.isFile) p.delete() else p.deleteRecursively()
     }
+    Storage.fileStore.cleanup()
     "done cleaning files"
   }
 

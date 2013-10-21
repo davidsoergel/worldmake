@@ -65,6 +65,7 @@ object WorldMake extends Logging {
     import c._
     command match {
       case "show" => showRecipe()
+      case "make" => makeRecipe()
       case "value" => makeRecipe()
       case "deps" => showRecipeDeps()
       case "queue" => showRecipeQueue()
@@ -199,7 +200,8 @@ object WorldMake extends Logging {
       if (!globalCommand(target, out)) {
         namedRecipe.map(recipeCommand(_, command, world, out)).getOrElse(provenanceCommand(target, command, world, out))
       }
-
+      
+      out.write("\n") // just in case
       0
     }
     catch {
@@ -207,6 +209,11 @@ object WorldMake extends Logging {
         logger.error("FAILED: ", e)
         1
       }
+      case e: Throwable => {
+        logger.error("FAILED MYSTERIOUSLY: ", e)
+        1
+      }
+     
     }
     finally {
       notifiersForShutdown.map(_.shutdown())

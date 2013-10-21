@@ -108,14 +108,14 @@ class CasbahProvenanceStore(conn: MongoConnection,
   }
   
   override def removeDead = {
-    mongoColl.findAndRemove(MongoDBObject("type" -> MongoFailedProvenance.typehint))
-    mongoColl.findAndRemove(MongoDBObject("type" -> MongoCancelledProvenance.typehint))
+    mongoColl.remove(MongoDBObject("type" -> MongoFailedProvenance.typehint))
+    mongoColl.remove(MongoDBObject("type" -> MongoCancelledProvenance.typehint))
   }
 
   override def removeZombie = {
-    mongoColl.findAndRemove(MongoDBObject("type" -> MongoRunningProvenance.typehint))
-    mongoColl.findAndRemove(MongoDBObject("type" -> MongoPendingProvenance.typehint))
-    mongoColl.findAndRemove(MongoDBObject("type" -> MongoBlockedProvenance.typehint))
+    mongoColl.remove(MongoDBObject("type" -> MongoRunningProvenance.typehint))
+    mongoColl.remove(MongoDBObject("type" -> MongoPendingProvenance.typehint))
+    mongoColl.remove(MongoDBObject("type" -> MongoBlockedProvenance.typehint))
   }
 
   def getSuccessful[T](id: Identifier[Successful[T]]) = get(id).map(_.asInstanceOf[MongoSuccessful[T]])

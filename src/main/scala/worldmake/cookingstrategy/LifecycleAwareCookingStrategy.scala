@@ -28,7 +28,7 @@ trait LifecycleAwareCookingStrategy extends FallbackCookingStrategy {
         if (track.hasFailure && !WorldMakeConfig.retryFailures) {
           throw FailedRecipeException("Aborting due to failure of " + d.recipeId, d.recipeId)
         }
-        logger.info(s"Need to cook recipe: $d.recipeId using $fallback" )
+        logger.info(s"Need to cook recipe: ${d.recipeId} using $fallback" )
         val result = fallback.cookOne(d) // trust that the underlying strategy updates the storage
         // RunningDerivations.put(d.derivationId, result)
         /*result onComplete {
