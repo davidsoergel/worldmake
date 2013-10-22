@@ -13,6 +13,7 @@ import scala.sys.process.{ProcessLogger, Process}
 import ExecutionContext.Implicits.global
 import scala.reflect.runtime.universe._
 import worldmake.storage.{Identifier, ManagedPathArtifact, Storage}
+import scalax.file.defaultfs.DefaultPath
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -36,7 +37,7 @@ object LocalExecutionStrategy extends SystemExecutionStrategy with Logging {
     val outputId: Identifier[ManagedPath] = Storage.fileStore.newId
     val outputPath: Path = Storage.fileStore.getOrCreate(outputId)
 
-    val workingDir = Path.createTempDirectory(dir = WorldMakeConfig.localTempDir, deleteOnExit = !WorldMakeConfig.debugWorkingDirectories)
+    val workingDir: DefaultPath = Path.createTempDirectory(dir = WorldMakeConfig.localTempDir, deleteOnExit = !WorldMakeConfig.debugWorkingDirectories)
     //val log: File = (outputPath / "worldmake.log").fileOption.getOrElse(throw new Error("can't create log: " + outputPath / "worldmake.log"))
     //val logWriter = Resource.fromFile(log)
 
@@ -46,10 +47,10 @@ object LocalExecutionStrategy extends SystemExecutionStrategy with Logging {
 
     val environment: GenMap[String, String] = WorldMakeConfig.globalEnvironment ++ dependenciesEnvironment ++ Map("out" -> outputPath.toAbsolute.path) //, "PATH" -> WorldMakeConfig.globalPath)
 
-    val runner = Resource.fromFile(new File((workingDir / "worldmake.runner").toAbsolute.path))
+    val runner = Resource.fromFile((workingDir / "worldmake.runner").toRealPath().jfile)
     runner.write(reifiedScript.output.value)
 
-    val envlog = Resource.fromFile(new File((workingDir / "worldmake.environment").toAbsolute.path))
+    val envlog = Resource.fromFile((workingDir / "worldmake.environment").toRealPath().jfile)
     envlog.write(environment.map({
       case (k, v) => k + " = " + v
     }).mkString("\n"))

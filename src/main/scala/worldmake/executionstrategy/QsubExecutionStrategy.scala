@@ -14,6 +14,7 @@ import scala.sys.process.{ProcessLogger, Process}
 import worldmake.cookingstrategy.{CallbackNotifier, PollingAction, Notifier}
 import edu.umass.cs.iesl.scalacommons.XMLIgnoreDTD
 import ExecutionContext.Implicits.global
+import scalax.file.defaultfs.DefaultPath
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -22,7 +23,7 @@ import ExecutionContext.Implicits.global
 trait QsubRunningInfo extends RunningInfo {
   def jobId: Int
 
-  def workingDir: Path
+  def workingDir: DefaultPath
 
   def outputPath: ManagedPath
 
@@ -34,7 +35,7 @@ trait QsubRunningInfo extends RunningInfo {
   //def requestedType: String
 }
 
-case class MemoryQsubRunningInfo(jobId: Int, workingDir: Path, outputPath: ManagedPath, node: Option[String]) extends QsubRunningInfo  //, requestedType:String
+case class MemoryQsubRunningInfo(jobId: Int, workingDir: DefaultPath, outputPath: ManagedPath, node: Option[String]) extends QsubRunningInfo  //, requestedType:String
 
 class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy with Logging {
 
@@ -61,7 +62,7 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
 
 
     val workingDir = Path.createTempDirectory(dir = WorldMakeConfig.qsubGlobalTempDir, deleteOnExit = !WorldMakeConfig.debugWorkingDirectories)
-    val runner = Resource.fromFile(new File((workingDir / "worldmake.runner").toAbsolute.path))
+    val runner = Resource.fromFile((workingDir / "worldmake.runner").toRealPath().jfile)
     //http://stackoverflow.com/questions/821396/aborting-a-shell-script-if-any-command-returns-a-non-zero-value
     runner.write(
       """#!/bin/bash
@@ -72,13 +73,13 @@ class QsubExecutionStrategy(notifier: Notifier) extends SystemExecutionStrategy 
     runner.write(reifiedScript.output.value)
     runner.write("\n")
 
-    val envlog = Resource.fromFile(new File((workingDir / "worldmake.environment").toAbsolute.path))
+    val envlog = Resource.fromFile((workingDir / "worldmake.environment").toRealPath().jfile)
     envlog.write(environment.map({
       case (k, v) => "export " + k + "=" + v
     }).mkString("\n"))
     envlog.write("\n")
 
-    val qsubScript = Resource.fromFile(new File((workingDir / "worldmake.qsub").toAbsolute.path))
+    val qsubScript = Resource.fromFile((workingDir / "worldmake.qsub").toRealPath().jfile)
     val stderrLog = (workingDir / "stderr.log").toAbsolute.path
     val stdoutLog = (workingDir / "stdout.log").toAbsolute.path
     val work = workingDir.toAbsolute.path
@@ -200,7 +201,7 @@ object DetectQsubPollingAction extends PollingAction with Logging {
             case ((p: RunningProvenance[Any], ri: QsubRunningInfo)) => {
 
               val exitCode: Option[Int] = try {
-                Resource.fromFile(new File((ri.workingDir / "exitcode.log").toAbsolute.path)).lines().headOption.map(_.toInt)
+                Resource.fromFile((ri.workingDir / "exitcode.log").toRealPath().jfile).lines().headOption.map(_.toInt)
               } catch {
                 case e: IOException =>  { logger.error("Error collecting exit code", e); None }
               }
@@ -208,7 +209,7 @@ object DetectQsubPollingAction extends PollingAction with Logging {
               def collectLog = try {
                 // copy the log from the qsub file into the database or file store, as needed
                 val logWriter = new LocalWriteableStringOrManagedFile(Storage.logStore)
-                val logLines = Resource.fromFile(new File((ri.workingDir / "stderr.log").toAbsolute.path)).lines()
+                val logLines = Resource.fromFile((ri.workingDir / "stderr.log").jfile ).lines()
                 logger.debug(s"Found ${logLines.size} log lines.")
                 for(s <- logLines) { logWriter.write(s+"\n") }
                 logger.debug(s"Wrote ${logWriter.count} characters of logging output.")

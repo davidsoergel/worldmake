@@ -83,7 +83,9 @@ object MongoQsubRunningInfo extends MongoSerializer[QsubRunningInfo, MongoQsubRu
 class MongoQsubRunningInfo(val dbo: MongoDBObject) extends MongoRunningInfo with QsubRunningInfo with MongoWrapper{
   def jobId = dbo.as[Int]("jobId")
   def workingDir = Path.fromString(dbo.as[String]("workingDir"))
-  def outputPath = ManagedPath(Identifier[ManagedPath]((dbo.as[String]("outputPathId"))))
+  def outputPath = {
+    ManagedPath(Identifier[ManagedPath](dbo.as[String]("outputPathId")))
+  }
 //  def requestedType = dbo.as[String]("requestedType")
 }
 
