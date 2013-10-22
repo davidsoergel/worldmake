@@ -113,7 +113,7 @@ object RecipeWrapper extends Logging {
 
   def externalPathFromString(ds:Recipe[String]):Recipe[ExternalPath] = new Recipe1(namedPathFromString,ds)
   
-  def wrapRecipe[T <: TypedPathReference:ClassManifest](f: PathReference => T)(d: Recipe[PathReference]): TypedPathRecipe[T] = {
+  def makePathRecipeTyped[T <: TypedPathReference:ClassManifest](f: PathReference => T)(d: Recipe[PathReference]): TypedPathRecipe[T] = {
     new TypedPathRecipe[T] {
       def toPathRecipe = d
       private val pathType = classManifest[T].toString
@@ -126,7 +126,7 @@ object RecipeWrapper extends Logging {
 
       def deriveFuture(implicit upstreamStrategy: CookingStrategy) : Future[Successful[T]] = {
         val pf = upstreamStrategy.cookOne(d)
-        val result = pf.map(p => wrapProvenance(p))
+        val result = pf.map(p => makePathProvenanceTyped(p))
         result onFailure  {
           case t => {
             logger.debug("Error in Future: ", t)
@@ -139,7 +139,7 @@ object RecipeWrapper extends Logging {
         
       override lazy val queue = d.queue
       
-      private def wrapProvenance(p:Successful[PathReference]) = {
+      private def makePathProvenanceTyped(p:Successful[PathReference]) = {
         new Provenance[T] with Successful[T] {
           def status = p.status
           def createdTime = p.createdTime
@@ -148,6 +148,24 @@ object RecipeWrapper extends Logging {
           lazy val recipeId = new Identifier[Recipe[T]](d.recipeId.s)
 
           lazy val provenanceId = new Identifier(p.provenanceId.s)
+
+          def derivedFromNamed = p.derivedFromNamed
+
+          def derivedFromUnnamed = p.derivedFromUnnamed
+
+          def cost = p.cost
+
+          def endTime = p.endTime
+
+          def enqueuedTime = p.enqueuedTime
+
+          def exitCode = p.exitCode
+
+          def log = p.log
+
+          def runningInfo = p.runningInfo
+
+          def startTime = p.startTime
         }
       }
 

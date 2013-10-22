@@ -51,10 +51,11 @@ trait Provenance[+T] extends WorldmakeEntity {
   
 }
 
-trait Successful[+T] extends Provenance[T] {
+trait Successful[+T] extends PostRunProvenance[T] {
   def output: Artifact[T]
   override lazy val statusPairs = super.statusPairs :+ ("Value"->output)
   override def statusLine : String = super.statusLine + f" ${output}%10s"
+  
   
 }
 
@@ -75,15 +76,34 @@ trait ConstantProvenance[T] extends Successful[T] {
   //def createdTime: DateTime
   lazy val recipeId = Identifier[Recipe[T]](provenanceId.s)
   val status = "Constant"
+  
+  def derivedFromNamed = Map.empty
+
+  def derivedFromUnnamed = Set.empty
+
+  def cost = Map.empty
+
+  def endTime = createdTime
+
+  def enqueuedTime = createdTime
+
+  def exitCode = 0
+
+  def log = None
+
+  def runningInfo = ConstantRunningInfo
+
+  def startTime = createdTime
 }
 
 private class MemoryConstantProvenance[T](val output: Artifact[T]) extends ConstantProvenance[T] {
   val createdTime = DateTime.now
   lazy val provenanceId = Identifier[Provenance[T]](output.constantId.s)
+
 }
 
 
-sealed trait DerivedProvenance[T] extends Provenance[T] {
+sealed trait DerivedProvenance[+T] extends Provenance[T] {
 
   // Set is not covariant?!?  OK, just use Seq instead for now
   //def derivedFromAll : Seq[Provenance[_]]
@@ -108,7 +128,7 @@ trait BlockedProvenance[T] extends DerivedProvenance[T] {
   def pending(derivedFromUnnamed: GenSet[Successful[_]],derivedFromNamed: GenMap[String, Successful[_]]): PendingProvenance[T] = MemoryPendingProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime) tap Storage.provenanceStore.put
 }
 
-sealed trait DependenciesBoundProvenance[T] extends DerivedProvenance[T] {
+sealed trait DependenciesBoundProvenance[+T] extends DerivedProvenance[T] {
    def derivedFromUnnamed: GenSet[Successful[_]]
 
    def derivedFromNamed: GenMap[String, Successful[_]]
@@ -156,7 +176,7 @@ trait RunningProvenance[T] extends DependenciesBoundProvenance[T]  {
     MemoryCompletedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost, output) tap Storage.provenanceStore.put
 }
 
-trait PostRunProvenance[T] extends DependenciesBoundProvenance[T]  {
+trait PostRunProvenance[+T] extends DependenciesBoundProvenance[T]  {
   //def createdTime: DateTime
   
 
@@ -543,10 +563,13 @@ class MemoryWithinJvmRunningInfo extends WithinJvmRunningInfo {
 trait LocalRunningInfo extends RunningInfo {
   def workingDir:Path
 
-
   override def statusPairs = super.statusPairs :+  "Working Dir"->workingDir
 }
 
 class MemoryLocalRunningInfo(val workingDir:Path) extends LocalRunningInfo {
   val node = Some(java.net.InetAddress.getLocalHost.getHostName + " (local)")
+}
+
+object ConstantRunningInfo extends RunningInfo{
+  def node = None
 }

@@ -113,7 +113,7 @@ class MemoryManagedPathArtifact(pathid: ManagedPath) extends MemoryArtifact[Mana
 trait TypedPathCompanion {
   def mapper: PathReference => TypedPathReference
 
-  private def wrapper[T <: TypedPathReference : ClassManifest]: (Recipe[PathReference]) => TypedPathRecipe[T] = RecipeWrapper.wrapRecipe[T](p => mapper(p).asInstanceOf[T])
+  private def wrapper[T <: TypedPathReference : ClassManifest]: (Recipe[PathReference]) => TypedPathRecipe[T] = RecipeWrapper.makePathRecipeTyped[T](p => mapper(p).asInstanceOf[T])
 
   //implicit
   def wrapRecipe[T <: TypedPathReference : ClassManifest](d: Recipe[PathReference]): TypedPathRecipe[T] = {
