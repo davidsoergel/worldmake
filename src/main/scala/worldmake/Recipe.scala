@@ -562,8 +562,8 @@ result
               0,
               None,
               Map.empty)
-            logger.debug("Error in ExternalPathRecipe.children: ", t) // todo better log message
-            throw FailedRecipeException("Failed ExternalPathRecipe.children", prf, t)
+            logger.debug("Error in ExternalPathRecipe./: ", t) // todo better log message
+            throw FailedRecipeException("Failed ExternalPathRecipe./", prf, t)
           }
         }
       })
