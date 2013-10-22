@@ -593,7 +593,8 @@ result
           }
 
           val cpathartifacts: GenTraversable[Artifact[ExternalPath]] = cpaths.map(ExternalPathArtifact(_))
-
+ 
+          logger.debug(s"Found ${cpathartifacts.size} children of ${m.path}.")
           InstantCompletedProvenance[GenTraversable[Artifact[ExternalPath]]](
             Identifier[Provenance[GenTraversable[Artifact[ExternalPath]]]](UUID.randomUUID().toString),
             recipeId,
