@@ -225,7 +225,6 @@ object WorldMake extends Logging {
 
 object WorldMakeConfig {
 
-
   val conf: Config = ConfigFactory.load()
 
   val mercurialLocalRoot: Path = Path.fromString(conf.getString("hglocal"))
