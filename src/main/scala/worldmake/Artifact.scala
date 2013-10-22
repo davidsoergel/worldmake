@@ -89,6 +89,7 @@ object ConstantArtifact {
 */
 object Artifact {
   def apply[T](v:T) : Artifact[T] = (v match {
+    case x:Artifact[T] => x
     case s:String => StringArtifact(s)
     case i:Int => IntArtifact(i)
     case d:Double => DoubleArtifact(d)
