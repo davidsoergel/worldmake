@@ -15,8 +15,8 @@ class FilesystemManagedFileStore(val rootPath: Path) extends ManagedFileStore {
   val dirStructure = """(...)(......)(.*)""".r
 
   def newId: Identifier[ManagedPath] = {
-    val id = UUID.randomUUID.toString
-    new Identifier[ManagedPath](id)
+    val ids = UUID.randomUUID.toString
+    new Identifier[ManagedPath](ids)
   }
 
   def all: Iterator[(Identifier[ManagedPath], Path)] = {
@@ -29,20 +29,20 @@ class FilesystemManagedFileStore(val rootPath: Path) extends ManagedFileStore {
   }
 
   def getOrCreate(id: Identifier[ManagedPath]): Path = {
-    val dirStructure(a, b, c) = id
+    val dirStructure(a, b, c) = id.s
     val p: Path = rootPath / a / b
     p.createDirectory(createParents = true, failIfExists = false)
     p / c
   }
 
   def get(id: Identifier[ManagedPath]): Option[Path] = {
-    val dirStructure(a, b, c) = id
+    val dirStructure(a, b, c) = id.s
     val p: Path = rootPath / a / b / c
     if (p.exists) Some(p) else None
   }
 
   def exists(id: Identifier[ManagedPath]): Boolean = {
-    val dirStructure(a, b, c) = id
+    val dirStructure(a, b, c) = id.s
     val p: Path = rootPath / a / b / c
     p.exists
   }

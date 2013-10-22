@@ -264,7 +264,7 @@ object TraversableRecipe extends Logging {
   def seqGet[T] = new IdentifiableFunction2[Seq[T], Int, T]("seqGet", {
     (a: Seq[T], b: Int) => {
       logger.debug(s"seqGet getting element $b of a Seq of size ${a.size}")
-      logger.debug(a.toString())
+      //logger.debug(a.toString())
       a(b)
     }
   })
