@@ -70,13 +70,12 @@ class MongoLocalRunningInfo(val dbo: MongoDBObject) extends MongoRunningInfo wit
 
 
 
-
 object MongoQsubRunningInfo extends MongoSerializer[QsubRunningInfo, MongoQsubRunningInfo]("QsubRunningInfo", new MongoQsubRunningInfo(_)) {
   def addFields(e: QsubRunningInfo, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoRunningInfo.addFields(e, builder)
     builder += "jobId" -> e.jobId
     builder += "workingDir" -> e.workingDir.toAbsolute.path
-    builder += "outputPathId" -> e.outputPath.id
+    builder += "outputPathId" -> e.outputPath.id.s
 //    builder += "requestedType" -> e.requestedType
   }
 }
