@@ -1,22 +1,13 @@
 package worldmake.storage
 
-import scalax.file.Path
 import worldmake._
 import worldmake.WorldMakeConfig._
-import worldmake.storage.Identifier
-import scala.Some
 import com.typesafe.scalalogging.slf4j.Logging
-import worldmake.storage.Identifier
-import scala.Some
-import worldmake.storage.Identifier
-import scala.Some
-import worldmake.storage.Identifier
-import scala.Some
 
 
-
-sealed trait PathArtifact[T<:PathReference] extends Artifact[T]  {
+sealed trait PathArtifact[T <: PathReference] extends Artifact[T] {
   def path = value.path
+
   lazy val abspath = path.toAbsolute.path
   lazy val basename = path.name
 
@@ -26,55 +17,68 @@ sealed trait PathArtifact[T<:PathReference] extends Artifact[T]  {
 
   // todo just pass in the child hashes for an assembly
 
-  override lazy val contentHashBytes: Array[Byte] = if (path.isFile) WMHash(path.fileOption.get)
-  else {
-    // this doesn't take into account the filenames directly, but does concatenate the child hashes in filename-sorted order. 
-    WMHash(children.par.map(p=> p.basename + p.contentHash).mkString)
+  override lazy val contentHashBytes: Option[Array[Byte]] = if (aggressiveHashing) {
+    val result = {
+      if (path.isFile) WMHash(path.fileOption.get)
+      else {
+        // this doesn't take into account the filenames directly, but does concatenate the child hashes in filename-sorted order. 
+        // todo store the child hashes in the DB for reuse?
+        WMHash(children.par.map(p => p.basename + p.contentHash).mkString)
+      }
+    }
+    Some(result)
   }
-  
+  else None
+
   def children: Seq[PathArtifact[T]]
 }
 
 object ExternalPathArtifact {
-  def apply(s: ExternalPath) : ExternalPathArtifact = new MemoryExternalPathArtifact(s)
+  def apply(s: ExternalPath): ExternalPathArtifact = new MemoryExternalPathArtifact(s)
 }
 
-trait ExternalPathArtifact extends PathArtifact[ExternalPath] { //} with ContentHashableArtifact[ExternalPath] {
-  
+trait ExternalPathArtifact extends PathArtifact[ExternalPath] {
+  //} with ContentHashableArtifact[ExternalPath] {
+
   // todo think about preemptive hashing!
-  override lazy val constantId = Identifier[Artifact[ExternalPath]]("Path(" + abspath + ")")
+  override lazy val constantId = Identifier[Artifact[ExternalPath]]("ExternalPath(" + abspath + ")")
+
   override def toString = abspath.toString
 
   override lazy val children: Seq[ExternalPathArtifact] = {
-    if (path.nonExistent || path.isFile) Nil else path.children().toSeq.filter(p=>{
+    if (path.nonExistent || path.isFile) Nil
+    else path.children().toSeq.filter(p => {
       !WorldMakeConfig.ignoreFilenames.contains(p.name)
-    }).sorted.map(f=>new MemoryExternalPathArtifact(ExternalPath(f)))
+    }).sorted.map(f => new MemoryExternalPathArtifact(ExternalPath(f)))
   }
 }
 
 object ManagedPathArtifact {
-  def apply(s: ManagedPath) : ManagedPathArtifact = new MemoryManagedPathArtifact(s) //tap Storage.provenanceStore.put
+  def apply(s: ManagedPath): ManagedPathArtifact = new MemoryManagedPathArtifact(s) //tap Storage.provenanceStore.put
 }
 
 trait ManagedPathArtifact extends PathArtifact[ManagedPath] {
   // todo think about preemptive hashing!
   override lazy val constantId = Identifier[Artifact[ManagedPath]]("ManagedPath(" + value + ")")
+
   override def toString = value.id.toString
 
   override lazy val children: Seq[ManagedPathArtifact] = {
-    if (path.nonExistent || path.isFile) Nil else path.children().toSeq.filter(p=>{
+    if (path.nonExistent || path.isFile) Nil
+    else path.children().toSeq.filter(p => {
       !WorldMakeConfig.ignoreFilenames.contains(p.name)
-    }).sorted.map(f=>new MemoryManagedPathArtifact(ManagedPath(value.id, f)))
+    }).sorted.map(f => new MemoryManagedPathArtifact(ManagedPath(value.id, f)))
   }
 }
 
-case class TypedExternalPathArtifact(value:ExternalPath) extends ExternalPathArtifact
-case class TypedManagedPathArtifact(value:ManagedPath) extends ManagedPathArtifact
+case class TypedExternalPathArtifact(value: ExternalPath) extends ExternalPathArtifact
 
-class MemoryExternalPathArtifact(ep: ExternalPath) extends MemoryArtifact[ExternalPath](ep) with ExternalPathArtifact with Logging  {
+case class TypedManagedPathArtifact(value: ManagedPath) extends ManagedPathArtifact
+
+class MemoryExternalPathArtifact(ep: ExternalPath) extends MemoryArtifact[ExternalPath](ep) with ExternalPathArtifact with Logging {
   // ** require(path.exists)
 
-  if(!ep.path.exists) {
+  if (!ep.path.exists) {
     logger.warn("External path artifact does not exist: " + path)
   }
 
@@ -95,10 +99,10 @@ class MemoryExternalPathArtifact(ep: ExternalPath) extends MemoryArtifact[Extern
 }
 
 
+class MemoryManagedPathArtifact(pathid: ManagedPath) extends MemoryArtifact[ManagedPath](pathid) with ManagedPathArtifact with Logging {
+  //} with ContentHashableArtifact[ManagedPath] {
 
-class MemoryManagedPathArtifact(pathid: ManagedPath) extends MemoryArtifact[ManagedPath](pathid) with ManagedPathArtifact with Logging { //} with ContentHashableArtifact[ManagedPath] {
-
-  if(!pathid.path.exists) {
+  if (!pathid.path.exists) {
     logger.warn("Managed path artifact does not exist: " + path)
   }
 
@@ -107,12 +111,12 @@ class MemoryManagedPathArtifact(pathid: ManagedPath) extends MemoryArtifact[Mana
 }
 
 trait TypedPathCompanion {
-  def mapper : PathReference=>TypedPathReference
+  def mapper: PathReference => TypedPathReference
 
-  private def wrapper[T<:TypedPathReference:ClassManifest]: (Recipe[PathReference]) => TypedPathRecipe[T] = RecipeWrapper.wrapRecipe[T](p=>mapper(p).asInstanceOf[T])
+  private def wrapper[T <: TypedPathReference : ClassManifest]: (Recipe[PathReference]) => TypedPathRecipe[T] = RecipeWrapper.wrapRecipe[T](p => mapper(p).asInstanceOf[T])
 
   //implicit
-  def wrapRecipe[T<: TypedPathReference:ClassManifest](d: Recipe[PathReference]): TypedPathRecipe[T] = {
+  def wrapRecipe[T <: TypedPathReference : ClassManifest](d: Recipe[PathReference]): TypedPathRecipe[T] = {
     val w = wrapper[T]
     w(d)
   }

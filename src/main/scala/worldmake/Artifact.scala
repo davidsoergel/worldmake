@@ -49,7 +49,7 @@ trait Artifact[+T] extends Hashable with WorldmakeEntity {
 
   // An Artifact may be wrapped in a ConstantProvenance, so it's helpful for it to provide an ID up front
   // that is: this is the ID that should be used when the artifact is stored as a constant.  If it is stored as a derivation, then this should be ignored.
-  lazy val constantId : Identifier[Artifact[T]] = Identifier[Artifact[T]](contentHash)
+  def constantId : Identifier[Artifact[T]] 
   
   override def toString = value.toString
 }
@@ -111,12 +111,15 @@ trait StringArtifact extends Artifact[String] {
   override lazy val environmentString: String = value.toString
   //def resultType = "String"
 
+  override lazy val constantId = Identifier[StringArtifact](WMHashHex("String(" + value.toString + ")"))
 }
 
 class MemoryStringArtifact(s: String) extends MemoryArtifact[String](s) with StringArtifact { //} with ContentHashableArtifact[String] {
-  def contentHashBytes = WMHash(s)
+  def contentHashBytes = Some(WMHash(s))
 
   lazy val output: Option[Artifact[String]] = Some(this)
+
+  // An Artifact may be wrapped in a ConstantProvenance, so it's helpful for it to provide an ID up front
 }
 
 
@@ -135,7 +138,7 @@ trait BooleanArtifact extends Artifact[Boolean] {
 }
 
 class MemoryBooleanArtifact(s: Boolean) extends MemoryArtifact[Boolean](s) with BooleanArtifact { //with ContentHashableArtifact[Boolean] {
-  def contentHashBytes = WMHash(s.toString)
+  def contentHashBytes = Some(WMHash(s.toString))
   lazy val output: Option[Artifact[Boolean]] = Some(this)
 }
 
@@ -155,7 +158,7 @@ trait IntArtifact extends Artifact[Int] {
 }
 
 class MemoryIntArtifact(s: Int) extends MemoryArtifact[Int](s) with IntArtifact { //with ContentHashableArtifact[Int] {
-  def contentHashBytes = WMHash(s.toString)
+  def contentHashBytes = Some(WMHash(s.toString))
   lazy val output: Option[Artifact[Int]] = Some(this)
 }
 
@@ -173,7 +176,7 @@ trait DoubleArtifact extends Artifact[Double] {
 }
 
 class MemoryDoubleArtifact(s: Double) extends MemoryArtifact[Double](s) with DoubleArtifact { //with ContentHashableArtifact[Double] {
-  def contentHashBytes = WMHash(s.toString)
+  def contentHashBytes = Some(WMHash(s.toString))
   lazy val output: Option[Artifact[Double]] = Some(this)
 
 }
@@ -190,12 +193,15 @@ trait GenTraversableArtifact[T] extends Artifact[GenTraversable[Artifact[T]]] {
   override def toString = value.map(_.toString).mkString(", ")
   
   override lazy val environmentString = value.map(_.environmentString).mkString(" ")
+
+  override def constantId = Identifier[Artifact[GenTraversable[Artifact[T]]]](WMHashHex(value.map(_.constantId.s).mkString(", "))) //contentHash.get)
+
 }
 
 class MemoryGenTraversableArtifact[T](val value: GenTraversable[Artifact[T]]) extends GenTraversableArtifact[T] {
   //def provenanceId = Identifier[Artifact[Traversable[T]]](UUID.randomUUID().toString)
 
-  lazy val contentHashBytes = WMHash(value.toSeq.flatMap(_.contentHash).mkString(""))
+  lazy val contentHashBytes = Some(WMHash(value.toSeq.flatMap(_.contentHash).mkString("")))
 
 
   //override def environmentString = value.map(_.environmentString).mkString(" ")

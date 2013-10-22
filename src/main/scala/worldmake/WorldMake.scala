@@ -244,26 +244,28 @@ object WorldMakeConfig {
 
   val ignoreFilenames: Seq[String] = conf.getStringList("ignoreFilenames")
 
-  def globalEnvironment: Map[String, String] = Map("PATH" -> WorldMakeConfig.globalPath)
+  val globalEnvironment: Map[String, String] = Map("PATH" -> WorldMakeConfig.globalPath)
 
-  def debugWorkingDirectories: Boolean = conf.getBoolean("debugWorkingDirectories")
+  val debugWorkingDirectories: Boolean = conf.getBoolean("debugWorkingDirectories")
 
-  def retryFailures: Boolean = conf.getBoolean("retryFailures")
+  val retryFailures: Boolean = conf.getBoolean("retryFailures")
 
-  def qsub: String = conf.getString("qsub")
+  val aggressiveHashing: Boolean = conf.getBoolean("aggressiveHashing")
 
-  def qstat: String = conf.getString("qstat")
+  val qsub: String = conf.getString("qsub")
+
+  val qstat: String = conf.getString("qstat")
 
   // a scratch directory available from all grid nodes
-  def qsubGlobalTempDir: String = conf.getString("qsubGlobalTempDir")
+  val qsubGlobalTempDir: String = conf.getString("qsubGlobalTempDir")
 
-  def localTempDir: String = conf.getString("localTempDir")
+  val localTempDir: String = conf.getString("localTempDir")
 
-  def fileStoreName = conf.getString("filestore")
+  val fileStoreName = conf.getString("filestore")
 
   //private val fileStore = new FileStore(Path.fromString(conf.getString("filestore")))
 
-  def logStoreName = conf.getString("logstore")
+  val logStoreName = conf.getString("logstore")
 
   //private val logStore = new FileStore(Path.fromString(conf.getString("logstore")))
   //val artifactStore = new ArtifactStore(conf.getString("artifactstore"))

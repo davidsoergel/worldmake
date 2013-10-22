@@ -22,9 +22,9 @@ object NamedFunction {
 
 
 trait Hashable {
-  def contentHashBytes: Array[Byte]
+  def contentHashBytes: Option[Array[Byte]]
 
-  lazy val contentHash = Hash.toHex(contentHashBytes)
+  lazy val contentHash : Option[String]= contentHashBytes.map(Hash.toHex)
 }
 
 /*

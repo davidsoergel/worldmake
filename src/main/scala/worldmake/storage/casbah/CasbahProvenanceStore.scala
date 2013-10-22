@@ -128,9 +128,10 @@ class CasbahProvenanceStore(conn: MongoConnection,
     result
   }
 
+  // doesn't distinguish between a) provenance with given id not found, and b) provenance found but has no contenthash
   def getContentHash[T](id: Identifier[Provenance[T]]): Option[String] = get(id).map({
     case d:Successful[_] => d.output
-  }).map(_.contentHash)
+  }).flatMap(_.contentHash)
 }
 
 

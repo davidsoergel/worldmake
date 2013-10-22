@@ -7,6 +7,8 @@ import com.mongodb.casbah.Imports._
 import scalax.file.Path
 import edu.umass.cs.iesl.scalacommons.util.Hash
 import worldmake.storage.{ManagedPathArtifact, ExternalPathArtifact, Identifier}
+import worldmake.WorldMakeConfig._
+import worldmake.storage.Identifier
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -14,9 +16,9 @@ import worldmake.storage.{ManagedPathArtifact, ExternalPathArtifact, Identifier}
 trait MongoArtifact[T] extends Artifact[T] with MongoWrapper {
   //override def artifactId = dbo.as[String]("id")
 
-  override lazy val contentHash = dbo.as[String]("contentHash")
+  override lazy val contentHash = dbo.getAs[String]("contentHash")
 
-  override lazy val contentHashBytes = Hash.fromHex(contentHash)
+  override lazy val contentHashBytes = contentHash.map(Hash.fromHex)
 }
 
 
@@ -64,10 +66,10 @@ object MongoArtifact {
     // must do this is each concrete class, since we don't know how the value is to be serialized.
     // or, add serializers for each type to the casbah mapping...
     //builder += "value" -> e.value
-    
-    // todo: content hashes temporarily disabled; reenable!
-    
-    // builder += "contentHash" -> e.contentHash
+
+    if (aggressiveHashing) {
+      builder += "contentHash" -> e.contentHash.get
+    }
   }
 }
 
