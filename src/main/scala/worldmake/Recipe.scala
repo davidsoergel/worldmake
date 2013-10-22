@@ -476,7 +476,7 @@ result
 
       def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[GenTraversable[Artifact[ManagedPath]]]] = ManagedPathRecipe.this.deriveFuture.map((r: Successful[ManagedPath]) => {
         val m = r.output.value
-        val cpaths = m.path.children().toSet.map((c: Path) => ManagedPath(m.id, m.relative / c.path))
+        val cpaths = m.path.children().toSet.map((c: Path) => m.child(c.name)) //ManagedPath(m.id, m.relative / c.path))
         val now = new DateTime()
         val cpathartifacts: GenTraversable[Artifact[ManagedPath]] = cpaths.map(ManagedPathArtifact(_))
 

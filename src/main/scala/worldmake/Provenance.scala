@@ -382,6 +382,7 @@ object CostType extends Enumeration {
 trait PathReference {
   def path: Path
   def abspath = path.toAbsolute.path
+  def child(s:String) : PathReference
 }
 
 object ExternalPath {
@@ -398,6 +399,7 @@ trait ExternalPath extends PathReference {
 
   def path: Path
   //def get: Path = path
+  def child(s:String) = ExternalPath(path / s)
 }
 
 
@@ -421,6 +423,7 @@ import ManagedPath.emptyPath
   def path: Path = Storage.fileStore.get(id).get / relative
   def pathLog: Path = Storage.logStore.get(id).get / relative
   def abspathLog = pathLog.toAbsolute.path
+  def child(s:String) = ManagedPath(id, relative / s)
 }
 
 trait ManagedFileStore {

@@ -67,7 +67,7 @@ trait ManagedPathArtifact extends PathArtifact[ManagedPath] {
     if (path.nonExistent || path.isFile) Nil
     else path.children().toSeq.filter(p => {
       !WorldMakeConfig.ignoreFilenames.contains(p.name)
-    }).sorted.map(f => new MemoryManagedPathArtifact(ManagedPath(value.id, f)))
+    }).sorted.map(f => new MemoryManagedPathArtifact(value.child(f.name))) //ManagedPath(value.id, f))
   }
 }
 
