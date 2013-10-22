@@ -95,11 +95,17 @@ object Artifact {
     case pid:ManagedPath => ManagedPathArtifact(pid)
     case p:ExternalPath => ExternalPathArtifact(p)
     case t:GenTraversable[T] => new MemoryGenTraversableArtifact[T](t.map(Artifact(_)))
-    case _ => throw new IllegalArtifactException(v.toString)
+    case _ => throw new IllegalArtifactException(s"${v.getClass} : ${v.toString}")
   }).asInstanceOf[Artifact[T]]
 }
 
-class IllegalArtifactException(message:String) extends Throwable(message)
+object IllegalArtifactException {
+  def apply(message: String): IllegalArtifactException = new IllegalArtifactException(message)
+  def apply(message: String,cause: Throwable) = new IllegalArtifactException(message).initCause(cause)
+}
+
+class IllegalArtifactException(message: String) extends Exception(message)
+
 
 object StringArtifact {
   def apply(s: String) = new MemoryStringArtifact(s) // tap {(x:MemoryStringArtifact)=>Storage.provenanceStore.put(ConstantProvenance(x))}
