@@ -3,12 +3,15 @@ package worldmake.storage
 import java.util.UUID
 import scalax.file.Path
 import worldmake.{ManagedPath, ManagedFileStore}
+import com.typesafe.scalalogging.slf4j.Logging
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
-class FilesystemManagedFileStore(val rootPath: Path) extends ManagedFileStore {
-  for(s <- rootPath.segments) { require (!s.contains("/"))}
+class FilesystemManagedFileStore(val rootPath: Path) extends ManagedFileStore with Logging {
+  for(s <- rootPath.segments) {
+    logger.info("RootPath segment: " + s) 
+    require (!s.contains("/"))}
 
   rootPath.createDirectory(createParents = true, failIfExists = false)
 
