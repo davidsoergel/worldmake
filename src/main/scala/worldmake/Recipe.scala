@@ -445,7 +445,13 @@ result
         //val pr = BlockedProvenance(Identifier[Provenance[ManagedPath]](UUID.randomUUID().toString), recipeId)
         val pf = upstreamStrategy.cookOne(ManagedPathRecipe.this)
         val now = new DateTime()
-        val result: Future[Successful[ManagedPath]] = pf.map((a1: Successful[ManagedPath]) =>
+        val result: Future[Successful[ManagedPath]] = pf.map((a1: Successful[ManagedPath]) => {
+          
+          // ** expanded for clarity
+          val childRelative: Option[Path] = a1.output.value.relative.map(r => r / s).orElse(Some(Path(s)))
+          val childPath = ManagedPath(a1.output.value.id, childRelative)
+          val childArtifact = ManagedPathArtifact(childPath)
+          
           InstantCompletedProvenance[ManagedPath](
             Identifier[Provenance[ManagedPath]](UUID.randomUUID().toString),
             recipeId,
@@ -459,7 +465,8 @@ result
             0,
             None,
             Map.empty,
-            ManagedPathArtifact(ManagedPath(a1.output.value.id, a1.output.value.relative / s))))
+            childArtifact)
+        })
         result
       }
 

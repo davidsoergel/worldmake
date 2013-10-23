@@ -405,35 +405,42 @@ trait ExternalPath extends PathReference {
 
 
 object ManagedPath {
-  def apply(_id: Identifier[ManagedPath], rel:Path = emptyPath) : ManagedPath = new ManagedPath {
+  def apply(_id: Identifier[ManagedPath], rel:Option[Path] = None) : ManagedPath = new ManagedPath {
     require(!_id.s.contains("/"))
     val id = _id
     override val relative = rel
   }
+  /*
   val emptyPath = {
-    val result = Path() //Path.fromString("")
+    val result = Path(Seq.empty:_*) //Path.fromString("")
     for(s <- result.segments) { assert(!s.contains("/")) }
     result
   }
+  */
 }
 
 trait ManagedPath extends PathReference {
-import ManagedPath.emptyPath
   
   //todo throw informative errors when underlying files are missing
   // for now just assume the files always resolve
   // def get: Option[Path] = Storage.fileStore.get(id)
   
   def id: Identifier[ManagedPath]
-  def relative: Path = emptyPath
+  def relative: Option[Path] = None
   def path: Path = {
-    val result = Storage.fileStore.get(id).get / relative
+    val base: Path = Storage.fileStore.get(id).get
+    val result = relative.map(r=>{
+      base / r
+    }).getOrElse(base)
     for(s <- result.segments) { assert(!s.contains("/")) }
     result
   }
-  def pathLog: Path = Storage.logStore.get(id).get / relative
+  def pathLog: Path = {
+    val base = Storage.logStore.get(id).get 
+    relative.map(r=>base / r).getOrElse(base)
+  }
   def abspathLog = pathLog.toAbsolute.path
-  def child(s:String) = ManagedPath(id, relative / s)
+  def child(s:String) = ManagedPath(id, relative.map(r=>r / s).orElse(Some(Path(s))))
 }
 
 trait ManagedFileStore {
