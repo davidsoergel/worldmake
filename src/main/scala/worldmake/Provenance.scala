@@ -12,6 +12,7 @@ import scalax.io.{Output, Resource}
 import scala.io.Source
 import edu.umass.cs.iesl.scalacommons.collections.FiniteMutableQueue
 import scala.collection.immutable.Queue
+import scalax.file.defaultfs.DefaultPath
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -410,7 +411,7 @@ object ManagedPath {
     override val relative = rel
   }
   val emptyPath = {
-    val result = Path.fromString("")
+    val result = Path() //Path.fromString("")
     for(s <- result.segments) { assert(!s.contains("/")) }
     result
   }
