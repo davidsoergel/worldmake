@@ -405,10 +405,15 @@ trait ExternalPath extends PathReference {
 
 object ManagedPath {
   def apply(_id: Identifier[ManagedPath], rel:Path = emptyPath) : ManagedPath = new ManagedPath {
+    require(!_id.s.contains("/"))
     val id = _id
     override val relative = rel
   }
-  val emptyPath = Path.fromString("")
+  val emptyPath = {
+    val result = Path.fromString("")
+    for(s <- result.segments) { assert(!s.contains("/")) }
+    result
+  }
 }
 
 trait ManagedPath extends PathReference {
@@ -420,7 +425,11 @@ import ManagedPath.emptyPath
   
   def id: Identifier[ManagedPath]
   def relative: Path = emptyPath
-  def path: Path = Storage.fileStore.get(id).get / relative
+  def path: Path = {
+    val result = Storage.fileStore.get(id).get / relative
+    for(s <- result.segments) { assert(!s.contains("/")) }
+    result
+  }
   def pathLog: Path = Storage.logStore.get(id).get / relative
   def abspathLog = pathLog.toAbsolute.path
   def child(s:String) = ManagedPath(id, relative / s)

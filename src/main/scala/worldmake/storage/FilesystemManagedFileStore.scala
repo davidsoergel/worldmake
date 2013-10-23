@@ -38,7 +38,10 @@ class FilesystemManagedFileStore(val rootPath: Path) extends ManagedFileStore {
   def get(id: Identifier[ManagedPath]): Option[Path] = {
     val dirStructure(a, b, c) = id.s
     val p: Path = rootPath / a / b / c
-    if (p.exists) Some(p) else None
+    if (p.exists) {
+      for(s <- p.segments) { assert(!s.contains("/")) }
+      Some(p)
+    } else None
   }
 
   def exists(id: Identifier[ManagedPath]): Boolean = {
