@@ -8,7 +8,7 @@ import worldmake.{ManagedPath, ManagedFileStore}
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 class FilesystemManagedFileStore(val rootPath: Path) extends ManagedFileStore {
-
+  for(s <- rootPath.segments) { require (!s.contains("/"))}
 
   rootPath.createDirectory(createParents = true, failIfExists = false)
 
@@ -37,9 +37,14 @@ class FilesystemManagedFileStore(val rootPath: Path) extends ManagedFileStore {
 
   def get(id: Identifier[ManagedPath]): Option[Path] = {
     val dirStructure(a, b, c) = id.s
+    for(s <- rootPath.segments) { require(!s.contains("/")) }
+    require(!a.contains("/"))
+    require(!b.contains("/"))
+    require(!c.contains("/"))
+    
     val p: Path = rootPath / a / b / c
     if (p.exists) {
-      for(s <- p.segments) { assert(!s.contains("/")) }
+      for(s <- p.segments) { require(!s.contains("/")) }
       Some(p)
     } else None
   }
