@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.slf4j.Logging
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
  */
 class FilesystemManagedFileStore(val rootPath: Path) extends ManagedFileStore with Logging {
-  for(s <- rootPath.segments) {
+  for(s <- rootPath.segments.tail) {
     logger.info("RootPath segment: " + s) 
     require (!s.contains("/"))}
 
@@ -40,14 +40,14 @@ class FilesystemManagedFileStore(val rootPath: Path) extends ManagedFileStore wi
 
   def get(id: Identifier[ManagedPath]): Option[Path] = {
     val dirStructure(a, b, c) = id.s
-    for(s <- rootPath.segments) { require(!s.contains("/")) }
+    for(s <- rootPath.segments.tail) { require(!s.contains("/")) }
     require(!a.contains("/"))
     require(!b.contains("/"))
     require(!c.contains("/"))
     
     val p: Path = rootPath / a / b / c
     if (p.exists) {
-      for(s <- p.segments) { require(!s.contains("/")) }
+      for(s <- p.segments.tail) { require(!s.contains("/")) }
       Some(p)
     } else None
   }
