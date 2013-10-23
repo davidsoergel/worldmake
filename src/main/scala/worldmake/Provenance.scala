@@ -413,7 +413,7 @@ object ManagedPath {
   /*
   val emptyPath = {
     val result = Path(Seq.empty:_*) //Path.fromString("")
-    for(s <- result.segments) { assert(!s.contains("/")) }
+    for(s <- result.segments.tail) { assert(!s.contains("/")) }
     result
   }
   */
@@ -432,7 +432,7 @@ trait ManagedPath extends PathReference {
     val result = relative.map(r=>{
       base / r
     }).getOrElse(base)
-    for(s <- result.segments) { assert(!s.contains("/")) }
+    for(s <- result.segments.tail) { assert(!s.contains("/")) }
     result
   }
   def pathLog: Path = {
