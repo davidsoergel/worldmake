@@ -428,7 +428,7 @@ trait ManagedPath extends PathReference {
   def id: Identifier[ManagedPath]
   def relative: Option[Path] = None
   def path: Path = {
-    val base: Path = Storage.fileStore.get(id).get
+    val base: Path = Storage.fileStore.getOrCreate(id)
     val result = relative.map(r=>{
       base / r
     }).getOrElse(base)
@@ -436,7 +436,7 @@ trait ManagedPath extends PathReference {
     result
   }
   def pathLog: Path = {
-    val base = Storage.logStore.get(id).get 
+    val base = Storage.logStore.getOrCreate(id)
     relative.map(r=>base / r).getOrElse(base)
   }
   def abspathLog = pathLog.toAbsolute.path
