@@ -8,10 +8,9 @@ import edu.umass.cs.iesl.scalacommons.Tap._
 import worldmake.WorldMakeConfig._
 import worldmake.storage.{ExternalPathArtifact, ManagedPathArtifact, Storage, Identifier}
 import com.typesafe.scalalogging.slf4j.Logging
-import scala.collection.GenTraversable
+import scala.collection.{GenSeq, GenTraversable, mutable}
 import edu.umass.cs.iesl.scalacommons.StringUtils
 import StringUtils._
-import scala.collection.mutable
 import scala.Some
 
 /**
@@ -95,7 +94,7 @@ object Artifact {
     case d:Double => DoubleArtifact(d)
     case pid:ManagedPath => ManagedPathArtifact(pid)
     case p:ExternalPath => ExternalPathArtifact(p)
-    case t:GenTraversable[T] => new MemoryGenTraversableArtifact[T](t.map(Artifact(_)))
+    case t:GenTraversable[T] => new MemoryGenTraversableArtifact[T](t.map(Artifact(_)).toSeq)
     case _ => throw new IllegalArtifactException(s"${v.getClass} : ${v.toString}")
   }).asInstanceOf[Artifact[T]]
 }
@@ -208,7 +207,7 @@ trait GenTraversableArtifact[T] extends Artifact[GenTraversable[Artifact[T]]] {
 class MemoryGenTraversableArtifact[T](val value: GenTraversable[Artifact[T]]) extends GenTraversableArtifact[T] {
   //def provenanceId = Identifier[Artifact[Traversable[T]]](UUID.randomUUID().toString)
 
-  lazy val contentHashBytes = Some(WMHash(value.toSeq.flatMap(_.contentHash).mkString("")))
+  lazy val contentHashBytes = Some(WMHash(value.flatMap(_.contentHash).mkString("")))
 
 
   //override def environmentString = value.map(_.environmentString).mkString(" ")

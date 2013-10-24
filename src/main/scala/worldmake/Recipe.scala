@@ -3,7 +3,7 @@ package worldmake
 
 import java.util.UUID
 import worldmake.storage.{ExternalPathArtifact, ManagedPathArtifact, Identifier}
-import scala.collection.{GenIterable, GenTraversable, GenSet}
+import scala.collection.{GenSeq, GenIterable, GenTraversable, GenSet}
 import scala.collection.immutable.Queue
 import scala.concurrent._
 import com.typesafe.scalalogging.slf4j.Logging
@@ -269,6 +269,22 @@ object TraversableRecipe extends Logging {
     }
   })
 
+  def seqGetOpt[T] = new IdentifiableFunction2[GenSeq[T], Int, Option[T]]("seqGet", {
+    (a: GenSeq[T], b: Int) => {
+      logger.debug(s"seqGet getting element $b of a Seq of size ${a.size}")
+      //logger.debug(a.toString())
+      try{Some(a(b))}
+      catch{ case e: IndexOutOfBoundsException => None }
+    }
+  })
+
+
+  import ConstantRecipe._
+  def seqRecipeUnwrap[T](r: Recipe[GenSeq[T]], maxElems:Int): Traversable[Recipe[Option[T]]] = {
+    val result = for (i <- 0 to maxElems) yield seqGetOpt[T](r, i)
+    result
+  }
+  
   /*
   def seqRecipeUnwrap[T](r: Recipe[GenTraversable[T]])(implicit upstreamStrategy: CookingStrategy): Iterator[Recipe[T]] = {
     val f = r.deriveFuture.map(x => {
@@ -376,7 +392,7 @@ result
     private def deriveWithArg(pr: PendingProvenance[GenTraversable[Artifact[T]]], a1: Traversable[Successful[T]]): CompletedProvenance[GenTraversable[Artifact[T]]] = {
       val prs = pr.running(new MemoryWithinJvmRunningInfo)
       try {
-        val artifact: GenTraversableArtifact[T] = new MemoryGenTraversableArtifact(a1.map(_.output)) //Artifact[GenTraversable[T]](f.evaluate(a1.output.value))
+        val artifact: GenTraversableArtifact[T] = new MemoryGenTraversableArtifact(a1.map(_.output).toSeq) //Artifact[GenTraversable[T]](f.evaluate(a1.output.value))
         val result: CompletedProvenance[GenTraversable[Artifact[T]]] = prs.completed(0, None, Map.empty, artifact)
         result
       }
@@ -485,7 +501,7 @@ result
         val m = r.output.value
         val cpaths = m.path.children().toSet.map((c: Path) => m.child(c.name)) //ManagedPath(m.id, m.relative / c.path))
         val now = new DateTime()
-        val cpathartifacts: GenTraversable[Artifact[ManagedPath]] = cpaths.map(ManagedPathArtifact(_))
+        val cpathartifacts: GenTraversable[Artifact[ManagedPath]] = cpaths.map(ManagedPathArtifact(_)).toSeq
 
         InstantCompletedProvenance[GenTraversable[Artifact[ManagedPath]]](
           Identifier[Provenance[GenTraversable[Artifact[ManagedPath]]]](UUID.randomUUID().toString),
@@ -600,7 +616,7 @@ result
           }
 
           val cpathartifacts: GenTraversable[Artifact[ExternalPath]] = cpaths.map(ExternalPathArtifact(_))
- 
+          
           logger.debug(s"Found ${cpathartifacts.size} children of ${m.path}.")
           InstantCompletedProvenance[GenTraversable[Artifact[ExternalPath]]](
             Identifier[Provenance[GenTraversable[Artifact[ExternalPath]]]](UUID.randomUUID().toString),
