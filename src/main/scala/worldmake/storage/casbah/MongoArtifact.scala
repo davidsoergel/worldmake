@@ -142,7 +142,7 @@ object MongoManagedPathArtifact extends MongoSerializer[ManagedPathArtifact, Mon
   def addFields(e: ManagedPathArtifact, builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoArtifact.addFields(e, builder)
     //builder += "value" -> e.value.toURL
-    builder += "value" -> e.abspath
+    builder += "value" -> e.value.id
     //builder += "pathType" -> e.pathType
   }
 }
