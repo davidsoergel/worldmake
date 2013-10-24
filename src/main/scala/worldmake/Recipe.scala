@@ -271,7 +271,7 @@ object TraversableRecipe extends Logging {
 
   import ConstantRecipe._
   def seqRecipeUnwrap[T](r: Recipe[GenSeq[T]], maxElems:Int): Traversable[Recipe[T]] = {
-    val result = for (i <- 0 to maxElems) yield seqGet[T](r, i)
+    val result = for (i <- 0 to (maxElems-1)) yield seqGet[T](r, i)
     result
   }
   /*
