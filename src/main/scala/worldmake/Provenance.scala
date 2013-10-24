@@ -427,7 +427,7 @@ trait ManagedPath extends PathReference {
   
   def id: Identifier[ManagedPath]
   def relative: Option[Path] = None
-  def path: Path = {
+  lazy val path: Path = {
     val base: Path = Storage.fileStore.getOrCreate(id)
     val result = relative.map(r=>{
       base / r
@@ -435,11 +435,11 @@ trait ManagedPath extends PathReference {
     for(s <- result.segments.tail) { assert(!s.contains("/")) }
     result
   }
-  def pathLog: Path = {
+  lazy val pathLog: Path = {
     val base = Storage.logStore.getOrCreate(id)
     relative.map(r=>base / r).getOrElse(base)
   }
-  def abspathLog = pathLog.toAbsolute.path
+  lazy val abspathLog = pathLog.toAbsolute.path
   def child(s:String) = ManagedPath(id, relative.map(r=>r / s).orElse(Some(Path(s))))
 }
 
@@ -464,7 +464,7 @@ class LocalWriteableStringOrManagedFile(fg: ManagedFileStore, maxStringLength: I
   implicit val codec = scalax.io.Codec.UTF8
   
   
-  var current: Either[StringBuffer, Output] = Left(new StringBuffer())
+  var current: Either[StringBuffer, (ManagedPath, Output)] = Left(new StringBuffer())
   var count = 0
 
   def write(s: String) = synchronized {
@@ -478,17 +478,20 @@ class LocalWriteableStringOrManagedFile(fg: ManagedFileStore, maxStringLength: I
           val p = fg.getOrCreate(logId)
           logger.trace("Switching to file store: " + p)
           p.append(sb.toString)
-          current = Right(ManagedPath(logId).path)
+          current = {
+            val mp: ManagedPath = ManagedPath(logId)
+            Right((mp, mp.path))
+          }
         }
       },
       o => {
         //logger.trace("Appending to Path: " + p)
-        o.write(s)
+        o._2.write(s)
       })
     count += s.length
   }
 
-  def get: Either[String, ManagedPath] = current.fold(sb => Left(sb.toString), p => Right(p))
+  def get: Either[String, ManagedPath] = current.fold(sb => Left(sb.toString), p => Right(p._1))
 
   //override def toString : String = current.fold(sb=>sb.toString,p=>p.toAbsolute.path)
   def getString: String = current.fold(sb => sb.toString, y => y.toString)
