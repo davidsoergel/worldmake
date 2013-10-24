@@ -261,14 +261,20 @@ object TraversableRecipe extends Logging {
 
 
   // how to unwrap  
-  def seqGet[T] = new IdentifiableFunction2[Seq[T], Int, T]("seqGet", {
-    (a: Seq[T], b: Int) => {
+  def seqGet[T] = new IdentifiableFunction2[GenSeq[T], Int, T]("seqGet", {
+    (a: GenSeq[T], b: Int) => {
       logger.debug(s"seqGet getting element $b of a Seq of size ${a.size}")
       //logger.debug(a.toString())
       a(b)
     }
   })
 
+  import ConstantRecipe._
+  def seqRecipeUnwrap[T](r: Recipe[GenSeq[T]], maxElems:Int): Traversable[Recipe[T]] = {
+    val result = for (i <- 0 to maxElems) yield seqGet[T](r, i)
+    result
+  }
+  /*
   def seqGetOpt[T] = new IdentifiableFunction2[GenSeq[T], Int, Option[T]]("seqGet", {
     (a: GenSeq[T], b: Int) => {
       logger.debug(s"seqGet getting element $b of a Seq of size ${a.size}")
@@ -280,11 +286,11 @@ object TraversableRecipe extends Logging {
 
 
   import ConstantRecipe._
-  def seqRecipeUnwrap[T](r: Recipe[GenSeq[T]], maxElems:Int): Traversable[Recipe[Option[T]]] = {
+  def seqRecipeUnwrapOpt[T](r: Recipe[GenSeq[T]], maxElems:Int): Traversable[Recipe[Option[T]]] = {
     val result = for (i <- 0 to maxElems) yield seqGetOpt[T](r, i)
     result
   }
-  
+  */
   /*
   def seqRecipeUnwrap[T](r: Recipe[GenTraversable[T]])(implicit upstreamStrategy: CookingStrategy): Iterator[Recipe[T]] = {
     val f = r.deriveFuture.map(x => {
