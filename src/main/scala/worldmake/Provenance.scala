@@ -462,7 +462,9 @@ trait ReadableStringOrManagedFile {
 
 class LocalWriteableStringOrManagedFile(fg: ManagedFileStore, maxStringLength: Int = 1000) extends ReadableStringOrManagedFile with Logging {
   implicit val codec = scalax.io.Codec.UTF8
-  var current: Either[StringBuffer, ManagedPath] = Left(new StringBuffer())
+  
+  
+  var current: Either[StringBuffer, Output] = Left(new StringBuffer())
   var count = 0
 
   def write(s: String) = synchronized {
@@ -476,12 +478,12 @@ class LocalWriteableStringOrManagedFile(fg: ManagedFileStore, maxStringLength: I
           val p = fg.getOrCreate(logId)
           logger.trace("Switching to file store: " + p)
           p.append(sb.toString)
-          current = Right(ManagedPath(logId))
+          current = Right(ManagedPath(logId).path)
         }
       },
-      p => {
-        logger.trace("Appending to Path: " + p)
-        p.path.write(s)
+      o => {
+        //logger.trace("Appending to Path: " + p)
+        o.write(s)
       })
     count += s.length
   }
