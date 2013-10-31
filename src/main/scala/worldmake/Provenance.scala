@@ -6,14 +6,10 @@ import scalax.file.Path
 import worldmake.storage.{Storage, Identifier}
 import scala.collection.{mutable, GenSet, GenMap}
 import com.typesafe.scalalogging.slf4j.Logging
-import java.io.{File, PrintStream}
-import edu.umass.cs.iesl.scalacommons.IOUtils
 import scalax.io.{Output, Resource}
 import scala.io.Source
 import edu.umass.cs.iesl.scalacommons.collections.FiniteMutableQueue
 import scala.collection.immutable.Queue
-import scalax.file.defaultfs.DefaultPath
-import java.nio.file.Files
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -22,7 +18,7 @@ trait Provenance[+T] extends WorldmakeEntity {
   def createdTime: DateTime
 
   def modifiedTime: DateTime = createdTime
-  
+
   def provenanceId: Identifier[Provenance[T]]
 
   def recipeId: Identifier[Recipe[T]]
@@ -42,23 +38,28 @@ trait Provenance[+T] extends WorldmakeEntity {
   override lazy val hashCode: Int = (41 + provenanceId.hashCode)
 
   lazy val queue: Queue[Provenance[_]] = Queue(this)
-  
-  def status : String
-  def statusPairs : Seq[(String, Any)] = Seq("Provenance" -> provenanceId, "Created" -> createdTime)
-  
-  def statusBlock = statusPairs.map({case (k,v) => f"$k%16s: $v%64s"}).mkString("\n")
-  
-  def statusLine : String = f"${provenanceId.short}%10s $status%10s ${modifiedTime}%10s ${recipeId.short}%10s "
-  
-  
+
+  def status: String
+
+  def statusPairs: Seq[(String, Any)] = Seq("Provenance" -> provenanceId, "Created" -> createdTime)
+
+  def statusBlock = statusPairs.map({
+    case (k, v) => f"$k%16s: $v%64s"
+  }).mkString("\n")
+
+  def statusLine: String = f"${provenanceId.short}%10s $status%10s ${modifiedTime}%10s ${recipeId.short}%10s "
+
+
 }
 
 trait Successful[+T] extends PostRunProvenance[T] {
   def output: Artifact[T]
-  override lazy val statusPairs = super.statusPairs :+ ("Value"->output)
-  override def statusLine : String = super.statusLine + f" ${output}%10s"
-  
-  
+
+  override lazy val statusPairs = super.statusPairs :+ ("Value" -> output)
+
+  override def statusLine: String = super.statusLine + f" ${output}%10s"
+
+
 }
 
 
@@ -78,7 +79,7 @@ trait ConstantProvenance[T] extends Successful[T] {
   //def createdTime: DateTime
   lazy val recipeId = Identifier[Recipe[T]](provenanceId.s)
   val status = "Constant"
-  
+
   def derivedFromNamed = Map.empty
 
   def derivedFromUnnamed = Set.empty
@@ -109,11 +110,11 @@ sealed trait DerivedProvenance[+T] extends Provenance[T] {
 
   // Set is not covariant?!?  OK, just use Seq instead for now
   //def derivedFromAll : Seq[Provenance[_]]
-/*
-  override lazy val queue: Queue[Provenance[_]] = {
-    val deps = derivedFromAll.flatMap(_.queue)
-    Queue[Provenance[_]](deps: _*).distinct.enqueue(this)
-  }*/
+  /*
+    override lazy val queue: Queue[Provenance[_]] = {
+      val deps = derivedFromAll.flatMap(_.queue)
+      Queue[Provenance[_]](deps: _*).distinct.enqueue(this)
+    }*/
 }
 
 // enforce lifecycle state machine with types
@@ -127,25 +128,26 @@ trait BlockedProvenance[T] extends DerivedProvenance[T] {
   //def derivedFromNamed: GenMap[String, Provenance[_]]
   //override def derivedFromAll : Seq[Provenance[_]] = (derivedFromUnnamed ++ derivedFromNamed.values).seq.toSeq
 
-  def pending(derivedFromUnnamed: GenSet[Successful[_]],derivedFromNamed: GenMap[String, Successful[_]]): PendingProvenance[T] = MemoryPendingProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime) tap Storage.provenanceStore.put
+  def pending(derivedFromUnnamed: GenSet[Successful[_]], derivedFromNamed: GenMap[String, Successful[_]]): PendingProvenance[T] = MemoryPendingProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime) tap Storage.provenanceStore.put
 }
 
 sealed trait DependenciesBoundProvenance[+T] extends DerivedProvenance[T] {
-   def derivedFromUnnamed: GenSet[Successful[_]]
+  def derivedFromUnnamed: GenSet[Successful[_]]
 
-   def derivedFromNamed: GenMap[String, Successful[_]]
+  def derivedFromNamed: GenMap[String, Successful[_]]
 
   //override 
-  def derivedFromAll : Seq[Provenance[_]] = (derivedFromUnnamed ++ derivedFromNamed.values).seq.toSeq
+  def derivedFromAll: Seq[Provenance[_]] = (derivedFromUnnamed ++ derivedFromNamed.values).seq.toSeq
 
 
 }
 
 // aka Enqueued
-trait PendingProvenance[T] extends DependenciesBoundProvenance[T]  {
+trait PendingProvenance[T] extends DependenciesBoundProvenance[T] {
   //def createdTime: DateTime
 
   val status = "Pending"
+
   def enqueuedTime: DateTime
 
   override def modifiedTime: DateTime = enqueuedTime
@@ -154,10 +156,11 @@ trait PendingProvenance[T] extends DependenciesBoundProvenance[T]  {
   def running(runningInfo: RunningInfo): RunningProvenance[T] = MemoryRunningProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, DateTime.now(), runningInfo) tap Storage.provenanceStore.put
 }
 
-trait RunningProvenance[T] extends DependenciesBoundProvenance[T]  {
+trait RunningProvenance[T] extends DependenciesBoundProvenance[T] {
   //def createdTime: DateTime
 
   val status = "Running"
+
   def enqueuedTime: DateTime
 
   def startTime: DateTime
@@ -178,16 +181,16 @@ trait RunningProvenance[T] extends DependenciesBoundProvenance[T]  {
     MemoryCompletedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost, output) tap Storage.provenanceStore.put
 }
 
-trait PostRunProvenance[+T] extends DependenciesBoundProvenance[T]  {
+trait PostRunProvenance[+T] extends DependenciesBoundProvenance[T] {
   //def createdTime: DateTime
-  
+
 
   def enqueuedTime: DateTime
-  
+
   def startTime: DateTime
-  
+
   def runningInfo: RunningInfo
-  
+
   def endTime: DateTime
 
   override def modifiedTime: DateTime = endTime
@@ -197,31 +200,33 @@ trait PostRunProvenance[+T] extends DependenciesBoundProvenance[T]  {
   def log: Option[ReadableStringOrManagedFile]
 
   def logString: String = log.map(_.get.fold(x => x, y => y.toString)).getOrElse("")
-  
-  def printLog(os:Output) = log.map(_.get.fold(s=>os.write(s),p=>p.path.copyDataTo(os)))
-  
+
+  def printLog(os: Output) = log.map(_.get.fold(s => os.write(s), p => p.path.copyDataTo(os)))
+
   import FiniteMutableQueue._
-  private def headTail(lines:Iterator[String], h:Int,t:Int) : String = {
+
+  private def headTail(lines: Iterator[String], h: Int, t: Int): String = {
     //val lines = s.getLines
     val hLines = lines.take(h)
     val tLines = {
       val q = mutable.Queue[String]()
-      q.enqueueFinite[String](lines,t)
+      q.enqueueFinite[String](lines, t)
       q.toIterator
     }
     hLines.mkString("\n") + s"\n\n[...\nskipped middle\n...]\n\n" + tLines.mkString("\n")
-    
+
   }
-  def printLogHeadTail(os:Output) = log.map(_.get.fold(s=>os.write(headTail(s.split("\n").toIterator,100,100)),p=>os.write(headTail(Source.fromFile(p.path.fileOption.get).getLines(),100,100))))
+
+  def printLogHeadTail(os: Output) = log.map(_.get.fold(s => os.write(headTail(s.split("\n").toIterator, 100, 100)), p => os.write(headTail(Source.fromFile(p.path.fileOption.get).getLines(), 100, 100))))
 
   def cost: Map[CostType.CostType, Double]
 
-  override def statusPairs = (super.statusPairs :+ "Start"->startTime :+ "End" -> endTime) ++ runningInfo.statusPairs
- 
+  override def statusPairs = (super.statusPairs :+ "Start" -> startTime :+ "End" -> endTime) ++ runningInfo.statusPairs
+
 }
 
 trait FailedProvenance[T] extends PostRunProvenance[T] {
-  override def statusPairs = super.statusPairs :+ "Log"->logString
+  override def statusPairs = super.statusPairs :+ "Log" -> logString
 
   val status = "Failed"
 }
@@ -238,20 +243,20 @@ trait CompletedProvenance[T] extends PostRunProvenance[T] with Successful[T] {
 
 object InstantCompletedProvenance {
   def apply[T](provenanceId: Identifier[Provenance[T]],
-             recipeId: Identifier[Recipe[T]],
-             derivedFromUnnamed: GenSet[Successful[_]],
-             derivedFromNamed: GenMap[String, Successful[_]],
-             createdTime: DateTime,
-             enqueuedTime: DateTime,
-             startTime: DateTime,
-             runningInfo: RunningInfo,
-             endTime: DateTime,
-             exitCode: Int,
-             log: Option[ReadableStringOrManagedFile],
-             cost: Map[CostType.CostType, Double],
-             output: Artifact[T]
-    ) : CompletedProvenance[T] =  {
-    new MemoryCompletedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost,output) tap Storage.provenanceStore.put
+               recipeId: Identifier[Recipe[T]],
+               derivedFromUnnamed: GenSet[Successful[_]],
+               derivedFromNamed: GenMap[String, Successful[_]],
+               createdTime: DateTime,
+               enqueuedTime: DateTime,
+               startTime: DateTime,
+               runningInfo: RunningInfo,
+               endTime: DateTime,
+               exitCode: Int,
+               log: Option[ReadableStringOrManagedFile],
+               cost: Map[CostType.CostType, Double],
+               output: Artifact[T]
+                ): CompletedProvenance[T] = {
+    new MemoryCompletedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost, output) tap Storage.provenanceStore.put
   }
 }
 
@@ -268,7 +273,7 @@ object InstantFailedProvenance {
                exitCode: Int,
                log: Option[ReadableStringOrManagedFile],
                cost: Map[CostType.CostType, Double]
-                ) : FailedProvenance[T] =  {
+                ): FailedProvenance[T] = {
     new MemoryFailedProvenance(provenanceId, recipeId, derivedFromUnnamed, derivedFromNamed, createdTime, enqueuedTime, startTime, runningInfo, DateTime.now(), exitCode, log, cost) tap Storage.provenanceStore.put
   }
 }
@@ -383,12 +388,14 @@ object CostType extends Enumeration {
 
 trait PathReference {
   def path: Path
+
   def abspath = path.toAbsolute.path
-  def child(s:String) : PathReference
+
+  def child(s: String): PathReference
 }
 
 object ExternalPath {
-  def apply(_path:Path) : ExternalPath = new ExternalPath {
+  def apply(_path: Path): ExternalPath = new ExternalPath {
     val path = _path
   }
 }
@@ -400,17 +407,19 @@ trait ExternalPath extends PathReference {
   // def get: Option[Path] = Storage.fileStore.get(id)
 
   def path: Path
+
   //def get: Path = path
-  def child(s:String) = ExternalPath(path / s)
+  def child(s: String) = ExternalPath(path / s)
 }
 
 
 object ManagedPath {
-  def apply(_id: Identifier[ManagedPath], rel:Option[Path] = None) : ManagedPath = new ManagedPath {
+  def apply(_id: Identifier[ManagedPath], rel: Option[Path] = None): ManagedPath = new ManagedPath {
     require(!_id.s.contains("/"))
     val id = _id
     override val relative = rel
   }
+
   /*
   val emptyPath = {
     val result = Path(Seq.empty:_*) //Path.fromString("")
@@ -421,33 +430,41 @@ object ManagedPath {
 }
 
 trait ManagedPath extends PathReference {
-  
+
   //todo throw informative errors when underlying files are missing
   // for now just assume the files always resolve
   // def get: Option[Path] = Storage.fileStore.get(id)
-  
+
   def id: Identifier[ManagedPath]
+
   def relative: Option[Path] = None
+
   lazy val path: Path = {
     val base: Path = Storage.fileStore.getOrCreate(id)
-    val result = relative.map(r=>{
+    val result = relative.map(r => {
       base / r
     }).getOrElse(base)
-    for(s <- result.segments.tail) { assert(!s.contains("/")) }
+    for (s <- result.segments.tail) {
+      assert(!s.contains("/"))
+    }
     result
   }
   lazy val pathLog: Path = {
     val base = Storage.logStore.getOrCreate(id)
-    relative.map(r=>base / r).getOrElse(base)
+    relative.map(r => base / r).getOrElse(base)
   }
   lazy val abspathLog = pathLog.toAbsolute.path
-  def child(s:String) = ManagedPath(id, relative.map(r=>r / s).orElse(Some(Path(s))))
+
+  def child(s: String) = ManagedPath(id, relative.map(r => r / s).orElse(Some(Path(s))))
 }
 
 trait ManagedFileStore {
   def newId: Identifier[ManagedPath]
-  def exists(id: Identifier[ManagedPath]):Boolean
+
+  def exists(id: Identifier[ManagedPath]): Boolean
+
   def get(id: Identifier[ManagedPath]): Option[Path]
+
   def getOrCreate(id: Identifier[ManagedPath]): Path
 }
 
@@ -463,29 +480,32 @@ trait ReadableStringOrManagedFile {
 
 class LocalWriteableStringOrManagedFile(fg: ManagedFileStore, maxStringLength: Int = 1000) extends ReadableStringOrManagedFile with Logging {
   implicit val codec = scalax.io.Codec.UTF8
-  
+
   var current: Either[StringBuffer, (ManagedPath, Output)] = Left(new StringBuffer())
   var count = 0
 
-  def write(f: Path) : Unit = synchronized {
-    if(!f.exists) { }
-    else if((f.size.get + count) < maxStringLength) {
-      val lines = Resource.fromFile(f.fileOption.get).lines()
-      logger.debug(s"Copying ${lines.size} lines.")
-      for(s <- lines) { write(s+"\n") }
-    }
-    else if(count == 0) {
-      // just move the file
-      val logId = fg.newId
-      val p = fg.getOrCreate(logId) 
-      f.moveTo(p)
-    }
-    else {
-      throw new UnsupportedOperationException("Not supported: appending a long file to an existing buffer")
-    }
+  def write(f: Path): Unit = synchronized {
+    f.size.map(size => {
+      if ((size + count) < maxStringLength) {
+        val lines = Resource.fromFile(f.fileOption.get).lines()
+        logger.debug(s"Copying ${lines.size} lines.")
+        for (s <- lines) {
+          write(s + "\n")
+        }
+      }
+      else if (count == 0) {
+        // just move the file
+        val logId = fg.newId
+        val p = fg.getOrCreate(logId)
+        f.moveTo(p)
+      }
+      else {
+        throw new UnsupportedOperationException("Not supported: appending a long file to an existing buffer")
+      }
+    })
   }
-  
-  def write(s: String) : Unit = synchronized {
+
+  def write(s: String): Unit = synchronized {
     current.fold(
       sb => {
         logger.trace("Appending to StringBuffer: " + s)
@@ -532,7 +552,7 @@ case class MemoryPendingProvenance[T](provenanceId: Identifier[Provenance[T]],
                                        ) extends PendingProvenance[T]
 
 case class MemoryRunningProvenance[T](provenanceId: Identifier[Provenance[T]],
-                                      recipeId: Identifier[Recipe[T]], 
+                                      recipeId: Identifier[Recipe[T]],
                                       derivedFromUnnamed: GenSet[Successful[_]],
                                       derivedFromNamed: GenMap[String, Successful[_]],
                                       createdTime: DateTime,
@@ -571,7 +591,7 @@ case class MemoryCancelledProvenance[T](provenanceId: Identifier[Provenance[T]],
 
 
 case class MemoryCompletedProvenance[T](provenanceId: Identifier[Provenance[T]],
-                                        recipeId: Identifier[Recipe[T]], 
+                                        recipeId: Identifier[Recipe[T]],
                                         derivedFromUnnamed: GenSet[Successful[_]],
                                         derivedFromNamed: GenMap[String, Successful[_]],
                                         createdTime: DateTime,
@@ -588,13 +608,14 @@ case class MemoryCompletedProvenance[T](provenanceId: Identifier[Provenance[T]],
 trait RunningInfo {
   def node: Option[String]
 
-  def statusPairs : Seq[(String, Any)] = Seq("Node"->node.getOrElse(""))
+  def statusPairs: Seq[(String, Any)] = Seq("Node" -> node.getOrElse(""))
+
   //def processId: Int
 }
 
 trait WithinJvmRunningInfo extends RunningInfo {
 
-  override def statusPairs = super.statusPairs :+  "Run"->"within JVM"
+  override def statusPairs = super.statusPairs :+ "Run" -> "within JVM"
 }
 
 class MemoryWithinJvmRunningInfo extends WithinJvmRunningInfo {
@@ -604,15 +625,15 @@ class MemoryWithinJvmRunningInfo extends WithinJvmRunningInfo {
 }
 
 trait LocalRunningInfo extends RunningInfo {
-  def workingDir:Path
+  def workingDir: Path
 
-  override def statusPairs = super.statusPairs :+  "Working Dir"->workingDir
+  override def statusPairs = super.statusPairs :+ "Working Dir" -> workingDir
 }
 
-class MemoryLocalRunningInfo(val workingDir:Path) extends LocalRunningInfo {
+class MemoryLocalRunningInfo(val workingDir: Path) extends LocalRunningInfo {
   val node = Some(java.net.InetAddress.getLocalHost.getHostName + " (local)")
 }
 
-object ConstantRunningInfo extends RunningInfo{
+object ConstantRunningInfo extends RunningInfo {
   def node = None
 }
