@@ -467,7 +467,7 @@ class LocalWriteableStringOrManagedFile(fg: ManagedFileStore, maxStringLength: I
   var current: Either[StringBuffer, (ManagedPath, Output)] = Left(new StringBuffer())
   var count = 0
 
-  def write(f: Path) = synchronized {
+  def write(f: Path) : Unit = synchronized {
     if((f.size.get + count) < maxStringLength) {
       val lines = Resource.fromFile(f.fileOption.get).lines()
       logger.debug(s"Copying ${lines.size} lines.")
@@ -484,7 +484,7 @@ class LocalWriteableStringOrManagedFile(fg: ManagedFileStore, maxStringLength: I
     }
   }
   
-  def write(s: String) = synchronized {
+  def write(s: String) : Unit = synchronized {
     current.fold(
       sb => {
         logger.trace("Appending to StringBuffer: " + s)
