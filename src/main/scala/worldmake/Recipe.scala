@@ -385,7 +385,7 @@ result
       pr
     }*/
 
-    def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
+    def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[CompletedProvenance[GenTraversable[Artifact[T]]]] = {
 
       val pr = BlockedProvenance(Identifier[Provenance[GenTraversable[Artifact[T]]]](UUID.randomUUID().toString), recipeId)
       val upstreamFF = xs.map(upstreamStrategy.cookOne)
@@ -411,6 +411,9 @@ result
       }
     }
 
+    // todo
+    // def map[R](f:T=>R) : TraversableRecipe[R]
+    
 
   }
 

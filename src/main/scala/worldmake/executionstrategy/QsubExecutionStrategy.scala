@@ -209,10 +209,9 @@ object DetectQsubPollingAction extends PollingAction with Logging {
               def collectLog = try {
                 // copy the log from the qsub file into the database or file store, as needed
                 val logWriter = new LocalWriteableStringOrManagedFile(Storage.logStore)
-                val logLines = Resource.fromFile((ri.workingDir / "stderr.log").jfile ).lines()
-                logger.debug(s"Found ${logLines.size} log lines.")
-                for(s <- logLines) { logWriter.write(s+"\n") }
-                logger.debug(s"Wrote ${logWriter.count} characters of logging output.")
+                
+                logWriter.write(ri.workingDir / "stderr.log")
+                
                 Some(logWriter)
               }
               catch {

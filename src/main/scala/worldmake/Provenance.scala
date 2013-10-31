@@ -6,13 +6,14 @@ import scalax.file.Path
 import worldmake.storage.{Storage, Identifier}
 import scala.collection.{mutable, GenSet, GenMap}
 import com.typesafe.scalalogging.slf4j.Logging
-import java.io.PrintStream
+import java.io.{File, PrintStream}
 import edu.umass.cs.iesl.scalacommons.IOUtils
 import scalax.io.{Output, Resource}
 import scala.io.Source
 import edu.umass.cs.iesl.scalacommons.collections.FiniteMutableQueue
 import scala.collection.immutable.Queue
 import scalax.file.defaultfs.DefaultPath
+import java.nio.file.Files
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -463,10 +464,26 @@ trait ReadableStringOrManagedFile {
 class LocalWriteableStringOrManagedFile(fg: ManagedFileStore, maxStringLength: Int = 1000) extends ReadableStringOrManagedFile with Logging {
   implicit val codec = scalax.io.Codec.UTF8
   
-  
   var current: Either[StringBuffer, (ManagedPath, Output)] = Left(new StringBuffer())
   var count = 0
 
+  def write(f: Path) = synchronized {
+    if((f.size.get + count) < maxStringLength) {
+      val lines = Resource.fromFile(f.fileOption.get).lines()
+      logger.debug(s"Copying ${lines.size} lines.")
+      for(s <- lines) { write(s+"\n") }
+    }
+    else if(count == 0) {
+      // just move the file
+      val logId = fg.newId
+      val p = fg.getOrCreate(logId) 
+      f.moveTo(p)
+    }
+    else {
+      throw new UnsupportedOperationException("Not supported: appending a long file to an existing buffer")
+    }
+  }
+  
   def write(s: String) = synchronized {
     current.fold(
       sb => {
