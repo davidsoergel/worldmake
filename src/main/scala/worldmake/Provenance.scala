@@ -468,7 +468,8 @@ class LocalWriteableStringOrManagedFile(fg: ManagedFileStore, maxStringLength: I
   var count = 0
 
   def write(f: Path) : Unit = synchronized {
-    if((f.size.get + count) < maxStringLength) {
+    if(!f.exists) { }
+    else if((f.size.get + count) < maxStringLength) {
       val lines = Resource.fromFile(f.fileOption.get).lines()
       logger.debug(s"Copying ${lines.size} lines.")
       for(s <- lines) { write(s+"\n") }
