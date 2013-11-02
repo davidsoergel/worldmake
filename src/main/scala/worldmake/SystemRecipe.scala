@@ -4,7 +4,7 @@ package worldmake
 import com.typesafe.scalalogging.slf4j.Logging
 import java.util.UUID
 import worldmake.storage.{ManagedPathArtifact, Storage, Identifier}
-import scala.collection.GenMap
+import scala.collection.{GenSet, GenMap}
 import scala.concurrent.{ExecutionContext, Future}
 
 import ExecutionContext.Implicits.global
@@ -68,7 +68,7 @@ class DumpToFileRecipe(val s: Recipe[Seq[String]]) extends DerivableRecipe[Manag
 
   lazy val longDescription = "filedump(" + s.shortId + "): " + s.longDescription
 
-  lazy val dependencies = Set(s)
+  lazy val dependencies : GenSet[Recipe[_]] = Set(s)
 
   def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
     val pr = BlockedProvenance(Identifier[Provenance[ManagedPath]](UUID.randomUUID().toString), recipeId)
@@ -82,7 +82,7 @@ class DumpToFileRecipe(val s: Recipe[Seq[String]]) extends DerivableRecipe[Manag
         val outputId: Identifier[ManagedPath] = Storage.fileStore.newId
         val outputPath: Path = Storage.fileStore.getOrCreate(outputId)
         val out = Resource.fromFile(outputPath.toRealPath().path)
-        out.write(reifiedString.output.value)
+        reifiedString.output.value.map(out.write)
         
         val now = new DateTime()
         InstantCompletedProvenance[ManagedPath](
@@ -101,7 +101,7 @@ class DumpToFileRecipe(val s: Recipe[Seq[String]]) extends DerivableRecipe[Manag
           ManagedPathArtifact(ManagedPath(outputId)))
       }
     }
-
+  result
   }
 
 }
