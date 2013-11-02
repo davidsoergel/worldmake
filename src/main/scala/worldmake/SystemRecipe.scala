@@ -3,17 +3,18 @@ package worldmake
 
 import com.typesafe.scalalogging.slf4j.Logging
 import java.util.UUID
-import worldmake.storage.Identifier
+import worldmake.storage.{ManagedPathArtifact, Storage, Identifier}
 import scala.collection.GenMap
 import scala.concurrent.{ExecutionContext, Future}
 
 import ExecutionContext.Implicits.global
-import scala.collection.immutable.Queue
 import worldmake.cookingstrategy.CookingStrategy
+import scalax.io.Resource
+import org.joda.time.DateTime
 
 //import java.lang.ProcessBuilder.Redirect
 
-import WorldMakeConfig._
+import worldmake.WorldMakeConfig._
 
 //import scala.collection.JavaConversions._
 
@@ -38,27 +39,72 @@ object SystemRecipe {
 
 class SystemRecipe(val script: Recipe[String], namedDependencies: GenMap[String, Recipe[_]]) extends DerivableRecipe[ManagedPath] with Logging {
 
-  lazy val  recipeId = {
+  lazy val recipeId = {
     val dependencyInfos: Seq[String] = namedDependencies.par.map({
       case (k, v) => k.toString + v.recipeId.s
     }).toSeq.seq.sorted
     Identifier[Recipe[ManagedPath]](WMHashHex(script.recipeId.s + dependencyInfos.mkString("")))
   }
 
-  lazy val   longDescription = "EXECUTE(" + script.shortId + "): " + script.longDescription
+  lazy val longDescription = "EXECUTE(" + script.shortId + "): " + script.longDescription
 
-  lazy val  dependencies = namedDependencies.values.toSet + script
+  lazy val dependencies = namedDependencies.values.toSet + script
 
   def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
     val pr = BlockedProvenance(Identifier[Provenance[ManagedPath]](UUID.randomUUID().toString), recipeId)
     val reifiedScriptF = upstreamStrategy.cookOne(script)
-    val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k => FutureUtils.futurePair(upstreamStrategy,(k, namedDependencies(k))))
+    val reifiedDependenciesF = Future.traverse(namedDependencies.keys.seq)(k => FutureUtils.futurePair(upstreamStrategy, (k, namedDependencies(k))))
     val result = upstreamStrategy.systemExecution(pr, reifiedScriptF, reifiedDependenciesF)
     result
   }
 
 }
 
+class DumpToFileRecipe(val s: Recipe[Seq[String]]) extends DerivableRecipe[ManagedPath] with Logging {
+
+  lazy val recipeId = {
+    Identifier[Recipe[ManagedPath]](WMHashHex("filedump(" + s.recipeId.s + ")"))
+  }
+
+  lazy val longDescription = "filedump(" + s.shortId + "): " + s.longDescription
+
+  lazy val dependencies = Set(s)
+
+  def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
+    val pr = BlockedProvenance(Identifier[Provenance[ManagedPath]](UUID.randomUUID().toString), recipeId)
+    val reifiedStringF = upstreamStrategy.cookOne(s)
+    val result = {
+      for (reifiedString <- reifiedStringF
+      ) yield {
+
+        // see also LocalExecutionStrategy.
+        // this dump must be local because the data to be written is just in this JVM.
+        val outputId: Identifier[ManagedPath] = Storage.fileStore.newId
+        val outputPath: Path = Storage.fileStore.getOrCreate(outputId)
+        val out = Resource.fromFile(outputPath.toRealPath().path)
+        out.write(reifiedString.output.value)
+        
+        val now = new DateTime()
+        InstantCompletedProvenance[ManagedPath](
+          Identifier[Provenance[ManagedPath]](UUID.randomUUID().toString),
+          recipeId,
+          Set(reifiedString),
+          Map.empty,
+          now,
+          now,
+          now,
+          new MemoryWithinJvmRunningInfo,
+          now,
+          0,
+          None,
+          Map.empty,
+          ManagedPathArtifact(ManagedPath(outputId)))
+      }
+    }
+
+  }
+
+}
 
 object FutureUtils {
   //def futurePair[T](kv:(String,Derivation[T]))(implicit strategy: FutureDerivationStrategy):Future[(String,Successful[T])] = kv._2.deriveFuture.map(v=>kv._1->v)
