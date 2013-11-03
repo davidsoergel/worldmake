@@ -60,7 +60,7 @@ class SystemRecipe(val script: Recipe[String], namedDependencies: GenMap[String,
 
 }
 
-class DumpToFileRecipe(val s: Recipe[GenTraversable[String]]) extends DerivableRecipe[ManagedPath] with Logging {
+class DumpToFileRecipe(s: Recipe[GenTraversable[String]], after:String) extends DerivableRecipe[ManagedPath] with Logging {
 
   lazy val recipeId = {
     Identifier[Recipe[ManagedPath]](WMHashHex("filedump(" + s.recipeId.s + ")"))
@@ -83,7 +83,7 @@ class DumpToFileRecipe(val s: Recipe[GenTraversable[String]]) extends DerivableR
         val outputPath: Path = Storage.fileStore.getOrCreate(outputId)
         val out = Resource.fromFile(outputPath.toRealPath().path)
         val ss: GenTraversable[String] = reifiedString.output.value
-        ss.map(out.write)
+        ss.map(x=>{out.write(x); out.write(after); })
         
         val now = new DateTime()
         InstantCompletedProvenance[ManagedPath](
