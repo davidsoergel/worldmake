@@ -6,6 +6,7 @@ import scala.sys.process._
 import com.typesafe.scalalogging.slf4j.Logging
 import worldmake._
 import ConstantRecipe._
+import java.io.IOException
 
 /**
   * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -55,11 +56,16 @@ object GitWorkspaces extends VcsWorkspaces with Logging {
      logger.debug("Finding latest versions in " + localrepo.toAbsolute.path)
      val pb = Process(Seq("git", "branch", "-v"), localrepo.fileOption) //, environment.toArray: _*)
  
+     try {
      pb.lines.map(line => {
        val gitBranchesToChangesetNumber(branch, changeset, logmessage) = line
        logger.debug(line + "  ==>>  " + branch + " -> " + changeset )
        branch -> changeset
      }).toMap
+     }
+     catch {
+       case e: IOException => Map.empty
+     }
    }
 
 }
