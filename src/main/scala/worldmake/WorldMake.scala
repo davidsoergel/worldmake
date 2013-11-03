@@ -180,7 +180,7 @@ object WorldMake extends Logging {
 
   def main(worldF: WorldFactory, args: Array[String]) {
 
-    StorageSetter(new CasbahStorage(MongoConnection(WorldMakeConfig.mongoHost), WorldMakeConfig.mongoDbName, new FilesystemManagedFileStore(Path.fromString(WorldMakeConfig.fileStoreName)), new FilesystemManagedFileStore(Path.fromString(WorldMakeConfig.logStoreName))))
+    StorageSetter(new CasbahStorage(MongoConnection(WorldMakeConfig.mongoHost, WorldMakeConfig.mongoPort), WorldMakeConfig.mongoDbName, new FilesystemManagedFileStore(Path.fromString(WorldMakeConfig.fileStoreName)), new FilesystemManagedFileStore(Path.fromString(WorldMakeConfig.logStoreName))))
     val world = worldF.get
 
     val exitcode: Int = try {
@@ -271,6 +271,7 @@ object WorldMakeConfig {
   //val symbolTable = new Properties("worldmake.symbols")
 
   val mongoHost = conf.getString("mongoHost")
+  val mongoPort = conf.getInt("mongoPort")
   val mongoDbName = conf.getString("mongoDbName")
 
 
