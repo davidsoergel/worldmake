@@ -72,9 +72,9 @@ class DumpToFileRecipe(val s: Recipe[Seq[String]]) extends DerivableRecipe[Manag
 
   def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
     val pr = BlockedProvenance(Identifier[Provenance[ManagedPath]](UUID.randomUUID().toString), recipeId)
-    val reifiedStringF = upstreamStrategy.cookOne(s)
+    val reifiedStringF: Future[Successful[Seq[String]]] = upstreamStrategy.cookOne(s)
     val result = {
-      for (reifiedString <- reifiedStringF
+      for (reifiedString: Successful[Seq[String]] <- reifiedStringF
       ) yield {
 
         // see also LocalExecutionStrategy.
@@ -82,7 +82,8 @@ class DumpToFileRecipe(val s: Recipe[Seq[String]]) extends DerivableRecipe[Manag
         val outputId: Identifier[ManagedPath] = Storage.fileStore.newId
         val outputPath: Path = Storage.fileStore.getOrCreate(outputId)
         val out = Resource.fromFile(outputPath.toRealPath().path)
-        reifiedString.output.value.map(out.write)
+        val ss: Seq[String] = reifiedString.output.value
+        ss.map(out.write)
         
         val now = new DateTime()
         InstantCompletedProvenance[ManagedPath](
