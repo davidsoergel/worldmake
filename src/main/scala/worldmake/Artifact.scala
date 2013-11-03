@@ -94,9 +94,18 @@ object Artifact {
     case d:Double => DoubleArtifact(d)
     case pid:ManagedPath => ManagedPathArtifact(pid)
     case p:ExternalPath => ExternalPathArtifact(p)
-    case t:GenTraversable[T] => new MemoryGenTraversableArtifact[T](t.map(Artifact(_)).toSeq)
+      
+    // Careful: we request Artifact[Seq[T]] but get Artifact[Seq[Artifact[T]]
+    case t:GenTraversable[_] => {
+      val genSeq: GenSeq[Artifact[Any]] = t.map(Artifact(_)).toSeq
+      new MemoryGenTraversableArtifact[Any](genSeq)
+    }
     case _ => throw new IllegalArtifactException(s"${v.getClass} : ${v.toString}")
   }).asInstanceOf[Artifact[T]]
+  
+  // reverse the extra level of Artifact wrapping in the GenTraversable case above.
+  // This is not quite right; where does it belong??
+  def unpackTraversable[T](xs : GenTraversable[Artifact[T]]) : GenTraversable[T] = xs.map(_.value)
 }
 
 object IllegalArtifactException {
@@ -192,22 +201,22 @@ class MemoryDoubleArtifact(s: Double) extends MemoryArtifact[Double](s) with Dou
 /*object GenTraversableArtifact {
   def resultType = "Traversable"
 }*/
-trait GenTraversableArtifact[T] extends Artifact[GenTraversable[Artifact[T]]] {
-  //def artifacts: GenTraversable[Artifact[T]]
-  //lazy val value = artifacts.map(_.value)
+trait GenTraversableArtifact[T] extends Artifact[GenTraversable[T]] {
+  def artifacts: GenTraversable[Artifact[T]]
+  lazy val value = artifacts.map(_.value)
 
   override def toString = value.map(_.toString).mkString(", ")
   
-  override lazy val environmentString = value.map(_.environmentString).mkString(" ")
+  override lazy val environmentString = artifacts.map(_.environmentString).mkString(" ")
 
-  override def constantId = Identifier[Artifact[GenTraversable[Artifact[T]]]](WMHashHex(value.map(_.constantId.s).mkString(", "))) //contentHash.get)
+  override def constantId = Identifier[Artifact[GenTraversable[T]]](WMHashHex(artifacts.map(_.constantId.s).mkString(", "))) //contentHash.get)
 
 }
 
-class MemoryGenTraversableArtifact[T](val value: GenTraversable[Artifact[T]]) extends GenTraversableArtifact[T] {
+class MemoryGenTraversableArtifact[T](val artifacts: GenTraversable[Artifact[T]]) extends GenTraversableArtifact[T] {
   //def provenanceId = Identifier[Artifact[Traversable[T]]](UUID.randomUUID().toString)
 
-  lazy val contentHashBytes = Some(WMHash(value.flatMap(_.contentHash).mkString("")))
+  lazy val contentHashBytes = Some(WMHash(artifacts.flatMap(_.contentHash).mkString("")))
 
 
   //override def environmentString = value.map(_.environmentString).mkString(" ")

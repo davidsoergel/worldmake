@@ -336,7 +336,7 @@ result
 
   }
 
-  class TraversableRecipe[T](val xs: GenTraversable[Recipe[T]]) extends DerivableRecipe[GenTraversable[Artifact[T]]] with Logging {
+  class TraversableRecipe[T](val xs: GenTraversable[Recipe[T]]) extends DerivableRecipe[GenTraversable[T]] with Logging {
     /*def derive = {
       val upstream = xs.par.map(_.resolveOne)
       SuccessfulProvenance[GenTraversable[T]](Identifier[Provenance[GenTraversable[T]]](UUID.randomUUID().toString),
@@ -385,21 +385,21 @@ result
       pr
     }*/
 
-    def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[CompletedProvenance[GenTraversable[Artifact[T]]]] = {
+    def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[CompletedProvenance[GenTraversable[T]]] = {
 
-      val pr = BlockedProvenance(Identifier[Provenance[GenTraversable[Artifact[T]]]](UUID.randomUUID().toString), recipeId)
-      val upstreamFF = xs.map(upstreamStrategy.cookOne)
-      val upstreamF = Future.sequence(upstreamFF.seq)
-      val result: Future[CompletedProvenance[GenTraversable[Artifact[T]]]] = upstreamF.map(upstream => deriveWithArg(pr.pending(upstream.toSet, Map.empty), upstream))
+      val pr = BlockedProvenance[GenTraversable[T]](Identifier[Provenance[GenTraversable[T]]](UUID.randomUUID().toString), recipeId)
+      val upstreamFF: GenTraversable[Future[Successful[T]]] = xs.map(upstreamStrategy.cookOne)
+      val upstreamF: Future[Traversable[Successful[T]]] = Future.sequence(upstreamFF.seq)
+      val result: Future[CompletedProvenance[GenTraversable[T]]] = upstreamF.map(upstream => deriveWithArg(pr.pending(upstream.toSet, Map.empty), upstream))
       result
     }
 
 
-    private def deriveWithArg(pr: PendingProvenance[GenTraversable[Artifact[T]]], a1: Traversable[Successful[T]]): CompletedProvenance[GenTraversable[Artifact[T]]] = {
+    private def deriveWithArg(pr: PendingProvenance[GenTraversable[T]], a1: Traversable[Successful[T]]): CompletedProvenance[GenTraversable[T]] = {
       val prs = pr.running(new MemoryWithinJvmRunningInfo)
       try {
         val artifact: GenTraversableArtifact[T] = new MemoryGenTraversableArtifact(a1.map(_.output).toSeq) //Artifact[GenTraversable[T]](f.evaluate(a1.output.value))
-        val result: CompletedProvenance[GenTraversable[Artifact[T]]] = prs.completed(0, None, Map.empty, artifact)
+        val result: CompletedProvenance[GenTraversable[T]] = prs.completed(0, None, Map.empty, artifact)
         result
       }
       catch {
@@ -502,18 +502,18 @@ result
     })
 
 
-    def children(): Recipe[GenTraversable[Artifact[ManagedPath]]] = new DerivableRecipe[GenTraversable[Artifact[ManagedPath]]] {
+    def children(): Recipe[GenTraversable[ManagedPath]] = new DerivableRecipe[GenTraversable[ManagedPath]] {
 
       def dependencies = Set(underlying)
 
-      def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[GenTraversable[Artifact[ManagedPath]]]] = ManagedPathRecipe.this.deriveFuture.map((r: Successful[ManagedPath]) => {
+      def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[GenTraversable[ManagedPath]]] = ManagedPathRecipe.this.deriveFuture.map((r: Successful[ManagedPath]) => {
         val m = r.output.value
         val cpaths = m.path.children().toSet.map((c: Path) => m.child(c.name)) //ManagedPath(m.id, m.relative / c.path))
         val now = new DateTime()
         val cpathartifacts: GenTraversable[Artifact[ManagedPath]] = cpaths.map(ManagedPathArtifact(_)).toSeq
 
-        InstantCompletedProvenance[GenTraversable[Artifact[ManagedPath]]](
-          Identifier[Provenance[GenTraversable[Artifact[ManagedPath]]]](UUID.randomUUID().toString),
+        InstantCompletedProvenance[GenTraversable[ManagedPath]](
+          Identifier[Provenance[GenTraversable[ManagedPath]]](UUID.randomUUID().toString),
           recipeId,
           Set(r),
           Map.empty,
@@ -533,7 +533,7 @@ result
       def longDescription = ManagedPathRecipe.this.longDescription + "/*"
 
       // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
-      def recipeId = Identifier[Recipe[GenTraversable[Artifact[ManagedPath]]]](WMHashHex(ManagedPathRecipe.this.recipeId.s + "/*"))
+      def recipeId = Identifier[Recipe[GenTraversable[ManagedPath]]](WMHashHex(ManagedPathRecipe.this.recipeId.s + "/*"))
     }
 
 
@@ -607,11 +607,11 @@ result
     })
 
 
-    def children(): Recipe[GenTraversable[Artifact[ExternalPath]]] = new DerivableRecipe[GenTraversable[Artifact[ExternalPath]]] {
+    def children(): Recipe[GenTraversable[ExternalPath]] = new DerivableRecipe[GenTraversable[ExternalPath]] {
 
       def dependencies = Set(underlying)
 
-      def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[GenTraversable[Artifact[ExternalPath]]]] = ExternalPathRecipe.this.deriveFuture.map((r: Successful[ExternalPath]) => {
+      def deriveFuture(implicit upstreamStrategy: CookingStrategy): Future[Successful[GenTraversable[ExternalPath]]] = ExternalPathRecipe.this.deriveFuture.map((r: Successful[ExternalPath]) => {
 
         val now = new DateTime()
 
@@ -627,8 +627,8 @@ result
           val cpathartifacts: GenTraversable[Artifact[ExternalPath]] = cpaths.map(ExternalPathArtifact(_))
           
           logger.debug(s"Found ${cpathartifacts.size} children of ${m.path}.")
-          InstantCompletedProvenance[GenTraversable[Artifact[ExternalPath]]](
-            Identifier[Provenance[GenTraversable[Artifact[ExternalPath]]]](UUID.randomUUID().toString),
+          InstantCompletedProvenance[GenTraversable[ExternalPath]](
+            Identifier[Provenance[GenTraversable[ExternalPath]]](UUID.randomUUID().toString),
             recipeId,
             Set(r),
             Map.empty,
@@ -646,8 +646,8 @@ result
         }
         catch {
           case t: Throwable => {
-            val prf = InstantFailedProvenance[GenTraversable[Artifact[ExternalPath]]](
-              Identifier[Provenance[GenTraversable[Artifact[ExternalPath]]]](UUID.randomUUID().toString),
+            val prf = InstantFailedProvenance[GenTraversable[ExternalPath]](
+              Identifier[Provenance[GenTraversable[ExternalPath]]](UUID.randomUUID().toString),
               recipeId,
               Set(r),
               Map.empty,
@@ -668,7 +668,7 @@ result
       def longDescription = ExternalPathRecipe.this.longDescription + "/*"
 
       // could be a complete serialization, or a UUID for an atomic artifact, or a hash of dependency IDs, etc.
-      def recipeId = Identifier[Recipe[GenTraversable[Artifact[ExternalPath]]]](WMHashHex(ExternalPathRecipe.this.recipeId.s + "/*"))
+      def recipeId = Identifier[Recipe[GenTraversable[ExternalPath]]](WMHashHex(ExternalPathRecipe.this.recipeId.s + "/*"))
     }
 
 

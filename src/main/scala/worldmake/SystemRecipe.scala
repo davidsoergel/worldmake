@@ -4,7 +4,7 @@ package worldmake
 import com.typesafe.scalalogging.slf4j.Logging
 import java.util.UUID
 import worldmake.storage.{ManagedPathArtifact, Storage, Identifier}
-import scala.collection.{GenSet, GenMap}
+import scala.collection.{GenTraversable, GenSet, GenMap}
 import scala.concurrent.{ExecutionContext, Future}
 
 import ExecutionContext.Implicits.global
@@ -60,7 +60,7 @@ class SystemRecipe(val script: Recipe[String], namedDependencies: GenMap[String,
 
 }
 
-class DumpToFileRecipe(val s: Recipe[Seq[String]]) extends DerivableRecipe[ManagedPath] with Logging {
+class DumpToFileRecipe(val s: Recipe[GenTraversable[String]]) extends DerivableRecipe[ManagedPath] with Logging {
 
   lazy val recipeId = {
     Identifier[Recipe[ManagedPath]](WMHashHex("filedump(" + s.recipeId.s + ")"))
@@ -72,9 +72,9 @@ class DumpToFileRecipe(val s: Recipe[Seq[String]]) extends DerivableRecipe[Manag
 
   def deriveFuture(implicit upstreamStrategy: CookingStrategy) = {
     val pr = BlockedProvenance(Identifier[Provenance[ManagedPath]](UUID.randomUUID().toString), recipeId)
-    val reifiedStringF: Future[Successful[Seq[String]]] = upstreamStrategy.cookOne(s)
+    val reifiedStringF: Future[Successful[GenTraversable[String]]] = upstreamStrategy.cookOne(s)
     val result = {
-      for (reifiedString: Successful[Seq[String]] <- reifiedStringF
+      for (reifiedString: Successful[GenTraversable[String]] <- reifiedStringF
       ) yield {
 
         // see also LocalExecutionStrategy.
@@ -82,7 +82,7 @@ class DumpToFileRecipe(val s: Recipe[Seq[String]]) extends DerivableRecipe[Manag
         val outputId: Identifier[ManagedPath] = Storage.fileStore.newId
         val outputPath: Path = Storage.fileStore.getOrCreate(outputId)
         val out = Resource.fromFile(outputPath.toRealPath().path)
-        val ss: Seq[String] = reifiedString.output.value
+        val ss: GenTraversable[String] = reifiedString.output.value
         ss.map(out.write)
         
         val now = new DateTime()
