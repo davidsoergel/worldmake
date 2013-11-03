@@ -163,13 +163,13 @@ class MongoManagedPathArtifact(val dbo: MongoDBObject) extends MongoArtifact[Man
 object MongoGenTraversableArtifact extends MongoSerializer[GenTraversableArtifact[_], MongoGenTraversableArtifact[_]]("t", new MongoGenTraversableArtifact(_)) {
   def addFields(e: GenTraversableArtifact[_], builder: mutable.Builder[(String, Any), Imports.DBObject]) {
     MongoArtifact.addFields(e, builder)
-    builder += "value" -> e.artifacts.map(x=>MongoArtifact.artifactToDb(x).dbo)
+    builder += "artifacts" -> e.artifacts.map(x=>MongoArtifact.artifactToDb(x).dbo)
   }
 
 }
 
 class MongoGenTraversableArtifact[T](val dbo: MongoDBObject) extends MongoArtifact[GenTraversable[T]] with GenTraversableArtifact[T] with MongoWrapper {
-  override def artifacts = dbo.as[MongoDBList]("value").map(a => MongoArtifact.artifactFromDb(new MongoDBObject(a.asInstanceOf[BasicDBObject])).asInstanceOf[Artifact[T]])
+  override def artifacts = dbo.as[MongoDBList]("artifacts").map(a => MongoArtifact.artifactFromDb(new MongoDBObject(a.asInstanceOf[BasicDBObject])).asInstanceOf[Artifact[T]])
 
   //override def environmentString = value.map(_.environmentString).mkString(" ")  // unclear why the super version doesn't work; looks like a trait order issue
 }
