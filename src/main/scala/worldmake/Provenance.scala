@@ -108,13 +108,7 @@ private class MemoryConstantProvenance[T](val output: Artifact[T]) extends Const
 
 sealed trait DerivedProvenance[+T] extends Provenance[T] {
 
-  // Set is not covariant?!?  OK, just use Seq instead for now
-  //def derivedFromAll : Seq[Provenance[_]]
-  /*
-    override lazy val queue: Queue[Provenance[_]] = {
-      val deps = derivedFromAll.flatMap(_.queue)
-      Queue[Provenance[_]](deps: _*).distinct.enqueue(this)
-    }*/
+ 
 }
 
 // enforce lifecycle state machine with types
@@ -138,7 +132,13 @@ sealed trait DependenciesBoundProvenance[+T] extends DerivedProvenance[T] {
 
   //override 
   def derivedFromAll: Seq[Provenance[_]] = (derivedFromUnnamed ++ derivedFromNamed.values).seq.toSeq
+  // Set is not covariant?!?  OK, just use Seq instead for now
+  //def derivedFromAll : Seq[Provenance[_]]
 
+  override lazy val queue: Queue[Provenance[_]] = {
+    val deps = derivedFromAll.flatMap(_.queue)
+    Queue[Provenance[_]](deps: _*).distinct.enqueue(this)
+  }
 
 }
 

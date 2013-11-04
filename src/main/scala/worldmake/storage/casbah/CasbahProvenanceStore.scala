@@ -6,6 +6,7 @@ import worldmake.storage.{ProvenanceStoreStatus, Identifier, ProvenanceStore}
 
 import com.mongodb.casbah.query.Imports.IntOk
 import com.typesafe.scalalogging.slf4j.Logging
+import com.mongodb.MongoInterruptedException
 
 /**
  * @author <a href="mailto:dev@davidsoergel.com">David Soergel</a>
@@ -123,7 +124,8 @@ class CasbahProvenanceStore(conn: MongoConnection,
   override def getDerivedFrom[T](id: Identifier[Recipe[T]]): Set[Provenance[T]] = {
     logger.info(s"Looking for provenances derived from recipe ${id.s}" )
     val r = mongoColl.find(MongoDBObject("recipeId" -> id.s))
-    val result = r.map(provenanceFromDb[T](_)).toSet
+    // todo danger of stack overflow or infinite loop; there must be a better way
+    val result = try { r.map(provenanceFromDb[T](_)).toSet } catch { case e : MongoInterruptedException => {Thread.sleep(1); getDerivedFrom(id)}}
     logger.info(s"Found ${result.size} provenances for recipe ${id.s}")
     result
   }

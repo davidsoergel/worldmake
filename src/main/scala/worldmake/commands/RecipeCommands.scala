@@ -52,7 +52,7 @@ class RecipeCommands[T](world: World, strategy: LifecycleAwareCookingStrategy, o
     result onComplete {
       case Success(x) => {
         out.write("Done: " + x.provenanceId)
-        out.write(x.output.value.toString)
+        out.write("Value: " + x.output.value.toString)
       }
       case Failure(t) => {
         logger.error("Failed to make recipe.", t)
