@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen"/>
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygments-friendly.css" media="screen"/>
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print"/>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <title>WorldMake</title>
+</head>
+
+<body>
+<div class='inner'>
+    <header>
+        <h1>WorldMake</h1>
+        <span id='tagline'>
+            Easy Collaborative Reproducible Computing.
+        </span>
+    </header>
+</div>
+<div class='inner'>
+    <div id='content-wrapper'>
+        <aside class='sidebar'>
+            <nav>
+                <ul>
+                    <li><a href="/" class="{{ page.about }}">About</a></li>
+                    <li>
+                        <a href="/install.html" class="">Documentation</a>
+                        <ul class='expanded'>
+                            <li><a href="/install.html" class="{{ page.install }}">Installation</a></li>
+                            <li><a href="/concepts.html" class="{{ page.concepts }}">Concepts</a></li>
+                            <li><a href="/recipes.html" class="{{ page.recipes }}">Recipes</a></li>
+                            <li><a href="/worlds.html" class="{{ page.worlds }}">Worlds</a></li>
+                            <li><a href="/other.html" class="{{ page.other }}">Misc</a></li>
+                            <li><a href="/relatedprojects.html" class="{{ page.related }}">Related Projects</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="https://github.com/davidsoergel/worldmake/issues" class="">Discuss</a></li>
+                </ul>
+            </nav>
+            <hr class='sidebar'>
+            <div>
+                <section id="downloads" class="clearfix">
+                    <a href="https://github.com/davidsoergel/worldmake/tarball/master" id="download-tar-gz"
+                       class="button"><span>Download .tar.gz</span></a>
+                    <a href="https://github.com/davidsoergel/worldmake" id="view-on-github"
+                       class="button"><span>View on GitHub</span></a>
+                </section>
+            </div>
+        </aside>
+
+        <div id='content'>
+            <div id='main'>
+
+                {{ content }}
+
+
+            </div>
+        </div>
+        <footer>
+            <div class='site-source'>
+                Site design adapted with appreciation from the <a href="https://github.com/github/gitscm-next">Git documentation</a>.<br>
+                This <a href="https://github.com/davidsoergel/worldmake/blob/master/README.md#license">open sourced</a> site
+                is <a href="https://github.com/davidsoergel/worldmake">hosted on GitHub.</a><br>
+                Patches, suggestions, and comments are welcome.
+            </div>
+            <div class='sfc-member'>
+                WorldMake is maintained by <a href="https://github.com/davidsoergel">David Soergel</a>.<br>
+            </div>
+        </footer>
+
+
+    </div>
+</div>
+</body>
+</html>
