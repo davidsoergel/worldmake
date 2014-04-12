@@ -45,7 +45,8 @@ External Paths
 
 ```scala
 val inputFileName : Recipe[String] = ...
-val inputPath: TypedPathRecipe[BasicTextFile] = RecipeWrapper.externalPathFromString(inputFileName);
+val inputPath: TypedPathRecipe[BasicTextFile] = 
+  RecipeWrapper.externalPathFromString(inputFileName);
 ```
 
 
@@ -57,7 +58,9 @@ A *System Derivation* is a `Recipe[Path]` that can be easily specified using the
 A common simple case is to construct a single command line, as follows:
 
 ```scala
-  lazy val myProgramOutput : Recipe[Path] = sys"""${myProgram} --foo=${theFooArgument} ${barCount} > $${out}"""
+  lazy val myProgramOutput : Recipe[Path] = sys"""
+    | ${myProgram} --foo=${theFooArgument} ${barCount} > $${out}
+    """
 ```
 
 Note that the single `$` indicates a *Scala* variable containing a `Recipe` to be interpolated, whereas the double `$$` is an escape sequence allowing the generated shell script to contain `${out}`, so that the *shell* variable by that name can be used at runtime.
