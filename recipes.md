@@ -24,7 +24,7 @@ val gravitationalConstant : Recipe[Double] = 9.81
 ```
 
 
-Interpolated String derivations
+Interpolated String Derivations
 --------------------------------
 
 The Scala `s` [string interpolator](http://docs.scala-lang.org/overviews/core/string-interpolation.html) is a convenient way to compose new Strings from other Strings.  Worldmake leverages this mechanism, providing a custom `ds` interpolator to construct a new `Recipe[String]` from a set of other `Recipe`s.
