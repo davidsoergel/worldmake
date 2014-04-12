@@ -24,12 +24,10 @@ val gravitationalConstant : Recipe[Double] = 9.81
 ```
 
 
-String interpolation
---------------------
+Interpolated String derivations
+--------------------------------
 
-The Scala `s` [string interpolator](http://docs.scala-lang.org/overviews/core/string-interpolation.html) is a convenient way to compose new Strings from other Strings.
-
-Worldmake leverages this mechanism, providing a custom `ds` interpolator to construct a new `Recipe[String]` from a set of other `Recipe`s.
+The Scala `s` [string interpolator](http://docs.scala-lang.org/overviews/core/string-interpolation.html) is a convenient way to compose new Strings from other Strings.  Worldmake leverages this mechanism, providing a custom `ds` interpolator to construct a new `Recipe[String]` from a set of other `Recipe`s.
 
 ```scala
 val inputDirectory : Recipe[String] = ...
@@ -50,7 +48,7 @@ val inputPath: TypedPathRecipe[BasicTextFile] =
 ```
 
 
-System derivations
+System Derivations
 ------------------
 
 A *System Derivation* is a `Recipe[Path]` that can be easily specified using the custom `sys` string interpolator.  Like a `ds` interpolation, the interpolated variables must be upstream `Recipe`s.  The interpolated string forms a shell script which is executed in a temporary working directory.  An environment variable named `out` is provided, pointing to a unique filesystem path where output may be written.  This path is the result of cooking the recipe.
@@ -85,7 +83,7 @@ Sequences (really, GenTraversables)
 -----------------------------------
 
 ```scala
-import worldbake.TraversableRecipe._
+import worldmake.TraversableRecipe._
 ```
 
 provides an implicit conversion from `GenTraversable[Recipe[T]]` to `Recipe[GenTraversable[Artifact[T]]]`.  Thus, if you write a recipe that requires a list of inputs, you can feed a list of *Recipes* for those inputs, which will be executed *concurrently* before the list is assembled from the outputs.
