@@ -13,7 +13,7 @@ A recipe can be thought of simply as a pure function from some set of inputs to 
 
 A recipe may be cooked many times, each time perhaps with the same ingredients or perhaps with ingredients acquired from different sources.
 
-A recipe is uniquely identified by the SHA-256 hash of its textual representation, combined with the hashes of Recipes on which it depends.  Thus, when an change is made to an Recipe, all Recipes that depend on it are considered to have changed as well.
+A recipe is uniquely identified by the SHA-256 hash of its textual representation, combined with the hashes of Recipes on which it depends.  Thus, when an change is made to a Recipe, all Recipes that depend on it are considered to have changed as well.
 
 
 Provenances
