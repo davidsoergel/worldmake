@@ -3,6 +3,8 @@ layout: default
 commands: active
 ---
 
+It is safe to run multiple `wm` processes simultaneously; in particular, you can use `wm queue` in a second window to monitor progress of a `wm make` run.
+
 Global Commands
 ===============
 
@@ -14,24 +16,24 @@ Global Commands
 Recipe Commands
 ===============
 
-**wm make <target>**: Build the named target and report the result.
+**wm make &lt;target&gt;**: Build the named target and report the result.
 
-**wm show <target>**: Display some information about the target.
+**wm show &lt;target&gt;**: Display some information about the target.
 
-**wm deps <target>**: Show immediate dependencies of the target.
+**wm deps &lt;target&gt;**: Show immediate dependencies of the target.
 
-**wm queue <target>**: Show the partial-order execution queue for the target (including job status).
+**wm queue &lt;target&gt;**: Show the partial-order execution queue for the target (including job status).
 
 
 Provenance Commands
 ===================
 
-**wm show <provenance ID>**: Display some information about the Provenance.
+**wm show &lt;provenance ID&gt;**: Display some information about the Provenance.
 
-**wm deps <provenance ID>**: Show immediate dependencies of the Provenance.
+**wm deps &lt;provenance ID&gt;**: Show immediate dependencies of the Provenance.
 
-**wm queue <provenance ID>**: Show the partial-order execution queue for the Provenance (including job status).
+**wm queue &lt;provenance ID&gt;**: Show the partial-order execution queue for the Provenance (including job status).
 
-**wm log <provenance ID>**: Show head and tail of a run log
+**wm log &lt;provenance ID&gt;**: Show head and tail of a run log
 
-**wm logfull <provenance ID>**: Show full log of a run
+**wm logfull &lt;provenance ID&gt;**: Show full log of a run
