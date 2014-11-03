@@ -27,7 +27,7 @@ The most important Recipes to name are those specifying the final outputs of you
     }
 ```
 
-Then to generate the plot (or just , can then write
+Then to generate the plot (or just get a reference to the previously generated plot, if nothing has changed), you can then write
 
 ```bash
 wm make soergel.papers.2013.proofOfPEqualNP.figure4

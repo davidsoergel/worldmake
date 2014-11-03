@@ -1,6 +1,6 @@
 ---
 layout: default
-install: other
+other: active
 ---
 
 
